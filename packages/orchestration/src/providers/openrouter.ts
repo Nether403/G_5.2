@@ -46,11 +46,12 @@ function getApiKey(): string {
 export async function openRouterGenerate(
   model: string,
   input: GenerateTextInput,
-  providerName: string
+  providerName: string,
+  ignoreProviders?: string[]
 ): Promise<GenerateTextOutput> {
   const apiKey = getApiKey();
 
-  const body = {
+  const body: Record<string, unknown> = {
     model,
     messages: [
       { role: "system", content: input.system },
@@ -58,6 +59,9 @@ export async function openRouterGenerate(
     ],
     ...(input.temperature !== undefined
       ? { temperature: input.temperature }
+      : {}),
+    ...(ignoreProviders && ignoreProviders.length > 0
+      ? { provider: { ignore: ignoreProviders } }
       : {}),
   };
 
