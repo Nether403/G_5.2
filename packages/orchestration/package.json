@@ -1,0 +1,16 @@
+{
+  "name": "@g52/orchestration",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Provider-agnostic orchestration pipeline for G_5.2",
+  "main": "./src/index.ts",
+  "scripts": {
+    "dev": "tsx src/dev/smokeTest.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "yaml": "^2.5.0",
+    "zod": "^3.23.0"
+  }
+}
