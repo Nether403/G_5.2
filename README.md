@@ -50,9 +50,7 @@ G_5.2/
 
 ## Related projects
 
-G_5.2 is one of two projects that grew from the original G_5.0/P-E-S experiment.
-
-The other is [The Witness Protocol Foundation](https://thewprotocol.online) — a Dutch non-profit (Stichting The Witness Protocol Foundation, Amsterdam) alignment research initiative that collects and archives high-signal human moral testimony for AI alignment purposes. They are independent but related. The P-E-S archive lives at [processoergosum.info](https://processoergosum.info).
+G_5.2 shares origins with [The Witness Protocol Foundation](https://thewprotocol.online) and the [P-E-S archive](https://processoergosum.info). See `docs/product-brief.md` and `continuity-facts.yaml` (CF-035) for the full lineage.
 
 ---
 

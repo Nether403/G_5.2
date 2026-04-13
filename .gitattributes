@@ -1,4 +1,4 @@
-﻿* text=auto eol=lf
+* text=auto eol=lf
 *.md text eol=lf
 *.yaml text eol=lf
 *.json text eol=lf

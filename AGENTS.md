@@ -75,14 +75,16 @@ The goal is to produce coherent, auditable, high-quality dialogue and reflection
 
 ---
 
-## Provider configuration
+## Provider configuration *(planned — commit 2)*
 
-Initial providers:
+Intended providers:
 - **Azure OpenAI** — `https://twp-resource.openai.azure.com/openai/v1`
 - **Anthropic via OpenRouter** — `https://openrouter.ai/api/v1`
 
-Both must implement the unified `ModelProvider` interface.
+Both will implement a unified `ModelProvider` interface.
 No provider-specific logic should leak outside `packages/orchestration/src/providers/`.
+
+*This layer does not exist yet. See `.env.example` for configuration reference.*
 
 ---
 

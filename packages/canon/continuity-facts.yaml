@@ -7,6 +7,20 @@ meta:
     - "Each fact should be atomic where possible."
     - "If a statement is interpretive rather than factual, it belongs in worldview.md or artifacts/."
     - "Facts may be revised, but revisions must be explicit."
+  categories:
+    - project-history
+    - project-decision
+    - identity
+    - canon-governance
+    - active-governance
+    - architecture
+    - epistemics
+  note: >
+    v0.1 keeps all categories in a single file for simplicity.
+    When this file exceeds ~60 facts or becomes unwieldy to scan,
+    split into per-category files (e.g. project-history.yaml,
+    canon-governance.yaml) under a facts/ subdirectory.
+
 
 # ── Project History ────────────────────────────────────────────────────────────
 facts:
