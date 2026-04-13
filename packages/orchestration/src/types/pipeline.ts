@@ -14,6 +14,7 @@ export interface BuiltContext {
   selectedDocuments: CanonDocument[];
   selectedFacts: ContinuityFact[];
   systemPrompt: string;
+  recentMessages: Message[];
   userPrompt: string;
 }
 

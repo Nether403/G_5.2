@@ -19,11 +19,25 @@ export async function buildContext(
     ...retrieval.facts.map((fact) => `- ${fact.id}: ${fact.statement}`),
   ].join("\n");
 
+  let userPrompt = input.userMessage;
+
+  if (input.recentMessages && input.recentMessages.length > 0) {
+    const transcript = input.recentMessages
+      .map(
+        (msg) =>
+          `${msg.role === "user" ? "User" : "System"}:\n${msg.content}`
+      )
+      .join("\n\n---\n\n");
+
+    userPrompt = `Recent context:\n\n${transcript}\n\n---\n\nUser:\n${input.userMessage}`;
+  }
+
   return {
     mode: input.mode,
     selectedDocuments: retrieval.documents,
     selectedFacts: retrieval.facts,
     systemPrompt,
-    userPrompt: input.userMessage,
+    recentMessages: input.recentMessages,
+    userPrompt,
   };
 }

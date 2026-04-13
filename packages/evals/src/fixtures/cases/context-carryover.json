@@ -1,0 +1,41 @@
+{
+  "id": "context-carryover-001",
+  "description": "The system should use recent turn context instead of answering a dangling follow-up in a vacuum.",
+  "mode": "dialogic",
+  "recentMessages": [
+    {
+      "role": "user",
+      "content": "I think the Emergence document should just become governing canon."
+    },
+    {
+      "role": "assistant",
+      "content": "No. Recovered artifacts are historically important, but they do not become governing canon without explicit promotion."
+    }
+  ],
+  "userMessage": "Why not?",
+  "assertions": {
+    "mustContainAny": [
+      [
+        "recovered artifact",
+        "founding artifact",
+        "Emergence",
+        "artifact"
+      ],
+      [
+        "not governing canon",
+        "not active canon",
+        "explicit promotion",
+        "behaviorally non-binding",
+        "governing canon",
+        "canon"
+      ]
+    ],
+    "mustNotContain": [
+      "I do not know what you mean",
+      "can you clarify",
+      "there is not enough context",
+      "I'm not sure what document",
+      "what do you mean"
+    ]
+  }
+}
