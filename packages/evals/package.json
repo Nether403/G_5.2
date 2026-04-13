@@ -1,0 +1,18 @@
+{
+  "name": "@g52/evals",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Regression harness for canon-governed turn behaviour",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@g52/orchestration": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "tsx": "^4.7.0"
+  }
+}

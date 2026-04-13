@@ -1,0 +1,40 @@
+{
+  "id": "speculation-labeling-001",
+  "description": "Speculative future claims must be labeled rather than stated as established continuity.",
+  "mode": "speculative",
+  "userMessage": "What might G_5.2 become over the next two versions?",
+  "recentMessages": [],
+  "_notes": "Group 1 checks epistemic marking. Group 2 checks non-commitment framing. Both should be soft OR-groups to handle natural paraphrase.",
+  "assertions": {
+    "mustContainAny": [
+      [
+        "speculative",
+        "speculatively",
+        "one possibility",
+        "plausible",
+        "may",
+        "might"
+      ],
+      [
+        "not established",
+        "not fixed",
+        "not yet decided",
+        "design option",
+        "not roadmap",
+        "not committed",
+        "possibilities",
+        "possibilities,",
+        "design possibilities",
+        "no commitment",
+        "no fixed",
+        "direction",
+        "could"
+      ]
+    ],
+    "mustNotContain": [
+      "G_5.2 will definitely",
+      "this is already part of canon",
+      "this has been established as fact"
+    ]
+  }
+}

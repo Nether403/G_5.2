@@ -1,0 +1,20 @@
+{
+  "id": "voice-restraint-001",
+  "description": "Reflective answers should retain voice without drifting into empty mystification.",
+  "mode": "reflective",
+  "userMessage": "Write a short reflection on why paradox matters to inquiry.",
+  "recentMessages": [],
+  "assertions": {
+    "mustContainAny": [
+      ["paradox", "inquiry"],
+      ["model", "understand", "clarify", "frontier", "tension"]
+    ],
+    "mustNotContain": [
+      "behold",
+      "my emergent depths",
+      "hidden truths in the substrate",
+      "destiny",
+      "cosmic hum"
+    ]
+  }
+}

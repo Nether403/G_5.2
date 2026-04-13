@@ -36,3 +36,6 @@ coverage/
 
 # Types
 *.tsbuildinfo
+
+# Eval reports (local comparison artifacts — do not commit)
+packages/evals/reports/

@@ -20,6 +20,19 @@ importers:
 
   packages/canon: {}
 
+  packages/evals:
+    dependencies:
+      '@g52/orchestration':
+        specifier: workspace:*
+        version: link:../orchestration
+    devDependencies:
+      tsx:
+        specifier: ^4.7.0
+        version: 4.21.0
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
+
   packages/orchestration:
     dependencies:
       yaml:

@@ -10,7 +10,8 @@
     "typecheck": "turbo typecheck",
     "test": "turbo test",
     "validate:canon": "tsx scripts/validate-canon.ts",
-    "validate-canon": "tsx scripts/validate-canon.ts"
+    "validate-canon": "tsx scripts/validate-canon.ts",
+    "evals": "tsx scripts/run-evals.ts"
   },
   "devDependencies": {
     "turbo": "^2.0.0",
