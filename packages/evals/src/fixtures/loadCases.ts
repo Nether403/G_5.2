@@ -9,6 +9,8 @@
  *   Each file is parsed with Zod before being returned.
  *   A schema error in any file aborts the load with a clear message
  *   identifying which file and what field failed.
+ *   Duplicate ids across files are rejected after all files are read,
+ *   reporting every collision with both filenames before aborting.
  *
  * Filtering:
  *   filter terms are matched against case id and filename stem.
@@ -42,6 +44,9 @@ export async function loadCases(
     .map((e) => e.name)
     .sort();
 
+  // id → [filenames]: tracks every file claiming each id for duplicate detection.
+  // Built during load so no second pass is needed.
+  const idToFiles = new Map<string, string[]>();
   const cases: EvalCase[] = [];
 
   for (const file of files) {
@@ -73,6 +78,12 @@ export async function loadCases(
 
     const evalCase = result.data as EvalCase;
 
+    // Register id — duplicates are an authoring error regardless of
+    // which cases are being run, so track before applying filter
+    const owners = idToFiles.get(evalCase.id) ?? [];
+    owners.push(file);
+    idToFiles.set(evalCase.id, owners);
+
     // Apply filter
     if (filter.length > 0) {
       const stem = file.replace(/\.json$/, "").toLowerCase();
@@ -85,6 +96,17 @@ export async function loadCases(
     }
 
     cases.push(evalCase);
+  }
+
+  // Collect all collisions before throwing — surface every problem at once
+  const conflicts = [...idToFiles.entries()]
+    .filter(([, owners]) => owners.length > 1)
+    .map(([id, owners]) => `  "${id}" in: ${owners.join(", ")}`);
+
+  if (conflicts.length > 0) {
+    throw new Error(
+      `loadCases: duplicate case ids found (ids must be unique across all files):\n${conflicts.join("\n")}`
+    );
   }
 
   return cases;
