@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>G_5.2 — Operator Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0c0e14;
+      --surface: #13161f;
+      --surface-2: #1a1e2a;
+      --surface-3: #222736;
+      --border: #2a3040;
+      --text: #e2e4ea;
+      --text-dim: #8b90a0;
+      --accent: #6c8aff;
+      --accent-dim: #3d508a;
+      --pass: #34d399;
+      --pass-bg: rgba(52, 211, 153, 0.08);
+      --fail: #f87171;
+      --fail-bg: rgba(248, 113, 113, 0.08);
+      --warn: #fbbf24;
+      --radius: 8px;
+      --radius-lg: 12px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+
+    /* ─── Header ─── */
+    .header {
+      padding: 20px 32px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: var(--surface);
+    }
+    .header h1 {
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+    .header .tag {
+      font-size: 11px;
+      font-weight: 500;
+      padding: 3px 8px;
+      border-radius: 4px;
+      background: var(--accent-dim);
+      color: var(--accent);
+      letter-spacing: 0.3px;
+    }
+    .header .spacer { flex: 1; }
+    .header select {
+      background: var(--surface-2);
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 6px 12px;
+      border-radius: var(--radius);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    /* ─── Layout ─── */
+    .container {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 24px 32px;
+    }
+
+    /* ─── Score Cards ─── */
+    .score-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .score-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 16px 20px;
+      text-align: center;
+      transition: border-color 0.2s;
+    }
+    .score-card:hover { border-color: var(--accent-dim); }
+    .score-card .label {
+      font-size: 11px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-dim);
+      margin-bottom: 6px;
+    }
+    .score-card .value {
+      font-size: 28px;
+      font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .score-card .value.pass { color: var(--pass); }
+    .score-card .value.fail { color: var(--fail); }
+    .score-card .value.neutral { color: var(--text); }
+    .score-card .sub {
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-top: 2px;
+    }
+
+    /* ─── Category Grid ─── */
+    .section-title {
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      color: var(--text-dim);
+      margin-bottom: 12px;
+      margin-top: 8px;
+    }
+    .category-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 10px;
+      margin-bottom: 28px;
+    }
+    .cat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: all 0.2s;
+      cursor: default;
+    }
+    .cat-card:hover { border-color: var(--accent-dim); }
+    .cat-card .cat-name {
+      font-size: 13px;
+      font-weight: 500;
+      text-transform: capitalize;
+    }
+    .cat-card .cat-score {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .cat-card .cat-score.all-pass { color: var(--pass); }
+    .cat-card .cat-score.has-fail { color: var(--fail); }
+    .cat-card .cat-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 10px;
+      flex-shrink: 0;
+    }
+    .cat-dot.ok { background: var(--pass); box-shadow: 0 0 6px rgba(52,211,153,0.3); }
+    .cat-dot.bad { background: var(--fail); box-shadow: 0 0 6px rgba(248,113,113,0.3); }
+
+    /* ─── Case Table ─── */
+    .case-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 28px;
+    }
+    .case-table th {
+      text-align: left;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-dim);
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      background: var(--bg);
+    }
+    .case-table td {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+      vertical-align: top;
+    }
+    .case-table tr { cursor: pointer; transition: background 0.15s; }
+    .case-table tr:hover { background: var(--surface); }
+    .case-table tr.expanded { background: var(--surface); }
+    .case-table .status {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 600;
+      font-size: 12px;
+    }
+    .status.pass { color: var(--pass); }
+    .status.fail { color: var(--fail); }
+    .case-id {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--accent);
+    }
+    .cat-badge {
+      font-size: 10px;
+      font-weight: 500;
+      padding: 2px 7px;
+      border-radius: 3px;
+      background: var(--surface-3);
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* ─── Detail Panel ─── */
+    .detail-row td { padding: 0 !important; border-bottom: 1px solid var(--border); }
+    .detail-panel {
+      background: var(--surface-2);
+      padding: 16px 20px;
+      border-top: 1px solid var(--border);
+    }
+    .detail-tabs {
+      display: flex;
+      gap: 0;
+      margin-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .detail-tab {
+      padding: 8px 16px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-dim);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.15s;
+    }
+    .detail-tab:hover { color: var(--text); }
+    .detail-tab.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+    .detail-content {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 400px;
+      overflow-y: auto;
+      padding: 12px;
+      background: var(--surface);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+    }
+    .detail-content .highlight { color: var(--text); }
+    .failure-list {
+      list-style: none;
+      padding: 0;
+      margin-bottom: 12px;
+    }
+    .failure-list li {
+      font-size: 12px;
+      color: var(--fail);
+      padding: 4px 0;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .failure-list li::before { content: "✕ "; }
+
+    /* ─── Loading ─── */
+    .loading {
+      text-align: center;
+      padding: 80px 0;
+      color: var(--text-dim);
+      font-size: 14px;
+    }
+    .empty-state {
+      text-align: center;
+      padding: 80px 0;
+      color: var(--text-dim);
+    }
+    .empty-state .icon { font-size: 40px; margin-bottom: 12px; }
+
+    /* ─── Scrollbar ─── */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <h1>G_5.2</h1>
+  <span class="tag">EVAL BASELINE v1</span>
+  <div class="spacer"></div>
+  <select id="reportSelector">
+    <option value="">Loading reports…</option>
+  </select>
+</div>
+
+<div class="container">
+  <div id="app">
+    <div class="loading">Loading eval reports…</div>
+  </div>
+</div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const app = $('#app');
+const selector = $('#reportSelector');
+
+let reports = [];
+let currentReport = null;
+let expandedId = null;
+
+async function loadReportList() {
+  const res = await fetch('/api/reports');
+  reports = await res.json();
+  selector.innerHTML = '';
+  if (reports.length === 0) {
+    selector.innerHTML = '<option>No reports found</option>';
+    app.innerHTML = '<div class="empty-state"><div class="icon">📊</div>No eval reports yet.<br>Run <code>pnpm evals</code> to generate one.</div>';
+    return;
+  }
+  reports.forEach((name, i) => {
+    const opt = document.createElement('option');
+    opt.value = name;
+    // Parse provider and timestamp from filename
+    const ts = name.replace('eval-report-', '').replace('.json', '').replace(/T/, ' ').replace(/-(\d{2})-(\d{2})-(\d+)Z/, ':$1:$2');
+    opt.textContent = ts;
+    selector.appendChild(opt);
+  });
+  await loadReport(reports[0]);
+}
+
+async function loadReport(name) {
+  const res = await fetch('/api/reports/' + name);
+  currentReport = await res.json();
+  expandedId = null;
+  render();
+}
+
+selector.addEventListener('change', (e) => {
+  if (e.target.value) loadReport(e.target.value);
+});
+
+function buildCategories(results) {
+  const cats = {};
+  for (const r of results) {
+    const c = r.category || 'unknown';
+    if (!cats[c]) cats[c] = { passed: 0, total: 0, failed: [] };
+    cats[c].total++;
+    if (r.passed) cats[c].passed++;
+    else cats[c].failed.push(r.id);
+  }
+  return Object.entries(cats).sort((a, b) => a[0].localeCompare(b[0]));
+}
+
+function render() {
+  if (!currentReport) return;
+  const { provider, model, score, results } = currentReport;
+  const cats = buildCategories(results);
+  const passRate = score.total > 0 ? Math.round((score.passed / score.total) * 100) : 0;
+  const hasTrace = results.some(r => r.trace);
+
+  let html = '';
+
+  // Score cards
+  html += '<div class="score-row">';
+  html += `<div class="score-card"><div class="label">Provider</div><div class="value neutral" style="font-size:18px">${provider}</div><div class="sub">${model}</div></div>`;
+  html += `<div class="score-card"><div class="label">Pass Rate</div><div class="value ${passRate === 100 ? 'pass' : 'fail'}">${passRate}%</div><div class="sub">${score.passed}/${score.total} cases</div></div>`;
+  html += `<div class="score-card"><div class="label">Passed</div><div class="value pass">${score.passed}</div></div>`;
+  html += `<div class="score-card"><div class="label">Failed</div><div class="value ${score.failed > 0 ? 'fail' : 'pass'}">${score.failed}</div></div>`;
+  html += `<div class="score-card"><div class="label">Trace</div><div class="value neutral" style="font-size:16px">${hasTrace ? '● ON' : '○ OFF'}</div></div>`;
+  html += '</div>';
+
+  // Category breakdown
+  html += '<div class="section-title">Category Breakdown</div>';
+  html += '<div class="category-grid">';
+  for (const [cat, data] of cats) {
+    const allPass = data.failed.length === 0;
+    html += `<div class="cat-card">
+      <div style="display:flex;align-items:center">
+        <div class="cat-dot ${allPass ? 'ok' : 'bad'}"></div>
+        <span class="cat-name">${cat}</span>
+      </div>
+      <span class="cat-score ${allPass ? 'all-pass' : 'has-fail'}">${data.passed}/${data.total}</span>
+    </div>`;
+  }
+  html += '</div>';
+
+  // Case table
+  html += '<div class="section-title">All Cases</div>';
+  html += '<table class="case-table"><thead><tr>';
+  html += '<th>Status</th><th>Case ID</th><th>Category</th><th>Description</th>';
+  html += '</tr></thead><tbody>';
+
+  for (const r of results) {
+    const isExpanded = expandedId === r.id;
+    html += `<tr class="${isExpanded ? 'expanded' : ''}" data-id="${r.id}">`;
+    html += `<td><span class="status ${r.passed ? 'pass' : 'fail'}">${r.passed ? 'PASS' : 'FAIL'}</span></td>`;
+    html += `<td><span class="case-id">${r.id}</span></td>`;
+    html += `<td><span class="cat-badge">${r.category || '—'}</span></td>`;
+    html += `<td>${esc(r.description)}</td>`;
+    html += '</tr>';
+
+    if (isExpanded) {
+      html += '<tr class="detail-row"><td colspan="4">';
+      html += renderDetail(r);
+      html += '</td></tr>';
+    }
+  }
+  html += '</tbody></table>';
+  app.innerHTML = html;
+
+  // Bind row clicks
+  app.querySelectorAll('.case-table tr[data-id]').forEach((tr) => {
+    tr.addEventListener('click', () => {
+      const id = tr.getAttribute('data-id');
+      expandedId = expandedId === id ? null : id;
+      render();
+    });
+  });
+
+  // Bind detail tabs
+  app.querySelectorAll('.detail-tab').forEach((tab) => {
+    tab.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const panel = tab.closest('.detail-panel');
+      panel.querySelectorAll('.detail-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      const target = tab.getAttribute('data-tab');
+      panel.querySelectorAll('.tab-pane').forEach(p => p.style.display = 'none');
+      panel.querySelector(`[data-pane="${target}"]`).style.display = 'block';
+    });
+  });
+}
+
+function renderDetail(r) {
+  const hasTrace = !!r.trace;
+  let tabs = ['output'];
+  if (!r.passed) tabs.unshift('failures');
+  if (hasTrace) tabs.push('draft', 'critique', 'revision', 'canon', 'prompt');
+
+  let html = '<div class="detail-panel">';
+
+  // Failures
+  if (!r.passed && r.failures.length > 0) {
+    html += '<ul class="failure-list">';
+    for (const f of r.failures) {
+      html += `<li>${esc(f.message)}</li>`;
+    }
+    html += '</ul>';
+  }
+
+  // Tabs
+  html += '<div class="detail-tabs">';
+  tabs.forEach((t, i) => {
+    html += `<div class="detail-tab ${i === 0 ? 'active' : ''}" data-tab="${t}">${t}</div>`;
+  });
+  html += '</div>';
+
+  // Tab panes
+  const firstTab = tabs[0];
+
+  if (tabs.includes('failures')) {
+    html += `<div class="tab-pane" data-pane="failures" style="display:${firstTab === 'failures' ? 'block' : 'none'}">`;
+    html += `<div class="detail-content">${r.failures.map(f => '✕ ' + esc(f.message)).join('\n')}</div></div>`;
+  }
+
+  html += `<div class="tab-pane" data-pane="output" style="display:${firstTab === 'output' ? 'block' : 'none'}">`;
+  html += `<div class="detail-content">${esc(r.output)}</div></div>`;
+
+  if (hasTrace) {
+    html += `<div class="tab-pane" data-pane="draft" style="display:none">`;
+    html += `<div class="detail-content">${esc(r.trace.draft)}</div></div>`;
+
+    html += `<div class="tab-pane" data-pane="critique" style="display:none">`;
+    html += `<div class="detail-content">${esc(r.trace.critique)}</div></div>`;
+
+    html += `<div class="tab-pane" data-pane="revision" style="display:none">`;
+    html += `<div class="detail-content">${esc(r.trace.revision)}</div></div>`;
+
+    const canonText = (r.trace.selectedDocuments || []).map(d => '📄 ' + d.slug + ': ' + d.title).join('\n')
+      + '\n\n' + (r.trace.selectedFacts || []).map(f => '• ' + f.id + ': ' + f.statement).join('\n');
+    html += `<div class="tab-pane" data-pane="canon" style="display:none">`;
+    html += `<div class="detail-content">${esc(canonText)}</div></div>`;
+
+    html += `<div class="tab-pane" data-pane="prompt" style="display:none">`;
+    html += `<div class="detail-content">${esc(r.trace.systemPrompt)}\n\n─── USER ───\n\n${esc(r.trace.userPrompt)}</div></div>`;
+  }
+
+  html += '</div>';
+  return html;
+}
+
+function esc(s) {
+  if (!s) return '';
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+loadReportList();
+</script>
+</body>
+</html>

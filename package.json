@@ -11,7 +11,8 @@
     "test": "turbo test",
     "validate:canon": "tsx scripts/validate-canon.ts",
     "validate-canon": "tsx scripts/validate-canon.ts",
-    "evals": "tsx scripts/run-evals.ts"
+    "evals": "tsx scripts/run-evals.ts",
+    "dashboard": "tsx apps/dashboard/src/server.ts"
   },
   "devDependencies": {
     "turbo": "^2.0.0",
