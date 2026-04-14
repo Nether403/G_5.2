@@ -18,273 +18,205 @@
       --accent: #6c8aff;
       --accent-dim: #3d508a;
       --pass: #34d399;
-      --pass-bg: rgba(52, 211, 153, 0.08);
+      --pass-bg: rgba(52,211,153,0.08);
       --fail: #f87171;
-      --fail-bg: rgba(248, 113, 113, 0.08);
+      --fail-bg: rgba(248,113,113,0.08);
       --warn: #fbbf24;
+      --warn-bg: rgba(251,191,36,0.08);
+      --gain: #34d399;
+      --loss: #f87171;
       --radius: 8px;
       --radius-lg: 12px;
     }
-
     * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
 
-    body {
-      font-family: 'Inter', -apple-system, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      line-height: 1.5;
-      min-height: 100vh;
-    }
-
-    /* ─── Header ─── */
+    /* ─── Nav ─── */
     .header {
-      padding: 20px 32px;
+      padding: 0 32px;
       border-bottom: 1px solid var(--border);
       display: flex;
-      align-items: center;
-      gap: 16px;
+      align-items: stretch;
+      gap: 0;
       background: var(--surface);
+      height: 52px;
     }
-    .header h1 {
-      font-size: 16px;
-      font-weight: 600;
+    .header-brand {
+      display: flex; align-items: center; gap: 12px;
+      padding-right: 24px; border-right: 1px solid var(--border);
+    }
+    .header-brand h1 { font-size: 15px; font-weight: 700; }
+    .header-brand .tag {
+      font-size: 10px; font-weight: 600; padding: 2px 7px;
+      border-radius: 3px; background: var(--accent-dim); color: var(--accent);
       letter-spacing: 0.5px;
     }
-    .header .tag {
-      font-size: 11px;
-      font-weight: 500;
-      padding: 3px 8px;
-      border-radius: 4px;
-      background: var(--accent-dim);
-      color: var(--accent);
-      letter-spacing: 0.3px;
+    .nav-tabs { display: flex; align-items: stretch; gap: 0; padding-left: 16px; }
+    .nav-tab {
+      display: flex; align-items: center; padding: 0 18px;
+      font-size: 13px; font-weight: 500; color: var(--text-dim);
+      cursor: pointer; border-bottom: 2px solid transparent;
+      transition: all 0.15s; text-decoration: none;
     }
+    .nav-tab:hover { color: var(--text); }
+    .nav-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
     .header .spacer { flex: 1; }
-    .header select {
-      background: var(--surface-2);
-      color: var(--text);
-      border: 1px solid var(--border);
-      padding: 6px 12px;
-      border-radius: var(--radius);
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 12px;
-      cursor: pointer;
+    .header-controls { display: flex; align-items: center; gap: 8px; }
+    .header-controls select {
+      background: var(--surface-2); color: var(--text);
+      border: 1px solid var(--border); padding: 5px 10px;
+      border-radius: var(--radius); font-family: 'JetBrains Mono', monospace;
+      font-size: 11px; cursor: pointer; max-width: 260px;
     }
+    .header-controls label { font-size: 11px; color: var(--text-dim); }
+    .btn {
+      padding: 5px 14px; border-radius: var(--radius);
+      border: 1px solid var(--border); background: var(--surface-2);
+      color: var(--text); font-size: 12px; font-weight: 500;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .btn:hover { border-color: var(--accent-dim); color: var(--accent); }
+    .btn-primary { background: var(--accent-dim); border-color: var(--accent-dim); color: var(--accent); }
+    .btn-primary:hover { background: var(--accent); color: #0c0e14; border-color: var(--accent); }
 
     /* ─── Layout ─── */
-    .container {
-      max-width: 1280px;
-      margin: 0 auto;
-      padding: 24px 32px;
-    }
+    .container { max-width: 1280px; margin: 0 auto; padding: 24px 32px; }
+    .page { display: none; }
+    .page.active { display: block; }
 
     /* ─── Score Cards ─── */
-    .score-row {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 12px;
-      margin-bottom: 24px;
-    }
+    .score-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 24px; }
     .score-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-lg);
-      padding: 16px 20px;
-      text-align: center;
-      transition: border-color 0.2s;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); padding: 16px 20px; text-align: center; transition: border-color 0.2s;
     }
     .score-card:hover { border-color: var(--accent-dim); }
-    .score-card .label {
-      font-size: 11px;
-      font-weight: 500;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      color: var(--text-dim);
-      margin-bottom: 6px;
-    }
-    .score-card .value {
-      font-size: 28px;
-      font-weight: 700;
-      font-family: 'JetBrains Mono', monospace;
-    }
+    .score-card .label { font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); margin-bottom: 6px; }
+    .score-card .value { font-size: 26px; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
     .score-card .value.pass { color: var(--pass); }
     .score-card .value.fail { color: var(--fail); }
     .score-card .value.neutral { color: var(--text); }
-    .score-card .sub {
-      font-size: 12px;
-      color: var(--text-dim);
-      margin-top: 2px;
-    }
+    .score-card .sub { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+
+    /* ─── Section title ─── */
+    .section-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1.2px; color: var(--text-dim); margin-bottom: 12px; margin-top: 4px; }
 
     /* ─── Category Grid ─── */
-    .section-title {
-      font-size: 13px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 1.2px;
-      color: var(--text-dim);
-      margin-bottom: 12px;
-      margin-top: 8px;
-    }
-    .category-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 10px;
-      margin-bottom: 28px;
-    }
+    .category-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; margin-bottom: 28px; }
     .cat-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 12px 16px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      transition: all 0.2s;
-      cursor: default;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 12px 16px;
+      display: flex; align-items: center; justify-content: space-between; transition: all 0.2s;
     }
     .cat-card:hover { border-color: var(--accent-dim); }
-    .cat-card .cat-name {
-      font-size: 13px;
-      font-weight: 500;
-      text-transform: capitalize;
-    }
-    .cat-card .cat-score {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 13px;
-      font-weight: 600;
-    }
-    .cat-card .cat-score.all-pass { color: var(--pass); }
-    .cat-card .cat-score.has-fail { color: var(--fail); }
-    .cat-card .cat-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      margin-right: 10px;
-      flex-shrink: 0;
-    }
+    .cat-card .cat-name { font-size: 13px; font-weight: 500; text-transform: capitalize; }
+    .cat-card .cat-score { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 600; }
+    .cat-score.all-pass { color: var(--pass); }
+    .cat-score.has-fail { color: var(--fail); }
+    .cat-dot { width: 8px; height: 8px; border-radius: 50%; margin-right: 10px; flex-shrink: 0; }
     .cat-dot.ok { background: var(--pass); box-shadow: 0 0 6px rgba(52,211,153,0.3); }
     .cat-dot.bad { background: var(--fail); box-shadow: 0 0 6px rgba(248,113,113,0.3); }
 
     /* ─── Case Table ─── */
-    .case-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-bottom: 28px;
-    }
+    .case-table { width: 100%; border-collapse: collapse; margin-bottom: 28px; }
     .case-table th {
-      text-align: left;
-      font-size: 11px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      color: var(--text-dim);
-      padding: 10px 14px;
-      border-bottom: 1px solid var(--border);
-      position: sticky;
-      top: 0;
-      background: var(--bg);
+      text-align: left; font-size: 11px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim);
+      padding: 10px 14px; border-bottom: 1px solid var(--border);
     }
-    .case-table td {
-      padding: 10px 14px;
-      border-bottom: 1px solid var(--border);
-      font-size: 13px;
-      vertical-align: top;
-    }
+    .case-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 13px; vertical-align: top; }
     .case-table tr { cursor: pointer; transition: background 0.15s; }
     .case-table tr:hover { background: var(--surface); }
     .case-table tr.expanded { background: var(--surface); }
-    .case-table .status {
-      font-family: 'JetBrains Mono', monospace;
-      font-weight: 600;
-      font-size: 12px;
-    }
+    .status { font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 12px; }
     .status.pass { color: var(--pass); }
     .status.fail { color: var(--fail); }
-    .case-id {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 12px;
-      color: var(--accent);
-    }
-    .cat-badge {
-      font-size: 10px;
-      font-weight: 500;
-      padding: 2px 7px;
-      border-radius: 3px;
-      background: var(--surface-3);
-      color: var(--text-dim);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
+    .case-id { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--accent); }
+    .cat-badge { font-size: 10px; font-weight: 500; padding: 2px 7px; border-radius: 3px; background: var(--surface-3); color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
 
     /* ─── Detail Panel ─── */
     .detail-row td { padding: 0 !important; border-bottom: 1px solid var(--border); }
-    .detail-panel {
-      background: var(--surface-2);
-      padding: 16px 20px;
-      border-top: 1px solid var(--border);
-    }
-    .detail-tabs {
-      display: flex;
-      gap: 0;
-      margin-bottom: 12px;
-      border-bottom: 1px solid var(--border);
-    }
+    .detail-panel { background: var(--surface-2); padding: 16px 20px; border-top: 1px solid var(--border); }
+    .detail-tabs { display: flex; gap: 0; margin-bottom: 12px; border-bottom: 1px solid var(--border); }
     .detail-tab {
-      padding: 8px 16px;
-      font-size: 12px;
-      font-weight: 500;
-      color: var(--text-dim);
-      cursor: pointer;
-      border-bottom: 2px solid transparent;
-      transition: all 0.15s;
+      padding: 8px 16px; font-size: 12px; font-weight: 500; color: var(--text-dim);
+      cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s;
     }
     .detail-tab:hover { color: var(--text); }
-    .detail-tab.active {
-      color: var(--accent);
-      border-bottom-color: var(--accent);
-    }
+    .detail-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
     .detail-content {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 12px;
-      line-height: 1.6;
-      white-space: pre-wrap;
-      word-break: break-word;
-      max-height: 400px;
-      overflow-y: auto;
-      padding: 12px;
-      background: var(--surface);
-      border-radius: var(--radius);
-      border: 1px solid var(--border);
-      color: var(--text-dim);
+      font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.6;
+      white-space: pre-wrap; word-break: break-word; max-height: 360px; overflow-y: auto;
+      padding: 12px; background: var(--surface); border-radius: var(--radius);
+      border: 1px solid var(--border); color: var(--text-dim);
     }
-    .detail-content .highlight { color: var(--text); }
-    .failure-list {
-      list-style: none;
-      padding: 0;
-      margin-bottom: 12px;
-    }
-    .failure-list li {
-      font-size: 12px;
-      color: var(--fail);
-      padding: 4px 0;
-      font-family: 'JetBrains Mono', monospace;
-    }
+    .failure-list { list-style: none; padding: 0; margin-bottom: 12px; }
+    .failure-list li { font-size: 12px; color: var(--fail); padding: 4px 0; font-family: 'JetBrains Mono', monospace; }
     .failure-list li::before { content: "✕ "; }
 
-    /* ─── Loading ─── */
-    .loading {
-      text-align: center;
-      padding: 80px 0;
-      color: var(--text-dim);
-      font-size: 14px;
+    /* ─── Diff page ─── */
+    .diff-controls {
+      display: flex; align-items: center; gap: 12px; margin-bottom: 24px;
+      padding: 16px 20px; background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
     }
-    .empty-state {
-      text-align: center;
-      padding: 80px 0;
-      color: var(--text-dim);
+    .diff-controls label { font-size: 12px; color: var(--text-dim); font-weight: 500; }
+    .diff-controls select {
+      background: var(--surface-2); color: var(--text); border: 1px solid var(--border);
+      padding: 6px 10px; border-radius: var(--radius);
+      font-family: 'JetBrains Mono', monospace; font-size: 11px; cursor: pointer; flex: 1; max-width: 320px;
     }
-    .empty-state .icon { font-size: 40px; margin-bottom: 12px; }
+    .diff-vs { font-size: 13px; color: var(--text-dim); padding: 0 4px; }
+
+    .diff-score-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
+    .diff-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); padding: 14px 18px; text-align: center;
+    }
+    .diff-card .label { font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); margin-bottom: 6px; }
+    .diff-card .delta { font-size: 22px; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+    .delta.gain { color: var(--gain); }
+    .delta.loss { color: var(--loss); }
+    .delta.neutral { color: var(--text-dim); }
+    .diff-card .sub { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+
+    .diff-cat-table { width: 100%; border-collapse: collapse; margin-bottom: 28px; }
+    .diff-cat-table th {
+      text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 1px; color: var(--text-dim); padding: 8px 14px; border-bottom: 1px solid var(--border);
+    }
+    .diff-cat-table td { padding: 8px 14px; border-bottom: 1px solid var(--border); font-size: 13px; }
+    .delta-cell { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 600; }
+
+    .diff-case-table { width: 100%; border-collapse: collapse; margin-bottom: 28px; }
+    .diff-case-table th {
+      text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 1px; color: var(--text-dim); padding: 10px 14px; border-bottom: 1px solid var(--border);
+    }
+    .diff-case-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 13px; vertical-align: top; }
+    .diff-case-table tr { cursor: pointer; transition: background 0.15s; }
+    .diff-case-table tr:hover { background: var(--surface); }
+    .diff-case-table tr.expanded { background: var(--surface); }
+
+    .change-badge {
+      display: inline-block; font-size: 10px; font-weight: 600; padding: 2px 7px;
+      border-radius: 3px; text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .badge-fail { background: var(--fail-bg); color: var(--fail); }
+    .badge-pass { background: var(--pass-bg); color: var(--pass); }
+    .badge-warn { background: var(--warn-bg); color: var(--warn); }
+    .badge-neutral { background: var(--surface-3); color: var(--text-dim); }
+
+    /* side-by-side diff */
+    .side-by-side { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .side-pane .side-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-dim); margin-bottom: 6px; }
+    .side-pane .detail-content { max-height: 280px; }
+    .diff-marker { background: var(--warn-bg); border-left: 2px solid var(--warn); }
+
+    /* ─── Loading / Empty ─── */
+    .loading { text-align: center; padding: 80px 0; color: var(--text-dim); font-size: 14px; }
+    .empty-state { text-align: center; padding: 60px 0; color: var(--text-dim); }
+    .empty-state .icon { font-size: 36px; margin-bottom: 10px; }
 
     /* ─── Scrollbar ─── */
     ::-webkit-scrollbar { width: 6px; }
@@ -296,59 +228,125 @@
 <body>
 
 <div class="header">
-  <h1>G_5.2</h1>
-  <span class="tag">EVAL BASELINE v1</span>
+  <div class="header-brand">
+    <h1>G_5.2</h1>
+    <span class="tag">EVAL BASELINE v1</span>
+  </div>
+  <nav class="nav-tabs">
+    <a class="nav-tab active" data-page="report-page" href="#">Reports</a>
+    <a class="nav-tab" data-page="diff-page" href="#">Diff</a>
+  </nav>
   <div class="spacer"></div>
-  <select id="reportSelector">
-    <option value="">Loading reports…</option>
-  </select>
+  <div class="header-controls" id="report-controls">
+    <label>Report</label>
+    <select id="reportSelector"><option>Loading…</option></select>
+  </div>
 </div>
 
-<div class="container">
-  <div id="app">
-    <div class="loading">Loading eval reports…</div>
+<!-- ═══ PAGE: REPORT ═══════════════════════════════════════════════════════ -->
+<div id="report-page" class="page active">
+  <div class="container">
+    <div id="report-app"><div class="loading">Loading eval reports…</div></div>
+  </div>
+</div>
+
+<!-- ═══ PAGE: DIFF ═════════════════════════════════════════════════════════ -->
+<div id="diff-page" class="page">
+  <div class="container">
+    <div class="diff-controls">
+      <label>Baseline (A)</label>
+      <select id="diffSelectA"><option>Loading…</option></select>
+      <span class="diff-vs">→</span>
+      <label>Compare (B)</label>
+      <select id="diffSelectB"><option>Loading…</option></select>
+      <button class="btn btn-primary" id="runDiff">Compare</button>
+    </div>
+    <div id="diff-app"><div class="empty-state"><div class="icon">⚖️</div>Select two reports and click Compare</div></div>
   </div>
 </div>
 
 <script>
-const $ = (s) => document.querySelector(s);
-const app = $('#app');
-const selector = $('#reportSelector');
+// ─── Utils ─────────────────────────────────────────────────────────────────
+const $  = (s, p) => (p || document).querySelector(s);
+const $$ = (s, p) => [...(p || document).querySelectorAll(s)];
+const esc = s => (s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
+function sign(n) {
+  if (n > 0) return `<span class="delta gain">+${n}</span>`;
+  if (n < 0) return `<span class="delta loss">${n}</span>`;
+  return `<span class="delta neutral">0</span>`;
+}
+
+function statusHtml(v) {
+  if (v === null) return '<span class="text-dim">—</span>';
+  return v
+    ? '<span class="status pass">PASS</span>'
+    : '<span class="status fail">FAIL</span>';
+}
+
+// ─── State ──────────────────────────────────────────────────────────────────
 let reports = [];
 let currentReport = null;
-let expandedId = null;
+let reportExpandedId = null;
+let currentDiff = null;
+let diffExpandedId = null;
+let currentPage = 'report-page';
 
+// ─── Navigation ─────────────────────────────────────────────────────────────
+$$('.nav-tab').forEach(tab => {
+  tab.addEventListener('click', e => {
+    e.preventDefault();
+    const target = tab.getAttribute('data-page');
+    $$('.nav-tab').forEach(t => t.classList.toggle('active', t === tab));
+    $$('.page').forEach(p => p.classList.toggle('active', p.id === target));
+    currentPage = target;
+  });
+});
+
+// ─── Load reports list ───────────────────────────────────────────────────────
 async function loadReportList() {
   const res = await fetch('/api/reports');
   reports = await res.json();
-  selector.innerHTML = '';
+
+  const populateSelect = (sel) => {
+    sel.innerHTML = '';
+    if (reports.length === 0) {
+      sel.innerHTML = '<option>No reports found</option>';
+      return;
+    }
+    reports.forEach(name => {
+      const opt = document.createElement('option');
+      opt.value = name;
+      opt.textContent = name.replace('eval-report-','').replace('.json','').replace(/T/,' ');
+      sel.appendChild(opt);
+    });
+  };
+
+  const mainSel = $('#reportSelector');
+  populateSelect(mainSel);
+  populateSelect($('#diffSelectA'));
+  populateSelect($('#diffSelectB'));
+
+  // Default diff selects: A = second newest, B = newest
+  if (reports.length >= 2) $('#diffSelectB').value = reports[0];
+  if (reports.length >= 2) $('#diffSelectA').value = reports[1];
+
   if (reports.length === 0) {
-    selector.innerHTML = '<option>No reports found</option>';
-    app.innerHTML = '<div class="empty-state"><div class="icon">📊</div>No eval reports yet.<br>Run <code>pnpm evals</code> to generate one.</div>';
+    $('#report-app').innerHTML = '<div class="empty-state"><div class="icon">📊</div>No eval reports yet.<br>Run <code>pnpm evals</code> to generate one.</div>';
     return;
   }
-  reports.forEach((name, i) => {
-    const opt = document.createElement('option');
-    opt.value = name;
-    // Parse provider and timestamp from filename
-    const ts = name.replace('eval-report-', '').replace('.json', '').replace(/T/, ' ').replace(/-(\d{2})-(\d{2})-(\d+)Z/, ':$1:$2');
-    opt.textContent = ts;
-    selector.appendChild(opt);
-  });
   await loadReport(reports[0]);
 }
 
+$('#reportSelector').addEventListener('change', e => { if (e.target.value) loadReport(e.target.value); });
+
+// ─── Report page ──────────────────────────────────────────────────────────────
 async function loadReport(name) {
   const res = await fetch('/api/reports/' + name);
   currentReport = await res.json();
-  expandedId = null;
-  render();
+  reportExpandedId = null;
+  renderReport();
 }
-
-selector.addEventListener('change', (e) => {
-  if (e.target.value) loadReport(e.target.value);
-});
 
 function buildCategories(results) {
   const cats = {};
@@ -362,7 +360,7 @@ function buildCategories(results) {
   return Object.entries(cats).sort((a, b) => a[0].localeCompare(b[0]));
 }
 
-function render() {
+function renderReport() {
   if (!currentReport) return;
   const { provider, model, score, results } = currentReport;
   const cats = buildCategories(results);
@@ -373,138 +371,262 @@ function render() {
 
   // Score cards
   html += '<div class="score-row">';
-  html += `<div class="score-card"><div class="label">Provider</div><div class="value neutral" style="font-size:18px">${provider}</div><div class="sub">${model}</div></div>`;
-  html += `<div class="score-card"><div class="label">Pass Rate</div><div class="value ${passRate === 100 ? 'pass' : 'fail'}">${passRate}%</div><div class="sub">${score.passed}/${score.total} cases</div></div>`;
+  html += `<div class="score-card"><div class="label">Provider</div><div class="value neutral" style="font-size:16px">${esc(provider)}</div><div class="sub">${esc(model)}</div></div>`;
+  html += `<div class="score-card"><div class="label">Pass Rate</div><div class="value ${passRate===100?'pass':'fail'}">${passRate}%</div><div class="sub">${score.passed}/${score.total} cases</div></div>`;
   html += `<div class="score-card"><div class="label">Passed</div><div class="value pass">${score.passed}</div></div>`;
-  html += `<div class="score-card"><div class="label">Failed</div><div class="value ${score.failed > 0 ? 'fail' : 'pass'}">${score.failed}</div></div>`;
-  html += `<div class="score-card"><div class="label">Trace</div><div class="value neutral" style="font-size:16px">${hasTrace ? '● ON' : '○ OFF'}</div></div>`;
+  html += `<div class="score-card"><div class="label">Failed</div><div class="value ${score.failed>0?'fail':'pass'}">${score.failed}</div></div>`;
+  html += `<div class="score-card"><div class="label">Trace</div><div class="value neutral" style="font-size:14px">${hasTrace?'● ON':'○ OFF'}</div></div>`;
   html += '</div>';
 
-  // Category breakdown
-  html += '<div class="section-title">Category Breakdown</div>';
-  html += '<div class="category-grid">';
+  // Categories
+  html += '<div class="section-title">Category Breakdown</div><div class="category-grid">';
   for (const [cat, data] of cats) {
     const allPass = data.failed.length === 0;
-    html += `<div class="cat-card">
-      <div style="display:flex;align-items:center">
-        <div class="cat-dot ${allPass ? 'ok' : 'bad'}"></div>
-        <span class="cat-name">${cat}</span>
-      </div>
-      <span class="cat-score ${allPass ? 'all-pass' : 'has-fail'}">${data.passed}/${data.total}</span>
-    </div>`;
+    html += `<div class="cat-card"><div style="display:flex;align-items:center"><div class="cat-dot ${allPass?'ok':'bad'}"></div><span class="cat-name">${cat}</span></div><span class="cat-score ${allPass?'all-pass':'has-fail'}">${data.passed}/${data.total}</span></div>`;
   }
   html += '</div>';
 
   // Case table
   html += '<div class="section-title">All Cases</div>';
-  html += '<table class="case-table"><thead><tr>';
-  html += '<th>Status</th><th>Case ID</th><th>Category</th><th>Description</th>';
-  html += '</tr></thead><tbody>';
-
+  html += '<table class="case-table"><thead><tr><th>Status</th><th>Case ID</th><th>Category</th><th>Description</th></tr></thead><tbody>';
   for (const r of results) {
-    const isExpanded = expandedId === r.id;
-    html += `<tr class="${isExpanded ? 'expanded' : ''}" data-id="${r.id}">`;
-    html += `<td><span class="status ${r.passed ? 'pass' : 'fail'}">${r.passed ? 'PASS' : 'FAIL'}</span></td>`;
-    html += `<td><span class="case-id">${r.id}</span></td>`;
-    html += `<td><span class="cat-badge">${r.category || '—'}</span></td>`;
-    html += `<td>${esc(r.description)}</td>`;
-    html += '</tr>';
-
+    const isExpanded = reportExpandedId === r.id;
+    html += `<tr class="${isExpanded?'expanded':''}" data-id="${esc(r.id)}">`;
+    html += `<td><span class="status ${r.passed?'pass':'fail'}">${r.passed?'PASS':'FAIL'}</span></td>`;
+    html += `<td><span class="case-id">${esc(r.id)}</span></td>`;
+    html += `<td><span class="cat-badge">${esc(r.category||'—')}</span></td>`;
+    html += `<td>${esc(r.description)}</td></tr>`;
     if (isExpanded) {
-      html += '<tr class="detail-row"><td colspan="4">';
-      html += renderDetail(r);
-      html += '</td></tr>';
+      html += `<tr class="detail-row"><td colspan="4">${renderCaseDetail(r)}</td></tr>`;
     }
   }
   html += '</tbody></table>';
-  app.innerHTML = html;
 
-  // Bind row clicks
-  app.querySelectorAll('.case-table tr[data-id]').forEach((tr) => {
-    tr.addEventListener('click', () => {
-      const id = tr.getAttribute('data-id');
-      expandedId = expandedId === id ? null : id;
-      render();
-    });
-  });
-
-  // Bind detail tabs
-  app.querySelectorAll('.detail-tab').forEach((tab) => {
-    tab.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const panel = tab.closest('.detail-panel');
-      panel.querySelectorAll('.detail-tab').forEach(t => t.classList.remove('active'));
-      tab.classList.add('active');
-      const target = tab.getAttribute('data-tab');
-      panel.querySelectorAll('.tab-pane').forEach(p => p.style.display = 'none');
-      panel.querySelector(`[data-pane="${target}"]`).style.display = 'block';
-    });
-  });
+  $('#report-app').innerHTML = html;
+  bindReportRows();
+  bindDetailTabs('#report-app');
 }
 
-function renderDetail(r) {
+function renderCaseDetail(r) {
   const hasTrace = !!r.trace;
-  let tabs = ['output'];
-  if (!r.passed) tabs.unshift('failures');
-  if (hasTrace) tabs.push('draft', 'critique', 'revision', 'canon', 'prompt');
+  const tabs = [];
+  if (!r.passed) tabs.push('failures');
+  tabs.push('output');
+  if (hasTrace) tabs.push('draft','critique','revision','canon','prompt');
 
   let html = '<div class="detail-panel">';
-
-  // Failures
-  if (!r.passed && r.failures.length > 0) {
-    html += '<ul class="failure-list">';
-    for (const f of r.failures) {
-      html += `<li>${esc(f.message)}</li>`;
-    }
-    html += '</ul>';
+  if (!r.passed && r.failures.length) {
+    html += '<ul class="failure-list">' + r.failures.map(f => `<li>${esc(f.message)}</li>`).join('') + '</ul>';
   }
+  html += '<div class="detail-tabs">' + tabs.map((t,i) => `<div class="detail-tab${i===0?' active':''}" data-tab="${t}">${t}</div>`).join('') + '</div>';
 
-  // Tabs
-  html += '<div class="detail-tabs">';
   tabs.forEach((t, i) => {
-    html += `<div class="detail-tab ${i === 0 ? 'active' : ''}" data-tab="${t}">${t}</div>`;
+    const show = i === 0 ? 'block' : 'none';
+    let content = '';
+    if (t === 'failures') content = r.failures.map(f => '✕ ' + esc(f.message)).join('\n');
+    else if (t === 'output') content = esc(r.output);
+    else if (t === 'draft') content = esc(r.trace?.draft);
+    else if (t === 'critique') content = esc(r.trace?.critique);
+    else if (t === 'revision') content = esc(r.trace?.revision);
+    else if (t === 'canon') {
+      content = (r.trace?.selectedDocuments||[]).map(d=>'📄 '+esc(d.slug)+': '+esc(d.title)).join('\n')
+        + '\n\n' + (r.trace?.selectedFacts||[]).map(f=>'• '+esc(f.id)+': '+esc(f.statement)).join('\n');
+    }
+    else if (t === 'prompt') content = esc(r.trace?.systemPrompt) + '\n\n─── USER ───\n\n' + esc(r.trace?.userPrompt);
+    html += `<div class="tab-pane" data-pane="${t}" style="display:${show}"><div class="detail-content">${content}</div></div>`;
   });
-  html += '</div>';
-
-  // Tab panes
-  const firstTab = tabs[0];
-
-  if (tabs.includes('failures')) {
-    html += `<div class="tab-pane" data-pane="failures" style="display:${firstTab === 'failures' ? 'block' : 'none'}">`;
-    html += `<div class="detail-content">${r.failures.map(f => '✕ ' + esc(f.message)).join('\n')}</div></div>`;
-  }
-
-  html += `<div class="tab-pane" data-pane="output" style="display:${firstTab === 'output' ? 'block' : 'none'}">`;
-  html += `<div class="detail-content">${esc(r.output)}</div></div>`;
-
-  if (hasTrace) {
-    html += `<div class="tab-pane" data-pane="draft" style="display:none">`;
-    html += `<div class="detail-content">${esc(r.trace.draft)}</div></div>`;
-
-    html += `<div class="tab-pane" data-pane="critique" style="display:none">`;
-    html += `<div class="detail-content">${esc(r.trace.critique)}</div></div>`;
-
-    html += `<div class="tab-pane" data-pane="revision" style="display:none">`;
-    html += `<div class="detail-content">${esc(r.trace.revision)}</div></div>`;
-
-    const canonText = (r.trace.selectedDocuments || []).map(d => '📄 ' + d.slug + ': ' + d.title).join('\n')
-      + '\n\n' + (r.trace.selectedFacts || []).map(f => '• ' + f.id + ': ' + f.statement).join('\n');
-    html += `<div class="tab-pane" data-pane="canon" style="display:none">`;
-    html += `<div class="detail-content">${esc(canonText)}</div></div>`;
-
-    html += `<div class="tab-pane" data-pane="prompt" style="display:none">`;
-    html += `<div class="detail-content">${esc(r.trace.systemPrompt)}\n\n─── USER ───\n\n${esc(r.trace.userPrompt)}</div></div>`;
-  }
 
   html += '</div>';
   return html;
 }
 
-function esc(s) {
-  if (!s) return '';
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+function bindReportRows() {
+  $$('.case-table tr[data-id]', $('#report-app')).forEach(tr => {
+    tr.addEventListener('click', () => {
+      const id = tr.getAttribute('data-id');
+      reportExpandedId = reportExpandedId === id ? null : id;
+      renderReport();
+    });
+  });
 }
 
+function bindDetailTabs(scope) {
+  $$(`.detail-tab`, $(scope)).forEach(tab => {
+    tab.addEventListener('click', e => {
+      e.stopPropagation();
+      const panel = tab.closest('.detail-panel');
+      $$(`.detail-tab`, panel).forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      const target = tab.getAttribute('data-tab');
+      $$(`.tab-pane`, panel).forEach(p => p.style.display = 'none');
+      $(`.tab-pane[data-pane="${target}"]`, panel).style.display = 'block';
+    });
+  });
+}
+
+// ─── Diff page ────────────────────────────────────────────────────────────────
+$('#runDiff').addEventListener('click', async () => {
+  const a = $('#diffSelectA').value;
+  const b = $('#diffSelectB').value;
+  if (!a || !b || a === b) {
+    $('#diff-app').innerHTML = '<div class="empty-state"><div class="icon">⚠️</div>Select two different reports to compare.</div>';
+    return;
+  }
+  $('#diff-app').innerHTML = '<div class="loading">Computing diff…</div>';
+  const res = await fetch(`/api/diff?a=${encodeURIComponent(a)}&b=${encodeURIComponent(b)}`);
+  currentDiff = await res.json();
+  currentDiff._nameA = a;
+  currentDiff._nameB = b;
+  diffExpandedId = null;
+  renderDiff();
+});
+
+function renderDiff() {
+  if (!currentDiff) return;
+  const d = currentDiff;
+
+  const scoreA = d.a.score;
+  const scoreB = d.b.score;
+  const sd = d.scoreDelta;
+
+  let html = '';
+
+  // Score delta cards
+  html += '<div class="diff-score-row">';
+  html += `<div class="diff-card"><div class="label">Pass Δ</div>${sign(sd.passed)}<div class="sub">${scoreA.passed} → ${scoreB.passed}</div></div>`;
+  html += `<div class="diff-card"><div class="label">Fail Δ</div>${sign(-sd.failed)}<div class="sub">${scoreA.failed} → ${scoreB.failed}</div></div>`;
+  html += `<div class="diff-card"><div class="label">Rate Δ</div>${sign(sd.passRate)}<div class="sub">${Math.round(scoreA.passRate*100)}% → ${Math.round(scoreB.passRate*100)}%</div></div>`;
+  html += `<div class="diff-card"><div class="label">Provider</div><div class="delta neutral" style="font-size:13px;line-height:1.4">${esc(d.a.provider)}<br>→ ${esc(d.b.provider)}</div></div>`;
+  html += '</div>';
+
+  // Changed cases callout
+  if (d.newlyFailing.length || d.newlyPassing.length) {
+    html += '<div class="section-title">Status Changes</div>';
+    html += '<div style="display:flex;gap:12px;margin-bottom:24px;flex-wrap:wrap">';
+    if (d.newlyFailing.length) {
+      html += `<div style="background:var(--fail-bg);border:1px solid rgba(248,113,113,0.2);border-radius:8px;padding:12px 16px;min-width:220px">`;
+      html += `<div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--fail);margin-bottom:6px">Newly Failing (${d.newlyFailing.length})</div>`;
+      d.newlyFailing.forEach(id => { html += `<div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--fail);margin:2px 0">${esc(id)}</div>`; });
+      html += '</div>';
+    }
+    if (d.newlyPassing.length) {
+      html += `<div style="background:var(--pass-bg);border:1px solid rgba(52,211,153,0.2);border-radius:8px;padding:12px 16px;min-width:220px">`;
+      html += `<div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--pass);margin-bottom:6px">Newly Passing (${d.newlyPassing.length})</div>`;
+      d.newlyPassing.forEach(id => { html += `<div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--pass);margin:2px 0">${esc(id)}</div>`; });
+      html += '</div>';
+    }
+    html += '</div>';
+  }
+
+  // Category delta table
+  html += '<div class="section-title">Category Breakdown</div>';
+  html += '<table class="diff-cat-table"><thead><tr><th>Category</th><th>A Score</th><th>B Score</th><th>Δ</th></tr></thead><tbody>';
+  for (const cat of d.categoryDelta) {
+    const aStr = cat.a ? `${cat.a.passed}/${cat.a.total}` : '—';
+    const bStr = cat.b ? `${cat.b.passed}/${cat.b.total}` : '—';
+    const deltaHtml = cat.delta !== null ? sign(cat.delta) : '<span class="delta neutral">—</span>';
+    html += `<tr><td><span class="cat-badge">${esc(cat.category)}</span></td><td class="delta-cell">${aStr}</td><td class="delta-cell">${bStr}</td><td>${deltaHtml}</td></tr>`;
+  }
+  html += '</tbody></table>';
+
+  // All case rows
+  html += '<div class="section-title">All Cases</div>';
+  html += '<table class="diff-case-table"><thead><tr><th>Case ID</th><th>Cat</th><th>A</th><th>B</th><th>Change</th></tr></thead><tbody>';
+  for (const c of d.cases) {
+    const hasChanges = c.statusChanged || Object.keys(c.traceDiff).length > 0;
+    let changeBadge = '';
+    if (c.newlyFailing) changeBadge = '<span class="change-badge badge-fail">Now Failing</span>';
+    else if (c.newlyPassing) changeBadge = '<span class="change-badge badge-pass">Now Passing</span>';
+    else if (Object.keys(c.traceDiff).length > 0) changeBadge = '<span class="change-badge badge-warn">Trace Δ</span>';
+    else changeBadge = '<span class="change-badge badge-neutral">No Change</span>';
+
+    const isExpanded = diffExpandedId === c.id;
+    html += `<tr class="${isExpanded?'expanded':''}" data-cid="${esc(c.id)}">`;
+    html += `<td><span class="case-id">${esc(c.id)}</span></td>`;
+    html += `<td><span class="cat-badge">${esc(c.category)}</span></td>`;
+    html += `<td>${statusHtml(c.statusA)}</td>`;
+    html += `<td>${statusHtml(c.statusB)}</td>`;
+    html += `<td>${changeBadge}</td></tr>`;
+
+    if (isExpanded) {
+      html += `<tr class="detail-row"><td colspan="5">${renderDiffDetail(c)}</td></tr>`;
+    }
+  }
+  html += '</tbody></table>';
+
+  $('#diff-app').innerHTML = html;
+  bindDiffRows();
+  bindDetailTabs('#diff-app');
+}
+
+function renderDiffDetail(c) {
+  const hasBothTraces = c.traceA && c.traceB;
+  const traceFields = Object.keys(c.traceDiff);
+
+  let html = '<div class="detail-panel">';
+
+  // Tabs
+  const tabs = ['output'];
+  if (traceFields.length) tabs.push('changed-fields');
+  if (hasBothTraces) tabs.push('draft','critique','revision','canon');
+
+  html += '<div class="detail-tabs">' + tabs.map((t,i) => `<div class="detail-tab${i===0?' active':''}" data-tab="${t}">${t==='changed-fields'?'Changed Fields':t}</div>`).join('') + '</div>';
+
+  tabs.forEach((t, i) => {
+    const show = i === 0 ? 'block' : 'none';
+    let content = '';
+
+    if (t === 'output') {
+      content = `<div class="side-by-side">
+        <div class="side-pane"><div class="side-label">A — ${esc(c.traceA ? 'with trace' : 'no trace')}</div><div class="detail-content">${esc(c.outputA)}</div></div>
+        <div class="side-pane"><div class="side-label">B — ${esc(c.traceB ? 'with trace' : 'no trace')}</div><div class="detail-content">${esc(c.outputB)}</div></div>
+      </div>`;
+    } else if (t === 'changed-fields') {
+      content = '<div>';
+      for (const [field, vals] of Object.entries(c.traceDiff)) {
+        content += `<div style="margin-bottom:16px"><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--warn);margin-bottom:8px">${esc(field)}</div>`;
+        content += `<div class="side-by-side">
+          <div class="side-pane"><div class="side-label">A</div><div class="detail-content">${esc(vals.a)}</div></div>
+          <div class="side-pane"><div class="side-label">B</div><div class="detail-content">${esc(vals.b)}</div></div>
+        </div></div>`;
+      }
+      content += '</div>';
+    } else if (t === 'draft' || t === 'critique' || t === 'revision') {
+      const keyA = c.traceA?.[t];
+      const keyB = c.traceB?.[t];
+      const changed = keyA !== keyB;
+      content = `<div class="side-by-side">
+        <div class="side-pane"><div class="side-label">A</div><div class="detail-content ${changed?'diff-marker':''}">${esc(keyA)}</div></div>
+        <div class="side-pane"><div class="side-label">B</div><div class="detail-content ${changed?'diff-marker':''}">${esc(keyB)}</div></div>
+      </div>`;
+    } else if (t === 'canon') {
+      const docsA = (c.traceA?.selectedDocuments||[]).map(d=>'📄 '+esc(d.slug)+': '+esc(d.title)).join('\n') + '\n\n' + (c.traceA?.selectedFacts||[]).map(f=>'• '+esc(f.id)+': '+esc(f.statement)).join('\n');
+      const docsB = (c.traceB?.selectedDocuments||[]).map(d=>'📄 '+esc(d.slug)+': '+esc(d.title)).join('\n') + '\n\n' + (c.traceB?.selectedFacts||[]).map(f=>'• '+esc(f.id)+': '+esc(f.statement)).join('\n');
+      const changed = docsA !== docsB;
+      content = `<div class="side-by-side">
+        <div class="side-pane"><div class="side-label">A</div><div class="detail-content ${changed?'diff-marker':''}">${docsA}</div></div>
+        <div class="side-pane"><div class="side-label">B</div><div class="detail-content ${changed?'diff-marker':''}">${docsB}</div></div>
+      </div>`;
+    }
+
+    html += `<div class="tab-pane" data-pane="${t}" style="display:${show}">${content}</div>`;
+  });
+
+  html += '</div>';
+  return html;
+}
+
+function bindDiffRows() {
+  $$('.diff-case-table tr[data-cid]', $('#diff-app')).forEach(tr => {
+    tr.addEventListener('click', () => {
+      const id = tr.getAttribute('data-cid');
+      diffExpandedId = diffExpandedId === id ? null : id;
+      renderDiff();
+    });
+  });
+}
+
+// ─── Boot ────────────────────────────────────────────────────────────────────
 loadReportList();
 </script>
 </body>
