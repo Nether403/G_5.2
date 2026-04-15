@@ -32,6 +32,12 @@ async function isGitDirty(repoRoot: string): Promise<boolean | null> {
 }
 
 export interface JsonReportMetadata {
+  gitCommit: string | null;
+  canonVersion: string;
+  canonLastUpdated: string | null;
+  promptRevision: string;
+  filter: string[];
+  captureTrace: boolean;
   git: {
     commit: string | null;
     shortCommit: string | null;
@@ -72,6 +78,12 @@ export async function buildReportMetadata(
   const dirty = await isGitDirty(repoRoot);
 
   return {
+    gitCommit: commit,
+    canonVersion: String(canon.manifest.version),
+    canonLastUpdated: canon.manifest.last_updated ?? null,
+    promptRevision: PROMPT_REVISION,
+    filter: input.filter,
+    captureTrace: input.captureTrace,
     git: {
       commit,
       shortCommit: commit ? commit.slice(0, 7) : null,

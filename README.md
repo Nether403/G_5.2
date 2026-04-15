@@ -18,10 +18,10 @@ Implemented now:
 - provider abstraction through OpenRouter-backed providers
 - canon boundary validation
 - eval reports with trace capture and metadata
+- minimal inquiry session persistence with rolling summaries and recent-turn carryover
 - operator dashboard for report inspection and diffing
 
 Not implemented yet:
-- inquiry session persistence
 - live chat/session product surface
 - governed memory storage
 - canon proposal/editorial workflow
@@ -66,10 +66,11 @@ pnpm dashboard
 Environment setup:
 - copy `.env.example` to `.env`
 - set `OPENROUTER_API_KEY`
-- optionally set `EVAL_PROVIDER=openai|anthropic|gemini`
+- optionally set `EVAL_PROVIDER=openai|anthropic|gemini` (defaults to `gemini`)
 
 ## Notes
 
 - Recovered artifacts are historically authoritative and behaviorally non-binding.
 - Output does not become canon unless explicitly promoted.
 - Canon changes should be versioned and recorded in `packages/canon/changelog/`.
+

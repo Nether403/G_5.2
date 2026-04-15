@@ -381,10 +381,12 @@ function renderReport() {
   const cats = buildCategories(results);
   const passRate = score.total > 0 ? Math.round((score.passed / score.total) * 100) : 0;
   const hasTrace = results.some(r => r.trace);
-  const gitLabel = metadata?.git?.shortCommit || metadata?.git?.commit?.slice(0, 7) || 'unknown';
+  const gitLabel = metadata?.git?.shortCommit || metadata?.gitCommit?.slice(0, 7) || metadata?.git?.commit?.slice(0, 7) || 'unknown';
   const gitState = metadata?.git?.dirty === null ? 'git unavailable' : (metadata?.git?.dirty ? 'dirty' : 'clean');
-  const canonVersion = metadata?.canon?.version || 'unknown';
-  const promptRevision = metadata?.revisions?.prompt || 'unknown';
+  const canonVersion = metadata?.canonVersion || metadata?.canon?.version || 'unknown';
+  const promptRevision = metadata?.promptRevision || metadata?.revisions?.prompt || 'unknown';
+  const traceMode = metadata?.captureTrace ?? metadata?.runContext?.captureTrace ?? hasTrace;
+  const filterLabel = (metadata?.filter || metadata?.runContext?.filter || []).join(', ') || 'all cases';
 
   let html = '';
 
@@ -394,9 +396,9 @@ function renderReport() {
   html += `<div class="score-card"><div class="label">Pass Rate</div><div class="value ${passRate===100?'pass':'fail'}">${passRate}%</div><div class="sub">${score.passed}/${score.total} cases</div></div>`;
   html += `<div class="score-card"><div class="label">Passed</div><div class="value pass">${score.passed}</div></div>`;
   html += `<div class="score-card"><div class="label">Failed</div><div class="value ${score.failed>0?'fail':'pass'}">${score.failed}</div></div>`;
-  html += `<div class="score-card"><div class="label">Trace</div><div class="value neutral" style="font-size:14px">${hasTrace?'● ON':'○ OFF'}</div></div>`;
+  html += `<div class="score-card"><div class="label">Trace</div><div class="value neutral" style="font-size:14px">${traceMode?'● ON':'○ OFF'}</div><div class="sub">${esc(filterLabel)}</div></div>`;
   html += `<div class="score-card"><div class="label">Git</div><div class="value neutral" style="font-size:16px">${esc(gitLabel)}</div><div class="sub">${esc(gitState)}</div></div>`;
-  html += `<div class="score-card"><div class="label">Canon</div><div class="value neutral" style="font-size:16px">${esc(canonVersion)}</div><div class="sub">${esc(metadata?.canon?.lastUpdated || 'no date')}</div></div>`;
+  html += `<div class="score-card"><div class="label">Canon</div><div class="value neutral" style="font-size:16px">${esc(canonVersion)}</div><div class="sub">${esc(metadata?.canonLastUpdated || metadata?.canon?.lastUpdated || 'no date')}</div></div>`;
   html += `<div class="score-card"><div class="label">Prompt Rev</div><div class="value neutral" style="font-size:16px">${esc(promptRevision)}</div><div class="sub">${esc(metadata?.runContext?.entrypoint || 'unknown')}</div></div>`;
   html += '</div>';
 

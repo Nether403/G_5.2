@@ -10,6 +10,7 @@ import type { Mode } from "./modes";
 export interface BuildContextInput {
   userMessage: string;
   recentMessages: Message[];
+  sessionSummary?: string;
   mode: Mode;
   canonRoot: string;
 }
@@ -22,6 +23,7 @@ export interface BuiltContext {
   selectedRecoveredArtifacts: LoadedRecoveredArtifact[];
   systemPrompt: string;
   recentMessages: Message[];
+  sessionSummary?: string;
   userPrompt: string;
 }
 

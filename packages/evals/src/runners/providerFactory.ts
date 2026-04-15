@@ -6,8 +6,9 @@
  *
  * Selection order:
  *   1. EVAL_PROVIDER=openai  → OpenAIProvider
- *   2. EVAL_PROVIDER=anthropic (or unset) → AnthropicProvider
- *   3. No OPENROUTER_API_KEY → MockProvider (warns loudly)
+ *   2. EVAL_PROVIDER=anthropic → AnthropicProvider
+ *   3. EVAL_PROVIDER=gemini (or unset) → GeminiProvider
+ *   4. No OPENROUTER_API_KEY → MockProvider (warns loudly)
  */
 
 import { providerFromEnv } from "../../../orchestration/src/providers/fromEnv";

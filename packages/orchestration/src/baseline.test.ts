@@ -1,13 +1,18 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import os from "node:os";
 import path from "node:path";
+import { mkdtemp } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { loadCanon } from "./canon/loadCanon";
 import { buildContext } from "./pipeline/buildContext";
 import { selectCanonDocuments } from "./canon/selectCanon";
+import { providerFromEnv } from "./providers/fromEnv";
+import { MockProvider } from "./providers/mock";
 import { selectContinuityFacts } from "./retrieval/selectContinuityFacts";
 import { selectGlossaryTerms } from "./retrieval/selectGlossaryTerms";
 import { selectRecoveredArtifacts } from "./retrieval/selectRecoveredArtifacts";
+import { runSessionTurn } from "./sessions/runSessionTurn";
 import type { LoadedCanon } from "./types/canon";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -188,4 +193,87 @@ test("buildContext keeps assistant turns labeled as assistant", async () => {
     context.userPrompt,
     /System:\nThe critique pass checks for canon drift\./
   );
+});
+
+test("buildContext includes session summary as non-canonical prior context", async () => {
+  const context = await buildContext({
+    canonRoot,
+    mode: "dialogic",
+    userMessage: "Continue the thread.",
+    recentMessages: [],
+    sessionSummary:
+      "1. [analytic] User: Asked about critique\nAssistant: Explained canon drift checks.",
+  });
+
+  assert.match(
+    context.userPrompt,
+    /Session summary \(non-canonical prior context\):/
+  );
+  assert.match(context.userPrompt, /Explained canon drift checks\./);
+});
+
+test("providerFromEnv defaults to gemini when unset", () => {
+  const originalKey = process.env.OPENROUTER_API_KEY;
+  const originalProvider = process.env.EVAL_PROVIDER;
+
+  process.env.OPENROUTER_API_KEY = "test-key";
+  delete process.env.EVAL_PROVIDER;
+
+  try {
+    const provider = providerFromEnv();
+    assert.equal(provider.name, "gemini");
+  } finally {
+    if (originalKey === undefined) {
+      delete process.env.OPENROUTER_API_KEY;
+    } else {
+      process.env.OPENROUTER_API_KEY = originalKey;
+    }
+
+    if (originalProvider === undefined) {
+      delete process.env.EVAL_PROVIDER;
+    } else {
+      process.env.EVAL_PROVIDER = originalProvider;
+    }
+  }
+});
+
+test("runSessionTurn persists turns and rolls older context into summary", async () => {
+  const sessionsRoot = await mkdtemp(path.join(os.tmpdir(), "g52-session-"));
+  const provider = new MockProvider();
+
+  const first = await runSessionTurn(provider, {
+    canonRoot,
+    sessionsRoot,
+    mode: "dialogic",
+    userMessage: "First question about critique.",
+    recentTurnLimit: 1,
+  });
+
+  const second = await runSessionTurn(provider, {
+    canonRoot,
+    sessionsRoot,
+    sessionId: first.session.id,
+    mode: "dialogic",
+    userMessage: "Second question about revision.",
+    recentTurnLimit: 1,
+  });
+
+  const third = await runSessionTurn(provider, {
+    canonRoot,
+    sessionsRoot,
+    sessionId: first.session.id,
+    mode: "dialogic",
+    userMessage: "What did we already establish?",
+    recentTurnLimit: 1,
+  });
+
+  assert.equal(second.session.turns.length, 2);
+  assert.equal(third.session.turns.length, 3);
+  assert.ok(third.session.summary);
+  assert.match(third.session.summary ?? "", /First question about critique\./);
+  assert.match(
+    third.context.userPrompt,
+    /Session summary \(non-canonical prior context\):/
+  );
+  assert.match(third.context.userPrompt, /Second question about revision\./);
 });

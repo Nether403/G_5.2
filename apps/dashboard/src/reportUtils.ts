@@ -21,6 +21,12 @@ export interface DashboardEvalResult {
 }
 
 export interface DashboardReportMetadata {
+  gitCommit: string | null;
+  canonVersion: string;
+  canonLastUpdated: string | null;
+  promptRevision: string;
+  filter: string[];
+  captureTrace: boolean;
   git: {
     commit: string | null;
     shortCommit: string | null;

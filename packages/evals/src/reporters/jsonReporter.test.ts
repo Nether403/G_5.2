@@ -12,6 +12,12 @@ test("writeJsonReport persists structured metadata", async () => {
     "anthropic",
     "anthropic/claude-sonnet-4.6",
     {
+      gitCommit: "abcdef1234567890",
+      canonVersion: "0.1.1",
+      canonLastUpdated: "2026-04-15",
+      promptRevision: "baseline-hardening-v1",
+      filter: ["canon"],
+      captureTrace: true,
       git: {
         commit: "abcdef1234567890",
         shortCommit: "abcdef1",
@@ -22,8 +28,8 @@ test("writeJsonReport persists structured metadata", async () => {
         lastUpdated: "2026-04-15",
       },
       revisions: {
-        pipeline: "phase-1.5",
-        prompt: "phase-1.5",
+        pipeline: "baseline-hardening-v1",
+        prompt: "baseline-hardening-v1",
       },
       runContext: {
         entrypoint: "scripts/run-evals.ts",
@@ -49,5 +55,8 @@ test("writeJsonReport persists structured metadata", async () => {
 
   assert.equal(parsed.metadata.canon.version, "0.1.1");
   assert.equal(parsed.metadata.git.shortCommit, "abcdef1");
+  assert.equal(parsed.metadata.gitCommit, "abcdef1234567890");
+  assert.equal(parsed.metadata.canonVersion, "0.1.1");
+  assert.equal(parsed.metadata.promptRevision, "baseline-hardening-v1");
   assert.equal(parsed.metadata.runContext.captureTrace, true);
 });

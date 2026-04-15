@@ -110,6 +110,6 @@ export function selectRecoveredArtifacts(
     }))
     .filter((item) => item.score >= 20)
     .sort((a, b) => b.score - a.score)
-    .slice(0, 2)
+    .slice(0, 1)
     .map((item) => item.artifact);
 }

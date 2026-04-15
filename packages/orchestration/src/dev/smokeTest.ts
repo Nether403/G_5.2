@@ -2,19 +2,21 @@
  * smokeTest.ts — dev harness for the full turn pipeline.
  *
  * Provider selection (in order):
- *   1. OPENROUTER_API_KEY set -> AnthropicProvider (claude-sonnet-4.6) by default,
- *      or pass --openai flag to use OpenAIProvider (openai/gpt-5.4)
+ *   1. OPENROUTER_API_KEY set -> GeminiProvider (gemini-3.1-pro-preview-20260219) by default,
+ *      or pass --openai / --anthropic to use another provider
  *   2. No key → MockProvider (always works, tests pipeline shape)
  *
  * Run:
  *   pnpm --filter @g52/orchestration dev
  *   pnpm --filter @g52/orchestration dev -- --openai
+ *   pnpm --filter @g52/orchestration dev -- --anthropic
  */
 
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { MockProvider } from "../providers/mock";
 import { AnthropicProvider } from "../providers/anthropic";
+import { GeminiProvider } from "../providers/gemini";
 import { OpenAIProvider } from "../providers/openai";
 import { runTurn } from "../pipeline/runTurn";
 import { logSection } from "../utils/logger";
@@ -36,8 +38,15 @@ function selectProvider(): ModelProvider {
     return p;
   }
 
-  const p = new AnthropicProvider();
-  console.log(`[smoke] Provider: anthropic (${p.model})\n`);
+  const useAnthropic = process.argv.includes("--anthropic");
+  if (useAnthropic) {
+    const p = new AnthropicProvider();
+    console.log(`[smoke] Provider: anthropic (${p.model})\n`);
+    return p;
+  }
+
+  const p = new GeminiProvider();
+  console.log(`[smoke] Provider: gemini (${p.model})\n`);
   return p;
 }
 

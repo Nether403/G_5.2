@@ -15,14 +15,25 @@ export function selectGlossaryTerms(
   const scored = terms.map((term) => {
     let score = 0;
     const termTokens = uniqueSearchTokens(term.term);
+    const definitionTokens = uniqueSearchTokens(term.definition);
 
     if (hasSearchPhrase(query, term.term)) {
       score += 30;
     }
 
+    if (hasSearchPhrase(query, term.definition)) {
+      score += 20;
+    }
+
     for (const token of termTokens) {
       if (token.length >= 4 && queryTokens.has(token)) {
         score += 10;
+      }
+    }
+
+    for (const token of definitionTokens) {
+      if (token.length >= 5 && queryTokens.has(token)) {
+        score += 3;
       }
     }
 

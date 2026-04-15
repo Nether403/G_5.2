@@ -5,7 +5,7 @@
  *   EVAL_PROVIDER=openai    → OpenAIProvider (openai/gpt-5.4 or OPENROUTER_OPENAI_MODEL)
  *   EVAL_PROVIDER=anthropic → AnthropicProvider (anthropic/claude-sonnet-4.6 or OPENROUTER_ANTHROPIC_MODEL)
  *   EVAL_PROVIDER=gemini    → GeminiProvider (google/gemini-3.1-pro-preview-20260219 or OPENROUTER_GEMINI_MODEL)
- *   unset / default         → AnthropicProvider
+ *   unset / default         → GeminiProvider
  *   no OPENROUTER_API_KEY   → MockProvider
  *
  * The EVAL_PROVIDER var lets scripts and CI switch providers without
@@ -24,15 +24,15 @@ export function providerFromEnv(): ModelProvider {
     return new MockProvider();
   }
 
-  const preference = (process.env.EVAL_PROVIDER ?? "anthropic").toLowerCase();
+  const preference = (process.env.EVAL_PROVIDER ?? "gemini").toLowerCase();
 
   if (preference === "openai") {
     return new OpenAIProvider();
   }
 
-  if (preference === "gemini") {
-    return new GeminiProvider();
+  if (preference === "anthropic") {
+    return new AnthropicProvider();
   }
 
-  return new AnthropicProvider();
+  return new GeminiProvider();
 }

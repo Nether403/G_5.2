@@ -8,6 +8,12 @@ function buildReport(overrides: Partial<JsonReport>): JsonReport {
     provider: "anthropic",
     model: "anthropic/claude-sonnet-4.6",
     metadata: {
+      gitCommit: "abcdef1234567890",
+      canonVersion: "0.1.1",
+      canonLastUpdated: "2026-04-15",
+      promptRevision: "baseline-hardening-v1",
+      filter: [],
+      captureTrace: true,
       git: {
         commit: "abcdef1234567890",
         shortCommit: "abcdef1",
@@ -18,8 +24,8 @@ function buildReport(overrides: Partial<JsonReport>): JsonReport {
         lastUpdated: "2026-04-15",
       },
       revisions: {
-        pipeline: "phase-1.5",
-        prompt: "phase-1.5",
+        pipeline: "baseline-hardening-v1",
+        prompt: "baseline-hardening-v1",
       },
       runContext: {
         entrypoint: "scripts/run-evals.ts",
