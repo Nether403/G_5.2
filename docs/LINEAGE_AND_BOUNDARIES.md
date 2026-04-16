@@ -2,121 +2,121 @@
 
 ## Purpose
 
-This document defines the role of the TWP repository within the broader project lineage. It exists to protect the distinction between runtime infrastructure, archival lineage, and protocol operations.
+This document defines the role of the G_5.2 repository within the broader project lineage. It exists to protect the distinction between runtime infrastructure, archival lineage, and downstream operational systems.
 
-The core rule is that TWP is an operational boundary, not a catch-all for upstream concepts.
+The core rule is that G_5.2 is the canon-and-runtime layer, not a catch-all for archive material or downstream protocol tooling.
 
 ## Shared lineage
 
 The current project family should be understood as:
 
-P-E-S -> G_5.2 -> Inquisitor profile -> TWP
+P-E-S -> G_5.2 -> downstream profiles / products -> institutional deployments
 
 This sequence matters.
 
 - P-E-S is the archive and origin layer.
-- G_5.2 is the runtime and profile-governance layer.
-- The Inquisitor is a TWP-specific operational profile built on a runtime foundation.
-- TWP is the protocol, platform, safety, and institutional layer.
+- G_5.2 is the canon-first runtime and profile-governance layer.
+- Downstream profiles are operational specializations built on a governed runtime foundation.
+- Institutional or protocol systems may sit downstream, but they are separate products with their own constraints.
 
-TWP is connected to the lineage, but it should not collapse the lineage into one blended system.
+The lineage is connected, but it should not collapse into one blended system.
 
 ## Role of this repository
 
-TWP is the witness protocol repository.
+G_5.2 is the upstream persona-runtime repository.
 
-It owns the platform through which testimony is elicited, qualified, safeguarded, annotated, stored, reviewed, and surfaced. It also owns the operational version of the Inquisitor, including the rules that make that profile appropriate for witness work.
+It owns the maintained canon, the orchestration runtime, the eval discipline, and the operator tooling used to inspect and compare governed inquiry behavior.
 
-TWP is not the origin archive, and it is not the upstream persona-runtime lab.
+G_5.2 is not the archive itself, and it is not a downstream protocol or institutional operations platform.
 
 ## This repository owns
 
-TWP owns:
+G_5.2 owns:
 
-- witness intake and gate logic
-- session flow and protocol state management
-- the operational Inquisitor profile used inside the witness process
-- privacy, consent, de-identification, and PII boundaries
-- annotation workflows and archive handling
-- admin, review, and platform operations
-- public status, governance, and institutional communication
-- database-backed persistence for protocol activity
+- canon files and versioned continuity
+- orchestration pipeline behavior
+- provider abstraction and runtime portability
+- eval cases, reports, and report diffing
+- operator inquiry tooling for live governed sessions
+- selective durable-memory behavior and inspection
+- editorial governance for future canon evolution
 
 ## This repository does not own
 
-TWP does not own:
+G_5.2 does not own:
 
 - the P-E-S archive as a live behavioral source
-- G_5.2 canon as an editable local concern
-- upstream runtime contracts or profile specification standards
-- automatic authority to rewrite the meaning of lineage artifacts
-- uncontrolled writeback into upstream persona systems
+- downstream product UX or institutional process layers
+- witness/protocol operations, consent systems, or PII handling
+- automatic authority to rewrite the meaning of recovered lineage artifacts
+- uncontrolled writeback from sessions into canon
 
 ## Allowed imports
 
 This repository may import:
 
-- pinned runtime packages from G_5.2
-- profile specifications and validation contracts from G_5.2
-- provider adapters approved for runtime use
-- public lineage descriptions from P-E-S for documentation only
+- public lineage descriptions from P-E-S for documentation and recovered-artifact governance
+- provider APIs approved for runtime use
+- local operator state needed for inquiry sessions, evals, and durable memory
+- downstream feedback that informs proposals, but does not auto-promote itself into canon
 
-TWP may reference lineage. It may not operationalize lineage without passing through the runtime and profile boundary.
+G_5.2 may reference lineage. It may not operationalize lineage as governing truth without passing through canon and continuity governance.
 
 ## Allowed exports
 
 This repository may export:
 
-- protocol documentation
+- runtime packages or interfaces for downstream systems
 - public status and governance materials
-- de-identified witness-derived outputs as permitted by policy
-- operational feedback relevant to downstream integration work
+- eval reports, diff artifacts, and operator findings
+- proposals, changelog entries, and canon revisions after explicit approval
 
-Exports from TWP do not automatically become canon in upstream systems.
+Exports from G_5.2 do not automatically become canon unless they pass through explicit promotion.
 
 ## Prohibited flows
 
 The following are prohibited:
 
-- direct use of P-E-S archive text as active runtime prompt material in witness sessions
-- unpinned dependency on G_5.2 runtime or profile contracts
-- writing witness sessions directly back into G_5.2 canon
-- allowing protocol data to bypass TWP privacy and safety controls
-- assuming that G_5.2 and the Inquisitor are interchangeable
-- exporting raw PII beyond the TWP operational boundary
+- direct use of P-E-S archive text as active canon without governance
+- treating recovered artifacts as behavioral law because they are compelling
+- writing inquiry sessions directly back into canon
+- collapsing durable memory into canon or continuity
+- assuming downstream operational profiles are interchangeable with G_5.2 itself
+- treating operator tooling as a public product boundary before the workflow is ready
 
 ## Authority model
 
-TWP is authoritative for protocol behavior, operational safety, and witness data handling.
+G_5.2 is authoritative for upstream runtime behavior, canon governance, and inquiry/eval discipline.
 
-The Inquisitor profile inside TWP must obey TWP’s protocol requirements, even when built on top of upstream runtime capabilities.
+Downstream profiles or products built on G_5.2 may impose stricter operational requirements, but they do not rewrite upstream canon automatically.
 
-Upstream lineage may shape design. It does not override witness safety, privacy, or institutional obligations.
+Upstream lineage may shape design. It does not override canon governance, epistemics, or active constraints.
 
 ## Change management
 
-Changes in this repository should be governed by protocol safety, auditability, and stage clarity.
+Changes in this repository should be governed by canon integrity, auditability, and stage clarity.
 
 In practice, that means:
 
 - runtime upgrades should be pinned and reviewed
-- profile changes should be distinguishable from platform changes
-- protocol changes should be tested as protocol changes, not hidden inside persona edits
-- privacy and archive boundaries should be explicit
+- canon changes should be versioned and logged
+- memory behavior should stay selective and inspectable
+- downstream product assumptions should not be smuggled back into upstream runtime rules
+- archive boundaries should remain explicit
 - public statements about system maturity should match the actual implementation state
 
 ## Placement rule
 
-Material belongs in TWP when its primary value is one or more of the following:
+Material belongs in G_5.2 when its primary value is one or more of the following:
 
-- witness process design
-- protocol-specific interviewing behavior
-- safety and distress handling
-- privacy and de-identification
-- annotation and archive workflow
-- admin and operational tooling
-- public institutional communication
+- canon governance
+- inquiry runtime architecture
+- response orchestration
+- eval design and regression discipline
+- operator tooling for governed inquiry
+- durable-memory discipline
+- editorial promotion workflow
 
-If a change is about how testimony is handled in practice, it belongs here.
+If a change is about how the governed runtime thinks, retrieves, critiques, persists, or is inspected, it belongs here.
 
-If a change is about general persona-runtime architecture, it does not.
+If a change is primarily about downstream protocol operations or public institutional handling, it does not.

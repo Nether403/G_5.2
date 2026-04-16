@@ -54,8 +54,8 @@ A convincing persona is not a single prompt. It is a system:
 | Eval harness | ✅ Implemented |
 | Operator dashboard | ✅ Implemented |
 | Session persistence | ✅ Implemented (minimal file-backed layer) |
-| Inquiry surface | ✅ Implemented (minimal operator dashboard inquiry UI) |
-| Durable memory discipline | ✅ Implemented (selective file-backed global/session memory with operator inspection + delete) |
+| Inquiry surface | ✅ Implemented (operator dashboard inquiry UI with session search, turn inspection, and retrieved-context drawer) |
+| Durable memory discipline | ✅ Implemented (selective file-backed global/session memory with inspection, delete, and eval coverage) |
 
 ## Not in v0.1
 
@@ -64,6 +64,7 @@ A convincing persona is not a single prompt. It is a system:
 - Broad tool use
 - Full long-term memory web
 - Multi-user architecture
+- Canon proposal/editorial workflow
 
 ## Development phases
 
@@ -74,8 +75,8 @@ A convincing persona is not a single prompt. It is a system:
 | 2 — Inquiry MVP | Session-connected inquiry flow, simple operator inquiry UI, richer summaries, response review |
 | 2.5 — Operator refinement | Better session browsing, turn inspection, lighter report ergonomics |
 | 3 — Memory Discipline V1 | Selective durable memory writes, retrieval, inspection, delete, and regression coverage |
-| 4 — Reflection system | Proposal flow, draft + critique + revision, publishing to archive |
-| 5 — Editorial controls | Canon proposal review, cross-model comparison, promotion workflow |
+| 4 — Editorial workflow | Canon proposal review, continuity drafting, promotion workflow |
+| 5 — Reflection system | Draft + critique + revision authoring flow, artifact storage, publishing path |
 | 6 — Public hardening | Auth, rate limits, monitoring, error handling |
 
 ## Key risks

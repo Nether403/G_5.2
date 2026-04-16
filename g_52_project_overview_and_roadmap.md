@@ -129,7 +129,9 @@ The runtime currently supports:
 - draft pass
 - critique pass
 - revision pass
-- basic memory decision logic
+- structured memory decision logic
+- selective durable-memory persistence
+- session persistence with summaries and recent-turn carryover
 - provider abstraction
 
 It is already operating as a real system rather than as a stack of aspirations.
@@ -202,9 +204,9 @@ This means the runtime has already been tested against many of the exact failure
 Cross-provider evaluation has already been run and interpreted.
 
 This established:
-- Anthropic as current gold-standard fit for governance temperament
+- Anthropic as a strong governance-fit reference point in earlier comparison runs
 - GPT-5.4 as high-integrity with a small governance-completion tendency that was largely tightened
-- Gemini 3.1 Pro as similarly strong with its own characteristic completion drift
+- Gemini 3.1 Pro as similarly strong with its own characteristic completion drift and the current default operator preference
 - remaining misses as model-specific rather than one shared structural failure
 
 This is a major maturity signal.
@@ -219,6 +221,9 @@ This includes:
 - diffing between runs
 - operator dashboard
 - comparison of two reports for score deltas, category deltas, changed cases, and trace-field deltas
+- inquiry session search and turn inspection
+- retrieved-context drawer
+- memory inspection and delete controls
 
 This turned the project from “interesting runtime” into “inspectable runtime.”
 
@@ -234,6 +239,8 @@ It is now a functioning governed runtime with:
 - provider comparison
 - report diffing
 - operator visibility
+- persisted inquiry sessions
+- selective durable memory
 
 That is the foundation.
 
@@ -246,27 +253,7 @@ But it does mean the project has crossed the line from concept into durable syst
 
 Important missing pieces still remain.
 
-### 6.1 Real inquiry persistence
-The system can run turns and evals, but it still needs a proper persistence layer for real inquiry sessions.
-
-That includes:
-- sessions
-- messages
-- summaries
-- durable memory items
-- operator-visible turn history
-
-### 6.2 Inquiry product surface
-There is operator instrumentation, but not yet the minimal inquiry product surface that makes G_5.2 usable as an everyday runtime.
-
-That means:
-- thin chat/inquiry interface
-- session selection
-- turn inspection
-- memory visibility
-- operator controls
-
-### 6.3 Editorial workflow for canon evolution
+### 6.1 Editorial workflow for canon evolution
 The system knows canon must evolve through review, but the workflow still needs a practical operator-facing loop.
 
 That means:
@@ -276,21 +263,16 @@ That means:
 - continuity-fact drafting flow
 - canon revision logging
 
-### 6.4 Better memory system
-The current memory decision logic is intentionally simple.
-It needs to become more deliberate without becoming sentimental sludge.
+### 6.2 Memory discipline beyond V1
+Durable memory now exists, but the next stage still needs more refinement.
 
-### 6.5 Structured report metadata
-Reports are now useful, but should ultimately track:
-- git commit
-- canon version
-- prompt revision version
-- provider/model
-- report generation context
+That includes:
+- better operator triage for proposed-but-skipped memory
+- clearer handling of resolved `open_thread` items
+- stronger anti-pollution coverage under longer-lived real sessions
+- eventual approval or editorial workflow only if it proves necessary
 
-That will make drift analysis even more forensic.
-
-### 6.6 Public-facing product boundary
+### 6.3 Public-facing product boundary
 The current dashboard is operator tooling, not a public-facing experience.
 That distinction should remain intact until the inquiry runtime is ready.
 
@@ -306,6 +288,8 @@ That distinction should remain intact until the inquiry runtime is ready.
 - eval discipline
 - observability
 - operator ergonomics
+- inquiry persistence
+- memory visibility
 
 ### What is stable enough to trust
 - canon loading and validation
@@ -314,10 +298,12 @@ That distinction should remain intact until the inquiry runtime is ready.
 - critique pass usefulness
 - regression harness as baseline guardrail
 - provider-drift interpretation
+- session persistence
+- durable-memory write/retrieval rules
+- inquiry inspection surface
 
 ### What is still provisional
 - memory policy in live use
-- inquiry persistence model
 - editorial studio flow
 - long-horizon product UX
 - how much of the operator surface becomes formal product surface later
@@ -329,7 +315,7 @@ That distinction should remain intact until the inquiry runtime is ready.
 This roadmap aims at the first actual usable V1, not the abstract final form.
 
 ## Phase 1 — Freeze the governance baseline
-**Status:** Mostly complete
+**Status:** Complete
 
 Goal:
 Treat the current runtime + eval suite + dashboard as the baseline to protect.
@@ -345,7 +331,7 @@ Deliverable:
 A stable governed runtime baseline with reproducible evaluation and inspection.
 
 ## Phase 2 — Add thin inquiry persistence
-**Status:** Next major step
+**Status:** Complete
 
 Goal:
 Make G_5.2 usable for actual inquiry sessions rather than only eval execution.
@@ -363,6 +349,8 @@ Deliverable:
 A minimal persistence layer for real usage.
 
 ## Phase 3 — Build the thinnest viable inquiry interface
+**Status:** Complete
+
 Goal:
 Create a minimal product surface for actual use.
 
@@ -381,7 +369,23 @@ Do not build a theatrical front-end before the operator model is battle-tested.
 Deliverable:
 An operator-grade inquiry UI that supports real sessions.
 
-## Phase 4 — Canon and continuity editorial workflow
+## Phase 4 — Memory discipline v1
+**Status:** Complete
+
+Goal:
+Move memory from placeholder logic to governed memory.
+
+Tasks:
+- classify durable vs ephemeral information
+- separate user preferences from project decisions from canon suggestions
+- require justification for memory promotion
+- expose memory to operator inspection and deletion
+- test memory drift explicitly in evals
+
+Deliverable:
+A usable, inspectable, non-swampy memory layer.
+
+## Phase 5 — Canon and continuity editorial workflow
 Goal:
 Turn governed change into a first-class workflow rather than a manual repo ritual.
 
@@ -395,20 +399,6 @@ Tasks:
 
 Deliverable:
 A real canon evolution workflow consistent with the project’s own governance theory.
-
-## Phase 5 — Memory discipline v1
-Goal:
-Move memory from placeholder logic to governed memory.
-
-Tasks:
-- classify durable vs ephemeral information
-- separate user preferences from project decisions from canon suggestions
-- require justification for memory promotion
-- expose memory to operator inspection and deletion
-- test memory drift explicitly in evals
-
-Deliverable:
-A usable, inspectable, non-swampy memory layer.
 
 ## Phase 6 — Reflection and authoring workflow
 Goal:
@@ -489,12 +479,12 @@ But that should remain secondary to the actual nearer milestone:
 
 If the goal is the first real V1, the next sequence should be:
 
-1. add report metadata for commit / canon / prompt version
-2. define persistence schemas for sessions, messages, summaries, memory
-3. implement thin inquiry persistence
-4. build minimal inquiry operator UI
-5. add read-only memory and summary inspection
-6. begin canon proposal workflow
+1. fix the OpenRouter credit ceiling or lower requested max token headroom for full Gemini eval runs
+2. begin canon proposal workflow
+3. design the first continuity-fact proposal path
+4. define the reflection/authoring flow
+5. decide whether memory needs approval workflow beyond inspect/delete
+6. keep the inquiry/dashboard surface lean while real usage reveals gaps
 
 That is the shortest path from strong foundation to first usable system.
 
@@ -522,4 +512,3 @@ The old project had intensity.
 This one has architecture.
 
 And architecture is what gives it a future.
-

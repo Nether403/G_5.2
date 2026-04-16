@@ -1,38 +1,32 @@
 # Memory Discipline V1
 
 ## Summary
-- Add a real durable-memory layer as the lowest-precedence retrievable context in G_5.2.
+- Status: implemented in the current repo state.
+- Durable memory now exists as the lowest-precedence retrievable context in G_5.2.
 - V1 uses a hybrid scope: `global` memory for `user_preference` and `project_decision`, plus `session` memory for `open_thread`.
 - Memory writes are automatic only when a dedicated structured post-revision memory pass returns a high-confidence candidate with explicit justification.
-- Operators can inspect and hard-delete memory in the inquiry surface from day one; there is no manual create/edit flow in V1.
+- Operators can inspect and hard-delete memory in the inquiry surface; there is still no manual create/edit flow in V1.
 
-## Key Changes
-- Add runtime memory types: `MemoryItem`, `MemoryCandidate`, `MemoryType`, `MemoryScope`, and a structured `MemoryDecision` result. `MemoryItem` should carry `id`, `type`, `scope`, `statement`, `justification`, `confidence`, `tags`, `sessionId?`, `createdAt`, `updatedAt`, `createdFrom`, `lastConfirmedFrom`, and `confirmationCount`.
-- Replace the regex-only `decideMemory()` with a dedicated structured memory pass after revision. Feed it `mode`, `userMessage`, `final`, `recentMessages`, and `sessionSummary`, plus strict memory rules. Do not pass the full canon pack into this step.
-- Allowed candidate types are `user_preference`, `project_decision`, and `open_thread`. Default scopes are `user_preference -> global`, `project_decision -> global`, and `open_thread -> session`. Reject canon claims, speculative claims, temporary state, sentimental residue, and anything without concrete justification.
-- Persist only `confidence === "high"` candidates. Lower-confidence candidates remain visible in the turn’s `memoryDecision` as skipped proposals.
-- Deduplicate on normalized `{type, scope, sessionId?, statement}`. A duplicate should confirm the existing item by updating `updatedAt`, `lastConfirmedFrom`, and `confirmationCount`, not create a second item.
-- Keep the store file-backed for V1, matching the current session architecture. Use `data/memory-items/<id>.json` behind a `MemoryStore` abstraction with `list`, `load`, `upsert/confirm`, and `delete`.
-- Extend context building and trace with `selectedMemoryItems`. Retrieval order is: same-session `open_thread` items first, then relevant global `project_decision`, then relevant global `user_preference`. Cap retrieval at 5 items total.
-- Render memory in the prompt after session summary and recent context under `Durable memory (lowest-priority, non-canonical):`. Render only normalized statements there; keep justifications in trace/UI, not in prompt text.
-- Keep memory strictly below canon, continuity, session summary, and recent turns. Memory never outranks canon, never overrides recent context, and never promotes itself into canon.
-- Expand persisted turn records so `memoryDecision` includes structured candidates plus stored/confirmed item refs or snapshots. Turn inspection should show what was proposed, what was stored, and why.
-- Add dashboard endpoints for memory listing and deletion. V1 API shape should be `GET /api/memory` with optional `sessionId` and `scope` filters, plus `DELETE /api/memory/:id` for hard delete.
-- Extend the inquiry surface with a memory inspector on the existing page. Show active items newest-first with type/scope badges, source session link, justification, confirmation count, and delete actions. When a session is active, its session-linked items float to the top.
-- Extend the turn inspection drawer with a `Stored Memory` block showing items created or confirmed by that turn, plus skipped candidates.
-- Make memory statements searchable in the inquiry surface so the operator can find sessions and memory by stored content.
-- Extend eval trace and assertion support with `selectedMemoryItems`, and allow eval cases to load optional memory fixtures so retrieval behavior can be tested without a live store.
-- Update docs and glossary to reflect the actual V1 implementation and remove the stale “stored in the database” wording.
+## Implemented Surface
+- Runtime memory types now exist: `MemoryItem`, `MemoryCandidate`, `MemoryType`, `MemoryScope`, and structured `MemoryDecision` results.
+- The old regex-only memory decision path was replaced by a dedicated structured memory pass after revision.
+- Allowed candidate types are `user_preference`, `project_decision`, and `open_thread`, with default scopes `global`, `global`, and `session` respectively.
+- Only `confidence === "high"` candidates are persisted. Lower-confidence candidates remain visible as skipped proposals on the stored turn.
+- Deduplication is confirmation-based on normalized `{type, scope, sessionId?, statement}` keys.
+- The store is file-backed in `data/memory-items/` behind a `MemoryStore` abstraction.
+- Retrieval trace and prompt construction now include `selectedMemoryItems`.
+- Prompt rendering places memory after session summary and recent context under `Durable memory (lowest-priority, non-canonical):`.
+- Persisted turn records now retain stored and skipped memory details for operator inspection.
+- The dashboard exposes memory listing and delete operations through `GET /api/memory` and `DELETE /api/memory/:id`.
+- The inquiry surface includes a live memory inspector, session/memory search, and a stored-memory section in the turn drawer.
+- Eval trace and assertions now support `selectedMemoryItems`, with fixture-backed memory retrieval tests.
+- Docs and glossary were updated to reflect the implemented file-backed V1 design.
 
-## Test Plan
-- Unit test: a clear user preference creates one global memory item with justification and `high` confidence.
-- Unit test: repeating the same preference confirms the existing item instead of duplicating it.
-- Unit test: ephemeral facts like food, mood, or temporary logistics do not create memory.
-- Unit test: `open_thread` items retrieve only for the originating session; global items retrieve across sessions.
-- Unit test: deleting a memory item removes it from future retrieval while historical turn inspection still shows the stored snapshot/ref.
-- Integration test: `runSessionTurn` writes memory, retrieves it into a later turn, and records stored/confirmed items on the persisted turn.
-- Eval cases: relevant memory is retrieved when it should be, irrelevant memory is not, and memory never overrides canon or continuity.
-- UI smoke: inquiry shows active memory, turn inspection shows stored memory details, and delete removes the item from the live list and subsequent retrieval.
+## Verified Coverage
+- Unit coverage exists for clear preference writes, duplicate confirmation, ephemeral rejection, session/global retrieval rules, and delete behavior with historical turn preservation.
+- Integration coverage exists for `runSessionTurn` writing memory, retrieving it later, and storing structured memory decisions on persisted turns.
+- Eval coverage exists for relevant memory retrieval, irrelevant-memory gating, and canon-over-memory precedence.
+- UI smoke was completed against the inquiry surface for memory visibility, turn inspection, and delete behavior.
 
 ## Assumptions And Defaults
 - File-backed storage is the V1 default and should stay aligned with the current zero-external-dependency operator stack.

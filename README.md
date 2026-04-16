@@ -20,8 +20,8 @@ Implemented now:
 - eval reports with trace capture and metadata
 - minimal inquiry session persistence with rolling summaries and recent-turn carryover
 - selective durable memory with global/session scope, confirmation-based dedupe, and operator delete
-- operator dashboard for report inspection, diffing, and inquiry inspection
-- minimal operator inquiry surface backed by persisted sessions and inspectable memory
+- operator dashboard for report inspection, diffing, session inspection, and memory inspection
+- minimal operator inquiry surface backed by persisted sessions, stored context snapshots, and inspectable memory
 
 Not implemented yet:
 - manual memory create/edit/approval workflow
@@ -69,6 +69,10 @@ Environment setup:
 - copy `.env.example` to `.env`
 - set `OPENROUTER_API_KEY`
 - optionally set `EVAL_PROVIDER=openai|anthropic|gemini` (defaults to `gemini`)
+
+Operator surfaces:
+- reports/diff dashboard: `http://localhost:4400/`
+- inquiry surface: `http://localhost:4400/inquiry.html`
 
 ## Notes
 
