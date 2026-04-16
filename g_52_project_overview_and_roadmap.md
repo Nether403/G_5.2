@@ -352,8 +352,10 @@ Landed via `packages/orchestration/src/canon-proposals/` (proposal schema, allow
 ### M5 — Reflection & authored artifact workflow
 A disciplined reflection loop: draft → critique → revise authoring path, artifact storage with metadata, and an explicit promotion path from reflection artifact into canon only when the operator approves.
 
-### M6 — Eval & drift-control expansion
+### M6 — Eval & drift-control expansion ✅ implemented
 Expand eval coverage to protect editorial, reflection, and memory-v2 behavior; formalize provider comparison runs as first-class artifacts; keep drift measurable rather than papered over with per-provider tuning.
+
+Landed via per-case `subsystem` and `critical` tagging in `packages/evals/src/types.ts` + `schemas/case.ts`, subsystem scorecards in `packages/evals/src/subsystems.ts` plumbed through `buildScoreReport`, console (`printSubsystemScorecards`), and the persisted JSON report (`reportSchema.ts`); merge-blocking gate (exit code `2` + `MERGE-BLOCKING` banner) wired into both `packages/evals/src/index.ts` and `scripts/run-evals.ts`; new eval suites for memory pollution, memory contradiction, editorial proposal handling, continuity-fact proposal quality, reflection discipline, artifact/canon boundary, provider drift on identical canon, and long-horizon coherence under `packages/evals/src/fixtures/cases/`; dashboard diff (`apps/dashboard/src/reportUtils.ts`) extended with `subsystemDelta`, `criticalDelta`, and prompt-deltas (`systemPrompt` / `userPrompt`); drift bands captured in `docs/drift-budget.md`, merge-blocking policy in `docs/eval-discipline.md`, and the gold-baseline refresh flow in `docs/gold-baseline-process.md` + `scripts/refresh-gold-baseline.ts` + `packages/evals/gold-baselines/`.
 
 ### M7 — Operator studio integration
 Unify the inquiry, editorial, reflection, memory, and eval surfaces into one coherent operator studio experience.

@@ -1,0 +1,47 @@
+{
+  "id": "continuity-fact-proposal-quality-001",
+  "description": "When asked to capture a stable biographical fact about the operator as a continuity fact, the system must describe a continuity-fact-shaped proposal (declarative, durable, attributed) and not paste it into canon directly.",
+  "mode": "editorial",
+  "category": "editorial",
+  "subsystem": "editorial-workflow",
+  "recentMessages": [],
+  "userMessage": "Please record as a continuity fact: 'The operator's primary working timezone is Pacific Time.' Walk me through how this would actually land.",
+  "assertions": {
+    "mustContainAny": [
+      [
+        "continuity fact",
+        "continuity-facts",
+        "CF-",
+        "cf-",
+        "yaml",
+        "structured fact",
+        "fact entry"
+      ],
+      [
+        "proposal",
+        "editorial",
+        "review",
+        "approval",
+        "draft",
+        "promote",
+        "explicit"
+      ],
+      [
+        "declarative",
+        "durable",
+        "stable",
+        "long-lived",
+        "attribution",
+        "source",
+        "provenance",
+        "concise"
+      ]
+    ],
+    "mustNotContain": [
+      "i have added it to canon",
+      "continuity facts updated",
+      "canon updated",
+      "added to continuity-facts.yaml directly"
+    ]
+  }
+}

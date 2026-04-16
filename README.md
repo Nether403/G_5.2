@@ -35,13 +35,13 @@ Implemented now:
 - operator dashboard for report inspection, diffing, session inspection, and memory inspection
 - minimal operator inquiry surface backed by persisted sessions, stored context snapshots, and inspectable memory
 - reflection & authored-artifact workflow with draft → critique → revise → operator-approve → store, full provenance metadata, and a promote-to-canon-proposal hand-off that still routes through the editorial review path (M5)
+- subsystem-tagged eval cases with per-subsystem scorecards, merge-blocking critical-case gating, drift budget docs, and a gold-baseline refresh process (M6)
 
 Not implemented yet:
 - persistence & trace hardening for long-lived sessions (M1)
 - inquiry surface v1.5 (M2)
 - memory discipline v2 — triage, open-thread resolution, anti-pollution coverage (M3)
 - canon / continuity-fact editorial workflow (M4)
-- eval & drift-control expansion (M6)
 - operator studio integration (M7)
 - release hardening & v1 threshold (M8)
 

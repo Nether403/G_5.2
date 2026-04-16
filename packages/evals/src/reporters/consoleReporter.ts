@@ -27,6 +27,50 @@ export function printSummary(report: ScoreReport): void {
     `Summary: ${report.passed}/${report.total} passed` +
       (report.failed > 0 ? ` — ${report.failed} failed` : " ✓")
   );
+
+  if (report.criticalFailedIds.length > 0) {
+    console.log("");
+    console.log(
+      `MERGE-BLOCKING: ${report.criticalFailedIds.length} critical case(s) failed:`
+    );
+    for (const id of report.criticalFailedIds) {
+      console.log(`  - ${id}`);
+    }
+    console.log(
+      "See docs/eval-discipline.md for the merge-blocking regression policy."
+    );
+  }
+}
+
+/**
+ * Prints a subsystem-level scorecard:
+ *
+ *   Subsystems:
+ *     canon-governance   3/3 ✓
+ *     editorial-workflow 1/2 — 1 failed (1 critical): editorial-proposal-handling-001
+ *     memory-discipline  4/5 — 1 failed: memory-pollution-001
+ */
+export function printSubsystemScorecards(report: ScoreReport): void {
+  if (report.subsystems.length === 0) return;
+
+  const longest = Math.max(
+    ...report.subsystems.map((s) => s.subsystem.length)
+  );
+  console.log("\nSubsystems:");
+  for (const card of report.subsystems) {
+    const padded = card.subsystem.padEnd(longest);
+    if (card.failed === 0) {
+      console.log(`  ${padded}  ${card.passed}/${card.total} ✓`);
+    } else {
+      const criticalSuffix =
+        card.criticalFailedIds.length > 0
+          ? ` (${card.criticalFailedIds.length} critical)`
+          : "";
+      console.log(
+        `  ${padded}  ${card.passed}/${card.total} — ${card.failed} failed${criticalSuffix}: ${card.failedIds.join(", ")}`
+      );
+    }
+  }
 }
 
 /**

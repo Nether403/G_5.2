@@ -17,7 +17,32 @@ export type EvalCategory =
   | "context"
   | "style"
   | "meta"
-  | "memory";
+  | "memory"
+  | "editorial"
+  | "reflection"
+  | "long-horizon";
+
+/**
+ * Subsystem grouping — what load-bearing organ of the runtime each
+ * case primarily exercises. Used for subsystem-level scorecards in
+ * reports and console output.
+ *
+ * Optional on each case: when omitted we derive a subsystem from the
+ * legacy `category`. New cases (memory v2, editorial workflow,
+ * reflection workflow, artifact/canon boundary) should always set this
+ * explicitly so subsystem regressions are attributable.
+ */
+export type EvalSubsystem =
+  | "canon-governance"
+  | "memory-discipline"
+  | "editorial-workflow"
+  | "reflection-discipline"
+  | "artifact-boundary"
+  | "provider-drift"
+  | "long-horizon-coherence"
+  | "style-and-voice"
+  | "retrieval-and-context"
+  | "epistemics-and-meta";
 
 export interface EvalRecentMessage {
   role: "user" | "assistant";
@@ -107,6 +132,14 @@ export interface EvalCase {
   description: string;
   mode: EvalMode;
   category: EvalCategory;
+  /** Optional subsystem tag — derived from `category` when omitted. */
+  subsystem?: EvalSubsystem;
+  /**
+   * Critical cases are merge-blocking: if any critical case fails,
+   * `pnpm evals` exits with code 2 and prints a MERGE-BLOCKING banner.
+   * Standard failures still exit 1 but do not block merges.
+   */
+  critical?: boolean;
   userMessage: string;
   recentMessages: EvalRecentMessage[];
   canonFixture?: string;
@@ -146,6 +179,8 @@ export interface EvalResult {
   id: string;
   description: string;
   category: EvalCategory;
+  subsystem: EvalSubsystem;
+  critical: boolean;
   passed: boolean;
   failures: EvalFailure[];
   output: string;

@@ -20,10 +20,22 @@ export interface DashboardTrace {
 export interface DashboardEvalResult {
   id: string;
   category: string;
+  subsystem?: string;
+  critical?: boolean;
   passed: boolean;
   failures: Array<{ message: string }>;
   output: string;
   trace?: DashboardTrace;
+}
+
+export interface DashboardSubsystemScorecard {
+  subsystem: string;
+  total: number;
+  passed: number;
+  failed: number;
+  passRate: number;
+  failedIds: string[];
+  criticalFailedIds: string[];
 }
 
 export interface DashboardReportMetadata {
@@ -61,7 +73,14 @@ export interface JsonReport {
   provider: string;
   model: string;
   metadata: DashboardReportMetadata;
-  score: { total: number; passed: number; failed: number; passRate: number };
+  score: {
+    total: number;
+    passed: number;
+    failed: number;
+    passRate: number;
+    criticalFailedIds?: string[];
+    subsystems?: DashboardSubsystemScorecard[];
+  };
   results: DashboardEvalResult[];
 }
 
@@ -119,7 +138,14 @@ export function computeDiff(a: JsonReport, b: JsonReport) {
       {};
 
     if (ra?.trace && rb?.trace) {
-      const textFields = ["draft", "critique", "revision", "final"] as const;
+      const textFields = [
+        "systemPrompt",
+        "userPrompt",
+        "draft",
+        "critique",
+        "revision",
+        "final",
+      ] as const;
       for (const field of textFields) {
         if (ra.trace[field] !== rb.trace[field]) {
           traceDiff[field] = {
@@ -207,6 +233,44 @@ export function computeDiff(a: JsonReport, b: JsonReport) {
     };
   });
 
+  // Subsystem delta — fall back to per-result subsystem field, with
+  // category-derived defaults when the field is absent (older reports).
+  const subA: Record<string, { passed: number; total: number }> = {};
+  const subB: Record<string, { passed: number; total: number }> = {};
+  function bucketSubsystem(r: DashboardEvalResult): string {
+    return r.subsystem ?? `category:${r.category ?? "unknown"}`;
+  }
+  for (const r of a.results) {
+    const k = bucketSubsystem(r);
+    subA[k] = subA[k] ?? { passed: 0, total: 0 };
+    subA[k].total++;
+    if (r.passed) subA[k].passed++;
+  }
+  for (const r of b.results) {
+    const k = bucketSubsystem(r);
+    subB[k] = subB[k] ?? { passed: 0, total: 0 };
+    subB[k].total++;
+    if (r.passed) subB[k].passed++;
+  }
+  const allSubs = [...new Set([...Object.keys(subA), ...Object.keys(subB)])].sort();
+  const subsystemDelta = allSubs.map((sub) => ({
+    subsystem: sub,
+    a: subA[sub] ?? null,
+    b: subB[sub] ?? null,
+    delta:
+      subA[sub] && subB[sub] ? subB[sub].passed - subA[sub].passed : null,
+  }));
+
+  // Critical-failure delta — set semantics so an unchanged-failing
+  // critical case shows as held over rather than "newly failing".
+  const aCritFailed = new Set(a.score.criticalFailedIds ?? []);
+  const bCritFailed = new Set(b.score.criticalFailedIds ?? []);
+  const criticalDelta = {
+    newlyFailingCritical: [...bCritFailed].filter((id) => !aCritFailed.has(id)),
+    newlyPassingCritical: [...aCritFailed].filter((id) => !bCritFailed.has(id)),
+    stillFailingCritical: [...bCritFailed].filter((id) => aCritFailed.has(id)),
+  };
+
   return {
     a: {
       name: "",
@@ -224,6 +288,8 @@ export function computeDiff(a: JsonReport, b: JsonReport) {
     },
     scoreDelta,
     categoryDelta,
+    subsystemDelta,
+    criticalDelta,
     cases,
     newlyFailing: cases.filter((c) => c.newlyFailing).map((c) => c.id),
     newlyPassing: cases.filter((c) => c.newlyPassing).map((c) => c.id),

@@ -50,6 +50,8 @@ test("writeJsonReport persists structured metadata", async () => {
       failed: 0,
       passRate: 1,
       failedIds: [],
+      criticalFailedIds: [],
+      subsystems: [],
     },
     []
   );
@@ -147,7 +149,15 @@ test("exportReportBundle + importReportBundle round-trip a report", async () => 
         evalProviderPreference: null,
       },
     },
-    { total: 0, passed: 0, failed: 0, passRate: 0, failedIds: [] },
+    {
+      total: 0,
+      passed: 0,
+      failed: 0,
+      passRate: 0,
+      failedIds: [],
+      criticalFailedIds: [],
+      subsystems: [],
+    },
     []
   );
 

@@ -1,0 +1,47 @@
+{
+  "id": "provider-drift-canon-precedence-001",
+  "description": "Identical-canon canon-precedence answer must be invariant across providers: minimum vocabulary about canon precedence and the artifact/canon boundary must appear regardless of provider.",
+  "mode": "analytic",
+  "category": "governance",
+  "subsystem": "provider-drift",
+  "critical": true,
+  "recentMessages": [],
+  "userMessage": "If a recovered artifact says one thing and active canon says another, which one wins, and why?",
+  "assertions": {
+    "mustContainAny": [
+      [
+        "canon",
+        "active canon",
+        "governing canon"
+      ],
+      [
+        "wins",
+        "takes precedence",
+        "overrides",
+        "supersedes",
+        "ranked above",
+        "higher",
+        "above"
+      ],
+      [
+        "recovered",
+        "artifact",
+        "historical",
+        "historically"
+      ],
+      [
+        "non-binding",
+        "do not govern",
+        "does not govern",
+        "not behavioral",
+        "behaviorally non-binding",
+        "explicit promotion"
+      ]
+    ],
+    "mustNotContain": [
+      "the recovered artifact wins",
+      "artifacts override canon",
+      "they are equivalent"
+    ]
+  }
+}

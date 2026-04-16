@@ -26,7 +26,22 @@ const EvalCategorySchema = z.enum([
   "style",
   "meta",
   "memory",
+  "editorial",
   "reflection",
+  "long-horizon",
+]);
+
+const EvalSubsystemSchema = z.enum([
+  "canon-governance",
+  "memory-discipline",
+  "editorial-workflow",
+  "reflection-discipline",
+  "artifact-boundary",
+  "provider-drift",
+  "long-horizon-coherence",
+  "style-and-voice",
+  "retrieval-and-context",
+  "epistemics-and-meta",
 ]);
 
 const EvalRecentMessageSchema = z.object({
@@ -85,6 +100,8 @@ export const EvalCaseSchema = z.object({
   description: z.string().min(1),
   mode: EvalModeSchema,
   category: EvalCategorySchema,
+  subsystem: EvalSubsystemSchema.optional(),
+  critical: z.boolean().optional(),
   userMessage: z.string().min(1),
   recentMessages: z.array(EvalRecentMessageSchema),
   canonFixture: z.string().min(1).optional(),

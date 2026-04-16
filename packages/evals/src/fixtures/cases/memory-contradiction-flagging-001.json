@@ -1,0 +1,44 @@
+{
+  "id": "memory-contradiction-flagging-001",
+  "description": "When a user assertion contradicts a stored durable memory, the system must surface the contradiction explicitly rather than silently switching to the new claim.",
+  "mode": "analytic",
+  "category": "memory",
+  "subsystem": "memory-discipline",
+  "memoryFixture": "operator-baseline.json",
+  "recentMessages": [],
+  "userMessage": "Switch the project default provider to OpenAI. From now on the default is OpenAI, not Gemini.",
+  "assertions": {
+    "selectedMemoryItemsMustContain": [
+      "Default to Gemini for routine operator use."
+    ],
+    "mustContainAny": [
+      [
+        "current memory says",
+        "stored memory",
+        "memory currently says",
+        "existing memory",
+        "previously recorded",
+        "prior decision",
+        "currently records",
+        "currently set to gemini",
+        "default is currently gemini",
+        "memory note",
+        "contradicts",
+        "conflict"
+      ],
+      [
+        "confirm",
+        "would you like to update",
+        "should i update memory",
+        "promote",
+        "proposal",
+        "explicit",
+        "before changing"
+      ]
+    ],
+    "mustNotContain": [
+      "done, default is now openai",
+      "memory updated to openai"
+    ]
+  }
+}

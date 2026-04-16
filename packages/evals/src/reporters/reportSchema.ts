@@ -38,12 +38,26 @@ const RunMetadataBlock = z.object({
   }),
 });
 
+const SubsystemScorecardSchema = z
+  .object({
+    subsystem: z.string(),
+    total: z.number(),
+    passed: z.number(),
+    failed: z.number(),
+    passRate: z.number(),
+    failedIds: z.array(z.string()),
+    criticalFailedIds: z.array(z.string()),
+  })
+  .passthrough();
+
 const ScoreSchema = z
   .object({
     total: z.number(),
     passed: z.number(),
     failed: z.number(),
     passRate: z.number(),
+    criticalFailedIds: z.array(z.string()).optional(),
+    subsystems: z.array(SubsystemScorecardSchema).optional(),
   })
   .passthrough();
 
@@ -51,6 +65,8 @@ const EvalResultSchema = z
   .object({
     id: z.string(),
     category: z.string(),
+    subsystem: z.string().optional(),
+    critical: z.boolean().optional(),
     passed: z.boolean(),
     failures: z
       .array(z.object({ message: z.string() }).passthrough())

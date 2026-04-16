@@ -18,6 +18,7 @@ import { buildEvalProvider } from "./runners/providerFactory";
 import {
   printSummary,
   printCategoryBreakdown,
+  printSubsystemScorecards,
 } from "./reporters/consoleReporter";
 import { writeJsonReport } from "./reporters/jsonReporter";
 import { buildReportMetadata } from "./reporters/reportMetadata";
@@ -68,6 +69,7 @@ async function main() {
 
   const score = buildScoreReport(results);
   printSummary(score);
+  printSubsystemScorecards(score);
   printCategoryBreakdown(results);
   const metadata = await buildReportMetadata({
     canonRoot,
@@ -88,6 +90,9 @@ async function main() {
 
   console.log(`Report: ${reportPath}`);
 
+  if (score.criticalFailedIds.length > 0) {
+    process.exit(2);
+  }
   if (score.failed > 0) {
     process.exit(1);
   }

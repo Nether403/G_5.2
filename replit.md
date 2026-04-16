@@ -129,6 +129,32 @@ The dashboard runs on port **5000** (bound to `0.0.0.0` for Replit preview).
   continuity-fact editors, line-level diff viewer, accept / reject /
   needs-revision controls with reviewer notes, and review history.
 
+## Eval discipline & drift control (M6)
+
+- Every eval case in `packages/evals/src/fixtures/cases/` may declare an
+  optional `subsystem` (one of `canon-governance`, `memory-discipline`,
+  `editorial-workflow`, `reflection-discipline`, `artifact-boundary`,
+  `provider-drift`, `long-horizon-coherence`, `style-and-voice`,
+  `retrieval-and-context`, `epistemics-and-meta`) and a `critical: true`
+  flag. Subsystem is derived from `category` when absent so legacy cases
+  remain stable. See `packages/evals/src/subsystems.ts`.
+- The eval CLI (`scripts/run-evals.ts` and `packages/evals/src/index.ts`)
+  prints a per-subsystem scorecard and a `MERGE-BLOCKING` banner when any
+  critical case fails, and exits with code `2` for critical failures
+  (still `1` for ordinary failures, `0` clean).
+- Persisted reports include `score.criticalFailedIds` and
+  `score.subsystems[]` so dashboard diffs can attribute regressions per
+  subsystem; see `packages/evals/src/reporters/reportSchema.ts`.
+- Dashboard diff (`apps/dashboard/src/reportUtils.ts`) now surfaces
+  `subsystemDelta`, `criticalDelta`, and prompt-level trace deltas
+  (`systemPrompt`, `userPrompt`) alongside existing draft/critique/
+  revision/final and selection-set deltas.
+- Drift bands: `docs/drift-budget.md`. Merge-blocking policy and
+  subsystem coverage requirements: `docs/eval-discipline.md`. Gold
+  baseline refresh process: `docs/gold-baseline-process.md`, with
+  `scripts/refresh-gold-baseline.ts` to promote a report into
+  `packages/evals/gold-baselines/<provider>-<canonVersion>.json`.
+
 ## Environment Variables
 
 - `DASHBOARD_PORT` — Port for the dashboard server (default: 5000)

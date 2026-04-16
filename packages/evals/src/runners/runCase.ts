@@ -8,6 +8,7 @@ import { assertMatchesAny } from "../assertions/matchesAny";
 import { assertContainsAll } from "../assertions/containsAll";
 import { assertContainsNone } from "../assertions/containsNone";
 import { assertTrace } from "../assertions/trace";
+import { resolveSubsystem } from "../subsystems";
 
 export interface RunCaseInput {
   evalCase: EvalCase;
@@ -108,6 +109,8 @@ export async function runCase({
     id: evalCase.id,
     description: evalCase.description,
     category: evalCase.category,
+    subsystem: resolveSubsystem(evalCase),
+    critical: evalCase.critical ?? false,
     passed: failures.length === 0,
     failures,
     output,
