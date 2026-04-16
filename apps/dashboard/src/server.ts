@@ -24,6 +24,7 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { MODES, type Mode } from "../../../packages/orchestration/src/types/modes";
+import type { BuiltContext } from "../../../packages/orchestration/src/types/pipeline";
 import type { InquirySession } from "../../../packages/orchestration/src/types/session";
 import { providerFromEnv } from "../../../packages/orchestration/src/providers/fromEnv";
 import { runSessionTurn } from "../../../packages/orchestration/src/sessions/runSessionTurn";
@@ -135,6 +136,57 @@ function isMode(value: unknown): value is Mode {
   return typeof value === "string" && MODES.includes(value as Mode);
 }
 
+function buildContextSnapshot(context: BuiltContext) {
+  return {
+    selectedDocuments: context.selectedDocuments.map((doc) => ({
+      slug: doc.slug,
+      title: doc.title,
+    })),
+    selectedFacts: context.selectedFacts.map((fact) => ({
+      id: fact.id,
+      statement: fact.statement,
+    })),
+    selectedGlossaryTerms: context.selectedGlossaryTerms.map((term) => ({
+      term: term.term,
+      definition: term.definition,
+    })),
+    selectedRecoveredArtifacts: context.selectedRecoveredArtifacts.map(
+      (artifact) => ({
+        slug: artifact.slug,
+        title: artifact.title,
+      })
+    ),
+    hadSessionSummary: Boolean(context.sessionSummary),
+    recentMessageCount: context.recentMessages.length,
+  };
+}
+
+async function ensureSessionSnapshot(
+  sessionRoot: string,
+  result: Awaited<ReturnType<typeof runSessionTurn>>
+) {
+  if (result.persistedTurn.contextSnapshot) {
+    return result;
+  }
+
+  const contextSnapshot = buildContextSnapshot(result.context);
+  result.persistedTurn.contextSnapshot = contextSnapshot;
+
+  const lastTurn = result.session.turns.at(-1);
+  if (lastTurn) {
+    lastTurn.contextSnapshot = contextSnapshot;
+  }
+
+  await fs.mkdir(sessionRoot, { recursive: true });
+  await fs.writeFile(
+    path.join(sessionRoot, `${result.session.id}.json`),
+    `${JSON.stringify(result.session, null, 2)}\n`,
+    "utf8"
+  );
+
+  return result;
+}
+
 async function serveStaticHtml(res: http.ServerResponse, filename: string) {
   const html = await fs.readFile(path.join(STATIC_DIR, filename), "utf8");
   res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
@@ -231,13 +283,16 @@ async function handleRequest(
 
       const mode = isMode(body.mode) ? body.mode : "dialogic";
       const provider = providerFromEnv();
-      const result = await runSessionTurn(provider, {
+      const result = await ensureSessionSnapshot(
+        SESSIONS_DIR,
+        await runSessionTurn(provider, {
         canonRoot: CANON_ROOT,
         sessionsRoot: SESSIONS_DIR,
         sessionId: body.sessionId,
         mode,
         userMessage: body.userMessage.trim(),
-      });
+        })
+      );
 
       sendJson(res, 200, {
         session: result.session,

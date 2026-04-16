@@ -233,8 +233,9 @@
     <span class="tag">EVAL BASELINE v1</span>
   </div>
   <nav class="nav-tabs">
-    <a class="nav-tab active" data-page="report-page" href="#">Reports</a>
-    <a class="nav-tab" data-page="diff-page" href="#">Diff</a>
+    <a class="nav-tab active" data-page="report-page" href="#report-page">Reports</a>
+    <a class="nav-tab" data-page="diff-page" href="#diff-page">Diff</a>
+    <a class="nav-tab" href="/inquiry.html">Inquiry</a>
   </nav>
   <div class="spacer"></div>
   <div class="header-controls" id="report-controls">
@@ -308,15 +309,32 @@ let diffExpandedId = null;
 let currentPage = 'report-page';
 
 // ─── Navigation ─────────────────────────────────────────────────────────────
-$$('.nav-tab').forEach(tab => {
+function setActivePage(target, { updateHash = true } = {}) {
+  const page = target === 'diff-page' ? 'diff-page' : 'report-page';
+  currentPage = page;
+  $$('.nav-tab[data-page]').forEach(tab => {
+    tab.classList.toggle('active', tab.getAttribute('data-page') === page);
+  });
+  $$('.page').forEach(p => p.classList.toggle('active', p.id === page));
+  $('#report-controls').style.display = page === 'report-page' ? 'flex' : 'none';
+  if (updateHash) {
+    history.replaceState(null, '', `#${page}`);
+  }
+}
+
+function syncPageFromHash() {
+  const hash = window.location.hash.replace('#', '');
+  setActivePage(hash, { updateHash: false });
+}
+
+$$('.nav-tab[data-page]').forEach(tab => {
   tab.addEventListener('click', e => {
     e.preventDefault();
-    const target = tab.getAttribute('data-page');
-    $$('.nav-tab').forEach(t => t.classList.toggle('active', t === tab));
-    $$('.page').forEach(p => p.classList.toggle('active', p.id === target));
-    currentPage = target;
+    setActivePage(tab.getAttribute('data-page'));
   });
 });
+
+window.addEventListener('hashchange', syncPageFromHash);
 
 // ─── Load reports list ───────────────────────────────────────────────────────
 async function loadReportList() {
@@ -648,6 +666,7 @@ function bindDiffRows() {
 }
 
 // ─── Boot ────────────────────────────────────────────────────────────────────
+syncPageFromHash();
 loadReportList();
 </script>
 </body>
