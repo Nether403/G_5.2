@@ -48,8 +48,31 @@ The dashboard runs on port **5000** (bound to `0.0.0.0` for Replit preview).
 - `GET /api/inquiry/sessions` — List inquiry sessions
 - `GET /api/inquiry/sessions/:id` — Full session JSON
 - `POST /api/inquiry/turn` — Run a new inquiry turn
-- `GET /api/memory` — List durable memory items
-- `DELETE /api/memory/:id` — Delete a memory item
+- `GET /api/memory` — List durable memory items (filter by `state`, `type`, `scope`, `sessionId`)
+- `POST /api/memory` — Operator-create a memory item (defaults to `proposed` for classes needing approval)
+- `PATCH /api/memory/:id` — Edit a non-terminal memory item
+- `POST /api/memory/:id/:action` — State transitions (`approve` | `reject` | `resolve` | `archive` | `supersede`)
+- `GET /api/memory/conflicts` — Preview duplicate/contradiction conflicts for a candidate
+- `DELETE /api/memory/:id` — Hard-delete a memory item
+
+## Memory discipline v2 (M3)
+
+- Typed item classes: `user_preference`, `project_decision`, `open_thread`,
+  `session_context`, `operator_note`, `rejected_candidate`.
+- Explicit state machine (`proposed → accepted | rejected`, `accepted →
+  superseded | resolved | archived`). `rejected` and `archived` are terminal.
+  `resolve` is gated to `open_thread` only.
+- Every item carries provenance (`origin`: `turn` | `operator` | `import`;
+  `createdFrom`, `lastConfirmedFrom`, plus per-transition timestamps/reasons
+  and `supersedes`/`supersededBy` links).
+- Only `accepted` items are retrievable into turn context. Other states remain
+  visible in the operator surface for audit.
+- Turn-generated items enter `accepted` (pipeline gating is the approval
+  contract). Operator-created items in approval-required classes default to
+  `proposed`; `open_thread` / `session_context` auto-accept.
+- `findConflicts` detects duplicates (dedupe key) and polarity-based
+  contradictions against accepted items; surfaced to the operator on create,
+  never auto-resolved.
 
 ## Data Directories
 

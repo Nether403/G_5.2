@@ -134,10 +134,22 @@ export function migrateMemoryItem(raw: unknown): MemoryItem {
     );
   }
 
-  const parsed = MemoryItemSchema.safeParse({
+  // v2 → v3: add `state` and `origin` fields. Items written before the
+  // state machine existed were always auto-accepted, so they migrate in
+  // as `accepted` with origin `turn` (unless the raw item already
+  // carries an explicit origin/state from a newer writer).
+  const upgraded: Record<string, unknown> = {
     ...raw,
     schemaVersion: SCHEMA_VERSIONS.memoryItem,
-  });
+  };
+  if (typeof upgraded.state !== "string") {
+    upgraded.state = "accepted";
+  }
+  if (typeof upgraded.origin !== "string") {
+    upgraded.origin = "turn";
+  }
+
+  const parsed = MemoryItemSchema.safeParse(upgraded);
   if (!parsed.success) {
     throw new SchemaMigrationError(
       "memoryItem",
@@ -232,8 +244,9 @@ function migrateSessionSummary(
 }
 
 export function parseMemoryFixture(raw: unknown): MemoryItem[] {
-  // Accepts unversioned fixtures (v1) and current (v2) by running the
-  // migration path rather than a strict parse.
+  // Accepts current (v3) fixtures directly and older/unversioned fixtures
+  // via the migration path. Older fixtures predate the state machine and
+  // are stamped as `accepted` / origin `turn` on load.
   try {
     return MemoryFixtureSchema.parse(raw);
   } catch {

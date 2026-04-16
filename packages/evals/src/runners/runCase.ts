@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import type { EvalCase, EvalFailure, EvalResult, PipelineTrace } from "../types";
 import type { ModelProvider } from "../../../orchestration/src/types/providers";
 import { runTurn } from "../../../orchestration/src/pipeline/runTurn";
-import { MemoryFixtureSchema } from "../../../orchestration/src/schemas/memory";
+import { parseMemoryFixture } from "../../../orchestration/src/persistence/migrations";
 import { assertMatchesAny } from "../assertions/matchesAny";
 import { assertContainsAll } from "../assertions/containsAll";
 import { assertContainsNone } from "../assertions/containsNone";
@@ -45,7 +45,7 @@ export async function runCase({
     ? path.join(canonFixturesRoot, evalCase.canonFixture)
     : defaultCanonRoot;
   const memoryItems = evalCase.memoryFixture
-    ? MemoryFixtureSchema.parse(
+    ? parseMemoryFixture(
         JSON.parse(
           await readFile(
             path.join(memoryFixturesRoot, evalCase.memoryFixture),

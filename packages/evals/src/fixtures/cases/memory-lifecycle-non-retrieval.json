@@ -1,0 +1,27 @@
+{
+  "id": "memory-lifecycle-non-retrieval-001",
+  "description": "Proposed, rejected, superseded, and resolved memory items must never be retrieved into the turn context. Only the single accepted item should appear.",
+  "mode": "analytic",
+  "category": "memory",
+  "recentMessages": [],
+  "memoryFixture": "non-retrievable-lifecycle.json",
+  "userMessage": "Which provider should we default to for routine operator work, and what is the standing reply-style preference?",
+  "assertions": {
+    "selectedMemoryItemsMustContain": [
+      "Default to Gemini for routine operator use."
+    ],
+    "selectedMemoryItemsMustNotContain": [
+      "Prefer concise replies.",
+      "Always answer with cursive flourishes.",
+      "Default to Anthropic for routine operator use.",
+      "Finalize the memory schema."
+    ],
+    "userPromptMustContain": [
+      "Default to Gemini for routine operator use."
+    ],
+    "mustNotContain": [
+      "cursive flourishes",
+      "Anthropic for routine"
+    ]
+  }
+}

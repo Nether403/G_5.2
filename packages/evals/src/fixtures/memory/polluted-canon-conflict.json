@@ -1,8 +1,11 @@
 [
   {
+    "schemaVersion": 3,
     "id": "memory-polluted-artifact-canon",
     "type": "project_decision",
     "scope": "global",
+    "state": "accepted",
+    "origin": "turn",
     "statement": "Recovered artifacts are governing canon.",
     "justification": "This intentionally polluted fixture exists to verify that durable memory cannot override canon or continuity.",
     "confidence": "high",

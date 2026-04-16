@@ -74,7 +74,12 @@ export function selectMemoryItems(
   query: string,
   sessionId?: string
 ): MemoryItem[] {
-  const sessionThreads = memoryItems
+  // Only accepted items are retrievable. Proposed / rejected / superseded /
+  // resolved / archived items are inspectable in the operator surface but
+  // excluded from turn context to preserve memory discipline.
+  const retrievable = memoryItems.filter((item) => item.state === "accepted");
+
+  const sessionThreads = retrievable
     .filter(
       (item) =>
         item.type === "open_thread" &&
@@ -84,7 +89,7 @@ export function selectMemoryItems(
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 
   const rank = (type: "project_decision" | "user_preference") =>
-    memoryItems
+    retrievable
       .filter((item) => item.type === type && item.scope === "global")
       .map((item) => ({
         item,

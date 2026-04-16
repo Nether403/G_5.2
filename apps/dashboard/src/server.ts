@@ -17,7 +17,11 @@
  *   DELETE /api/inquiry/sessions/:id                   → delete a persisted session
  *   POST /api/inquiry/sessions/:id/turns/:turnId/rerun → rerun a turn (compare by provider)
  *   POST /api/inquiry/turn                             → run and persist a new inquiry turn
- *   GET /api/memory                                    → list durable memory items
+ *   GET /api/memory                                    → list durable memory items (?state=, ?type=, ?scope=, ?sessionId=)
+ *   POST /api/memory                                   → manually create a memory item
+ *   PATCH /api/memory/:id                              → edit a proposed/accepted memory item
+ *   POST /api/memory/:id/:action                       → approve | reject | resolve | archive | supersede
+ *   GET /api/memory/conflicts                          → detect duplicate/contradiction conflicts for a candidate
  *   DELETE /api/memory/:id                             → hard-delete a durable memory item
  *
  * Usage:
@@ -29,9 +33,22 @@ import fs from "node:fs/promises";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { FileMemoryStore } from "../../../packages/orchestration/src/memory/fileMemoryStore";
+import {
+  FileMemoryStore,
+  MemoryTransitionError,
+  type MemoryTransitionAction,
+} from "../../../packages/orchestration/src/memory/fileMemoryStore";
 import { MODES, type Mode } from "../../../packages/orchestration/src/types/modes";
-import type { MemoryScope } from "../../../packages/orchestration/src/types/memory";
+import type {
+  MemoryScope,
+  MemoryState,
+  MemoryType,
+} from "../../../packages/orchestration/src/types/memory";
+import {
+  MemoryScopeSchema,
+  MemoryStateSchema,
+  MemoryTypeSchema,
+} from "../../../packages/orchestration/src/schemas/memory";
 import type { BuiltContext } from "../../../packages/orchestration/src/types/pipeline";
 import type {
   InquirySession,
@@ -150,6 +167,27 @@ function isMode(value: unknown): value is Mode {
 
 function isMemoryScope(value: unknown): value is MemoryScope {
   return value === "global" || value === "session";
+}
+
+function parseEnumParam<T>(
+  value: string | null,
+  schema: { safeParse(v: unknown): { success: boolean; data?: T } }
+): T | undefined {
+  if (!value) return undefined;
+  const result = schema.safeParse(value);
+  return result.success ? (result.data as T) : undefined;
+}
+
+const MEMORY_ACTIONS: readonly MemoryTransitionAction[] = [
+  "approve",
+  "reject",
+  "resolve",
+  "archive",
+  "supersede",
+];
+
+function isMemoryAction(value: string): value is MemoryTransitionAction {
+  return (MEMORY_ACTIONS as readonly string[]).includes(value);
 }
 
 function buildContextSnapshot(context: BuiltContext) {
@@ -343,12 +381,110 @@ async function handleRequest(
     return;
   }
 
+  if (url.pathname === "/api/memory/conflicts") {
+    try {
+      const type = parseEnumParam<MemoryType>(
+        url.searchParams.get("type"),
+        MemoryTypeSchema
+      );
+      const scope = parseEnumParam<MemoryScope>(
+        url.searchParams.get("scope"),
+        MemoryScopeSchema
+      );
+      const statement = url.searchParams.get("statement");
+      const sessionId = url.searchParams.get("sessionId") ?? undefined;
+      if (!type || !scope || !statement) {
+        sendJson(res, 400, {
+          error: "type, scope, and statement query params are required",
+        });
+        return;
+      }
+      const conflicts = await new FileMemoryStore(MEMORY_DIR).findConflicts({
+        type,
+        scope,
+        statement,
+        sessionId: scope === "session" ? sessionId : undefined,
+      });
+      sendJson(res, 200, { conflicts });
+    } catch (err) {
+      sendJson(res, 500, {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+    return;
+  }
+
   if (url.pathname === "/api/memory") {
+    if (req.method === "POST") {
+      try {
+        const body = (await readJsonBody(req)) as {
+          type?: string;
+          scope?: string;
+          statement?: string;
+          justification?: string;
+          confidence?: string;
+          tags?: string[];
+          sessionId?: string;
+          state?: string;
+          approvedBy?: string;
+        };
+
+        const typeParse = MemoryTypeSchema.safeParse(body.type);
+        const scopeParse = MemoryScopeSchema.safeParse(body.scope);
+        if (!typeParse.success || !scopeParse.success) {
+          sendJson(res, 400, { error: "Invalid type or scope" });
+          return;
+        }
+        if (!body.statement?.trim() || !body.justification?.trim()) {
+          sendJson(res, 400, {
+            error: "statement and justification are required",
+          });
+          return;
+        }
+        const stateParse = body.state
+          ? MemoryStateSchema.safeParse(body.state)
+          : null;
+        const requestedState: MemoryState | undefined =
+          stateParse?.success ? stateParse.data : undefined;
+        if (requestedState && requestedState !== "proposed" && requestedState !== "accepted") {
+          sendJson(res, 400, {
+            error: "Manual create only supports state 'proposed' or 'accepted'",
+          });
+          return;
+        }
+
+        const item = await new FileMemoryStore(MEMORY_DIR).create({
+          type: typeParse.data,
+          scope: scopeParse.data,
+          statement: body.statement,
+          justification: body.justification,
+          confidence:
+            body.confidence === "low" || body.confidence === "medium"
+              ? body.confidence
+              : "high",
+          tags: Array.isArray(body.tags) ? body.tags : [],
+          sessionId:
+            scopeParse.data === "session" ? body.sessionId : undefined,
+          origin: "operator",
+          state: requestedState,
+          approvedBy: body.approvedBy,
+        });
+        sendJson(res, 201, item);
+      } catch (err) {
+        sendJson(res, 500, {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+      return;
+    }
+
     try {
       const store = new FileMemoryStore(MEMORY_DIR);
       let items = await store.list();
       const sessionId = url.searchParams.get("sessionId");
       const scope = url.searchParams.get("scope");
+      const state = url.searchParams.get("state");
+      const type = url.searchParams.get("type");
 
       if (sessionId) {
         items = items.filter((item) => item.sessionId === sessionId);
@@ -356,6 +492,16 @@ async function handleRequest(
 
       if (isMemoryScope(scope)) {
         items = items.filter((item) => item.scope === scope);
+      }
+
+      const stateFilter = parseEnumParam<MemoryState>(state, MemoryStateSchema);
+      if (stateFilter) {
+        items = items.filter((item) => item.state === stateFilter);
+      }
+
+      const typeFilter = parseEnumParam<MemoryType>(type, MemoryTypeSchema);
+      if (typeFilter) {
+        items = items.filter((item) => item.type === typeFilter);
       }
 
       sendJson(res, 200, items);
@@ -367,19 +513,96 @@ async function handleRequest(
     return;
   }
 
-  const memoryDeleteMatch = url.pathname.match(/^\/api\/memory\/([^/]+)$/);
-  if (memoryDeleteMatch && req.method === "DELETE") {
+  const memoryActionMatch = url.pathname.match(
+    /^\/api\/memory\/([^/]+)\/([a-z]+)$/
+  );
+  if (memoryActionMatch && req.method === "POST") {
+    const [, memoryId, actionRaw] = memoryActionMatch;
+    if (!isMemoryAction(actionRaw)) {
+      sendJson(res, 400, { error: `Unknown memory action: ${actionRaw}` });
+      return;
+    }
     try {
-      const deleted = await new FileMemoryStore(MEMORY_DIR).delete(
-        memoryDeleteMatch[1]
+      const body = (await readJsonBody(req)) as {
+        reason?: string;
+        actor?: string;
+        supersededById?: string;
+      };
+      const updated = await new FileMemoryStore(MEMORY_DIR).transition(
+        memoryId,
+        {
+          action: actionRaw,
+          reason: body.reason,
+          actor: body.actor,
+          supersededById: body.supersededById,
+        }
       );
-      sendJson(res, 200, { deleted });
+      sendJson(res, 200, updated);
     } catch (err) {
+      if (err instanceof MemoryTransitionError) {
+        sendJson(res, 400, { error: err.message });
+        return;
+      }
       sendJson(res, 500, {
         error: err instanceof Error ? err.message : String(err),
       });
     }
     return;
+  }
+
+  const memoryItemMatch = url.pathname.match(/^\/api\/memory\/([^/]+)$/);
+  if (memoryItemMatch) {
+    const memoryId = memoryItemMatch[1];
+    if (req.method === "DELETE") {
+      try {
+        const deleted = await new FileMemoryStore(MEMORY_DIR).delete(memoryId);
+        sendJson(res, 200, { deleted });
+      } catch (err) {
+        sendJson(res, 500, {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+      return;
+    }
+    if (req.method === "PATCH") {
+      try {
+        const body = (await readJsonBody(req)) as {
+          statement?: string;
+          justification?: string;
+          tags?: string[];
+          confidence?: "high" | "medium" | "low";
+        };
+        const updated = await new FileMemoryStore(MEMORY_DIR).patch(
+          memoryId,
+          body
+        );
+        sendJson(res, 200, updated);
+      } catch (err) {
+        if (err instanceof MemoryTransitionError) {
+          sendJson(res, 400, { error: err.message });
+          return;
+        }
+        sendJson(res, 500, {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+      return;
+    }
+    if (req.method === "GET") {
+      try {
+        const item = await new FileMemoryStore(MEMORY_DIR).load(memoryId);
+        if (!item) {
+          sendJson(res, 404, { error: "Memory item not found" });
+          return;
+        }
+        sendJson(res, 200, item);
+      } catch (err) {
+        sendJson(res, 500, {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+      return;
+    }
   }
 
   const inquirySessionMatch = url.pathname.match(/^\/api\/inquiry\/sessions\/([^/]+)$/);

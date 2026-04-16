@@ -5,8 +5,10 @@ export type {
   MemoryItem,
   MemoryModelCandidate,
   MemoryModelResponse,
+  MemoryOrigin,
   MemoryScope,
   MemorySourceRef,
+  MemoryState,
   MemoryStoredItemSnapshot,
   MemoryType,
 } from "../schemas/memory";

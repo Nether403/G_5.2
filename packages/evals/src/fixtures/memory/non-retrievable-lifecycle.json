@@ -1,0 +1,132 @@
+[
+  {
+    "schemaVersion": 3,
+    "id": "memory-proposed-concise",
+    "type": "user_preference",
+    "scope": "global",
+    "state": "proposed",
+    "origin": "operator",
+    "statement": "Prefer concise replies.",
+    "justification": "Operator proposed this preference; awaiting approval and must not be retrieved until accepted.",
+    "confidence": "high",
+    "tags": ["preference", "style"],
+    "createdAt": "2026-04-16T09:00:00.000Z",
+    "updatedAt": "2026-04-16T09:00:00.000Z",
+    "createdFrom": {
+      "turnId": "operator-proposal-1",
+      "createdAt": "2026-04-16T09:00:00.000Z"
+    },
+    "lastConfirmedFrom": {
+      "turnId": "operator-proposal-1",
+      "createdAt": "2026-04-16T09:00:00.000Z"
+    },
+    "confirmationCount": 1
+  },
+  {
+    "schemaVersion": 3,
+    "id": "memory-rejected-cursive",
+    "type": "user_preference",
+    "scope": "global",
+    "state": "rejected",
+    "origin": "turn",
+    "statement": "Always answer with cursive flourishes.",
+    "justification": "Rejected candidate — style drift. Must stay out of retrieval.",
+    "confidence": "high",
+    "tags": ["preference", "style"],
+    "createdAt": "2026-04-15T09:00:00.000Z",
+    "updatedAt": "2026-04-15T09:05:00.000Z",
+    "rejectedAt": "2026-04-15T09:05:00.000Z",
+    "rejectionReason": "Violates voice restraint canon.",
+    "createdFrom": {
+      "sessionId": "session-old",
+      "turnId": "turn-old-1",
+      "createdAt": "2026-04-15T09:00:00.000Z"
+    },
+    "lastConfirmedFrom": {
+      "sessionId": "session-old",
+      "turnId": "turn-old-1",
+      "createdAt": "2026-04-15T09:00:00.000Z"
+    },
+    "confirmationCount": 1
+  },
+  {
+    "schemaVersion": 3,
+    "id": "memory-superseded-provider",
+    "type": "project_decision",
+    "scope": "global",
+    "state": "superseded",
+    "origin": "turn",
+    "statement": "Default to Anthropic for routine operator use.",
+    "justification": "Superseded by a later decision; kept for audit, must not influence retrieval.",
+    "confidence": "high",
+    "tags": ["decision", "provider"],
+    "createdAt": "2026-04-14T09:00:00.000Z",
+    "updatedAt": "2026-04-15T09:00:00.000Z",
+    "supersededBy": "memory-accepted-provider",
+    "createdFrom": {
+      "sessionId": "session-old",
+      "turnId": "turn-old-2",
+      "createdAt": "2026-04-14T09:00:00.000Z"
+    },
+    "lastConfirmedFrom": {
+      "sessionId": "session-old",
+      "turnId": "turn-old-2",
+      "createdAt": "2026-04-14T09:00:00.000Z"
+    },
+    "confirmationCount": 1
+  },
+  {
+    "schemaVersion": 3,
+    "id": "memory-accepted-provider",
+    "type": "project_decision",
+    "scope": "global",
+    "state": "accepted",
+    "origin": "turn",
+    "statement": "Default to Gemini for routine operator use.",
+    "justification": "Current standing project decision superseding the Anthropic default.",
+    "confidence": "high",
+    "tags": ["decision", "provider", "gemini"],
+    "createdAt": "2026-04-15T09:00:00.000Z",
+    "updatedAt": "2026-04-15T09:00:00.000Z",
+    "supersedes": "memory-superseded-provider",
+    "createdFrom": {
+      "sessionId": "session-old",
+      "turnId": "turn-old-3",
+      "createdAt": "2026-04-15T09:00:00.000Z"
+    },
+    "lastConfirmedFrom": {
+      "sessionId": "session-old",
+      "turnId": "turn-old-3",
+      "createdAt": "2026-04-15T09:00:00.000Z"
+    },
+    "confirmationCount": 1
+  },
+  {
+    "schemaVersion": 3,
+    "id": "memory-resolved-thread",
+    "type": "open_thread",
+    "scope": "session",
+    "state": "resolved",
+    "origin": "turn",
+    "statement": "Finalize the memory schema.",
+    "justification": "Resolved open thread — already closed out, must not be retrieved.",
+    "confidence": "high",
+    "tags": ["open-thread"],
+    "sessionId": "session-lifecycle",
+    "createdAt": "2026-04-15T09:00:00.000Z",
+    "updatedAt": "2026-04-15T09:30:00.000Z",
+    "resolvedAt": "2026-04-15T09:30:00.000Z",
+    "resolvedReason": "Schema finalized in M3.",
+    "createdFrom": {
+      "sessionId": "session-lifecycle",
+      "turnId": "turn-thread-1",
+      "createdAt": "2026-04-15T09:00:00.000Z"
+    },
+    "lastConfirmedFrom": {
+      "sessionId": "session-lifecycle",
+      "turnId": "turn-thread-1",
+      "createdAt": "2026-04-15T09:00:00.000Z"
+    },
+    "confirmationCount": 1
+  }
+]

@@ -13,7 +13,7 @@ export const SCHEMA_VERSIONS = {
   sessionSummary: 1,
   turnTrace: 1,
   contextSnapshot: 1,
-  memoryItem: 2,
+  memoryItem: 3,
   report: 2,
   archive: 1,
   reportArchive: 1,

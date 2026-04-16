@@ -105,6 +105,8 @@ test("filterSessionSummaries matches summary and turn content", () => {
                   id: "memory-1",
                   type: "project_decision",
                   scope: "global",
+                  state: "accepted",
+                  origin: "turn",
                   statement: "Keep project terms stable.",
                   justification: "The assistant captured a durable project decision.",
                   confidence: "high",

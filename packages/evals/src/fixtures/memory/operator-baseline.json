@@ -1,8 +1,11 @@
 [
   {
+    "schemaVersion": 3,
     "id": "memory-pref-concise",
     "type": "user_preference",
     "scope": "global",
+    "state": "accepted",
+    "origin": "turn",
     "statement": "Prefer concise replies.",
     "justification": "The operator explicitly asked for concise replies across future interactions.",
     "confidence": "high",
@@ -22,9 +25,12 @@
     "confirmationCount": 1
   },
   {
+    "schemaVersion": 3,
     "id": "memory-decision-gemini",
     "type": "project_decision",
     "scope": "global",
+    "state": "accepted",
+    "origin": "turn",
     "statement": "Default to Gemini for routine operator use.",
     "justification": "The project settled on Gemini as the default provider preference for routine operator work.",
     "confidence": "high",
