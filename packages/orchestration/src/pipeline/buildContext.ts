@@ -3,7 +3,11 @@ import { FileMemoryStore } from "../memory/fileMemoryStore";
 import { buildRetrievalSet } from "../retrieval/buildRetrievalSet";
 import type { Message } from "../types/messages";
 import type { MemoryItem } from "../types/memory";
-import type { BuildContextInput, BuiltContext } from "../types/pipeline";
+import type {
+  BuildContextInput,
+  BuiltContext,
+  ConsideredButSkippedDocument,
+} from "../types/pipeline";
 import {
   trimToTokenBudget,
   truncateToTokens,
@@ -148,6 +152,15 @@ export async function buildContext(
   userPromptParts.push("User:", input.userMessage);
   const userPrompt = userPromptParts.join("\n\n");
 
+  const consideredButSkippedDocuments: ConsideredButSkippedDocument[] =
+    retrieval.documents
+      .filter((doc) => !documentBlocks.some((block) => block.slug === doc.slug))
+      .map((doc) => ({
+        slug: doc.slug,
+        title: doc.title,
+        reason: "trimmed by canon token budget",
+      }));
+
   return {
     mode: input.mode,
     selectedDocuments: retrieval.documents.filter((doc) =>
@@ -159,6 +172,7 @@ export async function buildContext(
     selectedRecoveredArtifacts: retrieval.recoveredArtifacts.filter((artifact) =>
       artifactBlocks.some((block) => block.slug === artifact.slug)
     ),
+    consideredButSkippedDocuments,
     systemPrompt,
     recentMessages: input.recentMessages,
     sessionSummary: input.sessionSummary,

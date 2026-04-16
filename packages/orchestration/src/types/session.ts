@@ -15,6 +15,11 @@ export interface SessionContextSnapshot {
     statement: string;
     sessionId?: string;
   }>;
+  consideredButSkippedDocuments?: Array<{
+    slug: string;
+    title: string;
+    reason: string;
+  }>;
   hadSessionSummary: boolean;
   recentMessageCount: number;
 }
@@ -25,6 +30,22 @@ export interface SessionTurnTrace {
   critique: string;
   revision: string;
   final: string;
+}
+
+export interface SessionTurnProvider {
+  name: string;
+  model: string;
+}
+
+export interface SessionTurnRerun {
+  id: string;
+  createdAt: string;
+  mode: Mode;
+  assistantMessage: string;
+  provider: SessionTurnProvider;
+  trace?: SessionTurnTrace;
+  contextSnapshot?: SessionContextSnapshot;
+  memoryDecision: TurnArtifacts["memoryDecision"];
 }
 
 export interface SessionTurnRecord {
@@ -39,6 +60,12 @@ export interface SessionTurnRecord {
   contextSnapshotId?: string;
   runMetadata?: RunMetadata;
   trace?: SessionTurnTrace;
+  provider?: SessionTurnProvider;
+  reruns?: SessionTurnRerun[];
+  error?: {
+    message: string;
+    failedAt: string;
+  };
 }
 
 export interface InquirySession {
@@ -48,6 +75,9 @@ export interface InquirySession {
   updatedAt: string;
   summary: PersistedSessionSummary | null;
   turns: SessionTurnRecord[];
+  tags?: string[];
+  archived?: boolean;
+  title?: string;
 }
 
 export interface SessionStore {

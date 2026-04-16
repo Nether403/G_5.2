@@ -30,6 +30,8 @@ export * from "./pipeline/revision";
 export * from "./memory/fileMemoryStore";
 export * from "./sessions/fileSessionStore";
 export * from "./sessions/runSessionTurn";
+export * from "./sessions/runCompareTurn";
+export * from "./providers/byName";
 
 export * from "./persistence/schemaVersions";
 export * from "./persistence/runMetadata";

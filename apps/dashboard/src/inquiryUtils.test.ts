@@ -1,8 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  collectTagCounts,
+  computeSessionSummaryHealth,
   filterSessionSummaries,
+  filterSessionsByArchive,
+  filterSessionsByTag,
   sortSessionSummaries,
+  sortSessionSummariesBy,
   toSessionSummary,
 } from "./inquiryUtils";
 import type { InquirySession } from "../../../packages/orchestration/src/types/session";
@@ -138,4 +143,106 @@ test("filterSessionSummaries matches summary and turn content", () => {
     filterSessionSummaries(sessions, "canon").map((session) => session.id),
     ["session-alpha"]
   );
+});
+
+test("toSessionSummary surfaces tags, archived state, and title", () => {
+  const summary = toSessionSummary(
+    buildSession({
+      id: "tagged",
+      title: "Canon Drift Review",
+      tags: ["canon", "review"],
+      archived: true,
+    })
+  );
+
+  assert.equal(summary.title, "Canon Drift Review");
+  assert.equal(summary.preview, "Canon Drift Review");
+  assert.deepEqual(summary.tags, ["canon", "review"]);
+  assert.equal(summary.archived, true);
+});
+
+test("sortSessionSummariesBy sorts by turnCount and title", () => {
+  const base: Partial<InquirySession>[] = [
+    { id: "a", summary: { schemaVersion: 1, text: "alpha", generatedAt: "2026-04-15T09:00:00.000Z" }, updatedAt: "2026-04-15T09:00:00.000Z", title: "Zeta" },
+    { id: "b", summary: { schemaVersion: 1, text: "beta", generatedAt: "2026-04-15T09:00:00.000Z" }, updatedAt: "2026-04-15T09:00:00.000Z", title: "Alpha" },
+  ];
+  const summaries = base.map((o) =>
+    toSessionSummary(
+      buildSession({
+        ...o,
+        turns: o.id === "a" ? [
+          { id: "t1", createdAt: "x", mode: "dialogic", userMessage: "u", assistantMessage: "a", memoryDecision: buildMemoryDecision() },
+          { id: "t2", createdAt: "y", mode: "dialogic", userMessage: "u", assistantMessage: "a", memoryDecision: buildMemoryDecision() },
+        ] : [],
+      })
+    )
+  );
+
+  assert.deepEqual(
+    sortSessionSummariesBy(summaries, "turnCount", "desc").map((s) => s.id),
+    ["a", "b"]
+  );
+
+  assert.deepEqual(
+    sortSessionSummariesBy(summaries, "title", "asc").map((s) => s.id),
+    ["b", "a"]
+  );
+});
+
+test("tag and archive filters narrow sessions correctly", () => {
+  const sessions = [
+    toSessionSummary(
+      buildSession({ id: "s1", tags: ["canon", "review"], archived: false })
+    ),
+    toSessionSummary(
+      buildSession({ id: "s2", tags: ["memory"], archived: true })
+    ),
+    toSessionSummary(buildSession({ id: "s3", archived: false })),
+  ];
+
+  assert.deepEqual(
+    filterSessionsByTag(sessions, "canon").map((s) => s.id),
+    ["s1"]
+  );
+  assert.deepEqual(
+    filterSessionsByTag(sessions, null).map((s) => s.id),
+    ["s1", "s2", "s3"]
+  );
+  assert.deepEqual(
+    filterSessionsByArchive(sessions, "active").map((s) => s.id),
+    ["s1", "s3"]
+  );
+  assert.deepEqual(
+    filterSessionsByArchive(sessions, "archived").map((s) => s.id),
+    ["s2"]
+  );
+  assert.deepEqual(
+    collectTagCounts(sessions).map((t) => t.tag),
+    ["canon", "memory", "review"]
+  );
+});
+
+test("computeSessionSummaryHealth reports summary and window state", () => {
+  const now = new Date("2026-04-15T10:30:00.000Z");
+  const session = buildSession({
+    summary: { schemaVersion: 1, text: "Turn 1 covered X. Turn 2 covered Y. Turn 3 covered Z.", generatedAt: "2026-04-15T10:00:00.000Z" },
+    updatedAt: "2026-04-15T10:00:00.000Z",
+    turns: Array.from({ length: 6 }, (_, idx) => ({
+      id: `t${idx}`,
+      createdAt: "2026-04-15T10:00:00.000Z",
+      mode: "dialogic" as const,
+      userMessage: "u",
+      assistantMessage: "a",
+      memoryDecision: buildMemoryDecision(),
+    })),
+  });
+
+  const health = computeSessionSummaryHealth(session, 4, now);
+  assert.equal(health.hasSummary, true);
+  assert.equal(health.turnsInRecentWindow, 4);
+  assert.equal(health.turnsInSummary, 2);
+  assert.equal(health.recentWindowLimit, 4);
+  assert.ok(health.summaryCharCount > 0);
+  assert.ok(health.summaryTokensApprox > 0);
+  assert.match(health.stalenessLabel, /minute/);
 });

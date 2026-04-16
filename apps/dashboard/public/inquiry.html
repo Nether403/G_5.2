@@ -7,57 +7,726 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#0a0f13;--surface:#10171dcc;--surface2:#15202a;--surface3:#1d2a36;--border:#2a3a48;--text:#e6edf2;--dim:#93a3af;--blue:#5db0ff;--green:#87df82;--danger:#ff8f8f;--radius:14px;--radiuslg:18px;--shadow:0 20px 45px rgba(0,0,0,.24)}*{box-sizing:border-box}body{margin:0;min-height:100vh;font-family:Inter,sans-serif;color:var(--text);background:radial-gradient(circle at top left,rgba(93,176,255,.12),transparent 28%),radial-gradient(circle at top right,rgba(135,223,130,.11),transparent 24%),linear-gradient(180deg,#0b1014 0%,#0a0f13 100%)}.header{position:sticky;top:0;z-index:10;display:flex;align-items:center;gap:18px;height:58px;padding:0 28px;border-bottom:1px solid var(--border);background:#10171de6;backdrop-filter:blur(10px)}.brand{display:flex;align-items:center;gap:12px;padding-right:20px;border-right:1px solid var(--border)}.brand h1{margin:0;font-size:15px}.tag{padding:3px 9px;border-radius:999px;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;background:rgba(135,223,130,.14);color:var(--green)}.nav{display:flex;gap:6px}.nav a{text-decoration:none;color:var(--dim);font-size:13px;font-weight:600;padding:8px 12px;border-radius:999px}.nav a:hover{color:var(--text);background:rgba(255,255,255,.04)}.nav a.active{color:var(--text);background:rgba(93,176,255,.16)}.spacer{flex:1}.pill{display:inline-flex;align-items:center;gap:8px;padding:7px 11px;border-radius:999px;border:1px solid var(--border);background:rgba(255,255,255,.04);font-size:11px;color:var(--dim)}.dot{width:8px;height:8px;border-radius:999px;background:var(--blue);box-shadow:0 0 10px rgba(93,176,255,.42)}.layout{max-width:1500px;margin:0 auto;padding:24px 28px 32px;display:grid;grid-template-columns:330px minmax(0,1fr);gap:20px}.panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radiuslg);box-shadow:var(--shadow)}.sidebar,.workspace{min-height:calc(100vh - 114px);overflow:hidden}.sidebar{display:flex;flex-direction:column}.section{padding:18px;border-bottom:1px solid var(--border)}.eyebrow{margin-bottom:8px;color:var(--dim);font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}h2{margin:0;font-size:18px}.sub{margin-top:8px;color:var(--dim);font-size:13px;line-height:1.55}.row,.actions,.turn-actions,.drawer-actions{display:flex;gap:10px;flex-wrap:wrap}.actions{margin-top:14px}.btn,.input,.select,.textarea{border:1px solid var(--border);background:var(--surface2);color:var(--text);font:inherit}.btn{appearance:none;cursor:pointer;border-radius:999px;padding:10px 14px;font-size:12px;font-weight:700}.btn:hover{border-color:var(--blue)}.btn:disabled{opacity:.6;cursor:wait}.primary{background:linear-gradient(135deg,rgba(135,223,130,.18),rgba(93,176,255,.18));border-color:rgba(135,223,130,.28)}.quiet{padding:8px 12px;font-size:11px;text-transform:uppercase;letter-spacing:.06em}.input,.select{width:100%;border-radius:14px;padding:10px 12px;font-size:13px}.textarea{width:100%;min-height:120px;resize:vertical;border-radius:16px;padding:14px 16px;line-height:1.6;font-size:14px}.search{padding:12px;border-bottom:1px solid var(--border)}.meta{margin-top:8px;color:var(--dim);font-size:11px}.list{padding:12px;display:flex;flex-direction:column;gap:10px;overflow:auto}.card{padding:14px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface2);cursor:pointer}.card:hover{border-color:rgba(93,176,255,.42);transform:translateY(-1px)}.card.active{border-color:rgba(135,223,130,.42);background:linear-gradient(180deg,rgba(135,223,130,.1),rgba(93,176,255,.06))}.card-meta{display:flex;justify-content:space-between;gap:12px;color:var(--dim);font-family:"JetBrains Mono",monospace;font-size:11px}.preview{margin-top:8px;font-size:13px;line-height:1.55;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}.workspace{display:grid;grid-template-rows:auto auto auto auto 1fr auto}.head{display:flex;justify-content:space-between;gap:18px;align-items:flex-start}.box,.empty{margin:16px 18px 0;padding:14px 16px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface2)}.box,.empty,.copy{font-size:13px;color:var(--dim);line-height:1.55}.box strong,.drawer strong{display:block;margin-bottom:6px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--text)}.body{min-height:0;overflow:hidden;padding:18px;display:grid;grid-template-columns:minmax(0,1fr) 370px;gap:16px}.conversation{padding-right:2px;overflow:auto;display:flex;flex-direction:column;gap:14px}.turn{padding:14px;border-radius:var(--radiuslg);border:1px solid var(--border);background:rgba(255,255,255,.02)}.turn.active{border-color:rgba(93,176,255,.46);box-shadow:inset 0 0 0 1px rgba(93,176,255,.16)}.turn-meta,.msg-head{display:flex;justify-content:space-between;gap:10px;color:var(--dim);font-size:11px;letter-spacing:.08em;text-transform:uppercase}.turn-meta{margin-bottom:10px}.why{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}.tag-pill{padding:6px 10px;border-radius:999px;border:1px solid var(--border);background:rgba(255,255,255,.04);color:var(--dim);font-family:"JetBrains Mono",monospace;font-size:11px}.msg{margin-bottom:10px;padding:14px 16px;border-radius:18px;border:1px solid var(--border);box-shadow:inset 0 1px 0 rgba(255,255,255,.02)}.msg.user{background:linear-gradient(135deg,rgba(93,176,255,.18),rgba(93,176,255,.08));border-color:rgba(93,176,255,.26)}.msg.assistant{background:rgba(255,255,255,.03)}.msg-head{margin-bottom:8px}.msg-body,.copy,.value,.summary{white-space:pre-wrap}.msg-body{font-size:14px;line-height:1.7}.drawer{min-height:0;overflow:auto;padding:16px;border-radius:var(--radiuslg);border:1px solid var(--border);background:var(--surface2)}.drawer-top{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:14px}.drawer-top h3{margin:0;font-size:18px}.drawer-sub{color:var(--dim);font-size:12px;line-height:1.5}.block{margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,.06)}.drawer-list{display:flex;flex-direction:column;gap:10px;margin-top:10px}.context{padding:10px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.02)}.label{margin-bottom:4px;color:var(--dim);font-size:11px;letter-spacing:.08em;text-transform:uppercase}.value{font-size:13px;line-height:1.55}.section-toggle{margin-top:10px;padding:10px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.02)}.section-toggle summary{cursor:pointer;font-size:12px;font-weight:700;color:var(--text)}.composer{padding:18px;border-top:1px solid var(--border);background:rgba(8,13,17,.58)}.compose{display:grid;grid-template-columns:minmax(0,1fr) 200px;gap:12px;align-items:end}.compose-actions{display:flex;flex-direction:column;gap:10px}.hint{color:var(--dim);font-size:11px;line-height:1.5}.error{margin-top:10px;color:var(--danger);font-size:13px}.hidden{display:none!important}.empty{text-align:center}@media (max-width:1280px){.body{grid-template-columns:1fr}}@media (max-width:1100px){.layout{grid-template-columns:1fr}.sidebar,.workspace{min-height:auto}}@media (max-width:760px){.header{padding:0 16px;gap:12px}.layout{padding:16px}.head{flex-direction:column}.compose{grid-template-columns:1fr}}
+:root{--bg:#0a0f13;--surface:#10171dcc;--surface2:#15202a;--surface3:#1d2a36;--border:#2a3a48;--text:#e6edf2;--dim:#93a3af;--blue:#5db0ff;--green:#87df82;--amber:#f5c17b;--danger:#ff8f8f;--radius:14px;--radiuslg:18px;--shadow:0 20px 45px rgba(0,0,0,.24)}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;font-family:Inter,sans-serif;color:var(--text);background:radial-gradient(circle at top left,rgba(93,176,255,.12),transparent 28%),radial-gradient(circle at top right,rgba(135,223,130,.11),transparent 24%),linear-gradient(180deg,#0b1014 0%,#0a0f13 100%)}
+.header{position:sticky;top:0;z-index:10;display:flex;align-items:center;gap:18px;height:58px;padding:0 28px;border-bottom:1px solid var(--border);background:#10171de6;backdrop-filter:blur(10px)}
+.brand{display:flex;align-items:center;gap:12px;padding-right:20px;border-right:1px solid var(--border)}
+.brand h1{margin:0;font-size:15px}
+.tag{padding:3px 9px;border-radius:999px;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;background:rgba(135,223,130,.14);color:var(--green)}
+.nav{display:flex;gap:6px}
+.nav a{text-decoration:none;color:var(--dim);font-size:13px;font-weight:600;padding:8px 12px;border-radius:999px}
+.nav a:hover{color:var(--text);background:rgba(255,255,255,.04)}
+.nav a.active{color:var(--text);background:rgba(93,176,255,.16)}
+.spacer{flex:1}
+.pill{display:inline-flex;align-items:center;gap:8px;padding:7px 11px;border-radius:999px;border:1px solid var(--border);background:rgba(255,255,255,.04);font-size:11px;color:var(--dim)}
+.dot{width:8px;height:8px;border-radius:999px;background:var(--blue);box-shadow:0 0 10px rgba(93,176,255,.42)}
+.layout{max-width:1500px;margin:0 auto;padding:24px 28px 32px;display:grid;grid-template-columns:340px minmax(0,1fr);gap:20px}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radiuslg);box-shadow:var(--shadow)}
+.sidebar,.workspace{min-height:calc(100vh - 114px);overflow:hidden}
+.sidebar{display:flex;flex-direction:column}
+.section{padding:20px 22px;border-bottom:1px solid var(--border)}
+.eyebrow{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);margin-bottom:6px}
+.section h2{margin:0 0 6px;font-size:16px}
+.sub{font-size:12px;color:var(--dim);line-height:1.5}
+.actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.btn{border:1px solid var(--border);background:rgba(255,255,255,.03);color:var(--text);font-size:12px;font-weight:600;padding:7px 12px;border-radius:999px;cursor:pointer;font-family:inherit}
+.btn:hover{background:rgba(255,255,255,.08)}
+.btn.primary{background:linear-gradient(135deg,rgba(93,176,255,.32),rgba(93,176,255,.16));border-color:rgba(93,176,255,.4)}
+.btn.primary:hover{background:linear-gradient(135deg,rgba(93,176,255,.42),rgba(93,176,255,.22))}
+.btn.quiet{background:transparent;color:var(--dim);font-weight:500}
+.btn.quiet:hover{color:var(--text);background:rgba(255,255,255,.06)}
+.btn.danger{color:var(--danger);border-color:rgba(255,143,143,.3)}
+.btn.danger:hover{background:rgba(255,143,143,.1)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.search{padding:16px 22px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:10px}
+.input,.select,.textarea{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:9px 12px;color:var(--text);font-family:inherit;font-size:13px;outline:none}
+.input:focus,.select:focus,.textarea:focus{border-color:rgba(93,176,255,.45)}
+.textarea{min-height:88px;resize:vertical;line-height:1.5}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.meta{font-size:11px;color:var(--dim)}
+.filters{display:flex;gap:6px;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;border:1px solid var(--border);background:rgba(255,255,255,.03);font-size:11px;color:var(--dim);cursor:pointer}
+.chip.active{color:var(--text);border-color:rgba(93,176,255,.4);background:rgba(93,176,255,.12)}
+.chip.tag{color:var(--green);border-color:rgba(135,223,130,.3);background:rgba(135,223,130,.08)}
+.chip.tag.active{background:rgba(135,223,130,.2);color:var(--text)}
+.list{flex:1;overflow-y:auto;padding:14px 18px 20px}
+.empty{font-size:12px;color:var(--dim);padding:16px;text-align:center;border:1px dashed var(--border);border-radius:12px}
+.card{padding:14px;border:1px solid var(--border);background:var(--surface2);border-radius:12px;margin-bottom:10px;cursor:pointer;transition:border-color .12s,background .12s}
+.card:hover{border-color:rgba(93,176,255,.3)}
+.card.active{border-color:rgba(93,176,255,.55);background:rgba(93,176,255,.08)}
+.card.archived{opacity:.7}
+.card-meta{display:flex;justify-content:space-between;font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em}
+.preview{margin-top:6px;font-size:13px;line-height:1.45;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card-tags{margin-top:8px;display:flex;gap:4px;flex-wrap:wrap}
+.card-tag{font-size:10px;padding:2px 7px;border-radius:999px;background:rgba(135,223,130,.14);color:var(--green)}
+.workspace{display:flex;flex-direction:column}
+.section.head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
+.select{width:auto;min-width:140px}
+.box{padding:14px 22px;border-bottom:1px solid var(--border);font-size:12px;color:var(--dim);line-height:1.5;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.box strong{color:var(--text);font-size:12px;display:block;margin-bottom:3px}
+.box.hidden{display:none}
+.health{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;font-size:11px;color:var(--dim);margin-top:8px}
+.health .cell strong{font-size:13px;color:var(--text);font-weight:600}
+.body{flex:1;display:grid;grid-template-columns:minmax(0,1fr) 400px;min-height:0}
+.conversation{padding:20px 24px;overflow-y:auto;display:flex;flex-direction:column;gap:14px}
+.drawer{padding:18px 22px;overflow-y:auto;border-left:1px solid var(--border);background:rgba(0,0,0,.15)}
+.turn{border:1px solid var(--border);border-radius:14px;padding:14px 16px;background:var(--surface2)}
+.turn.active{border-color:rgba(93,176,255,.5);background:rgba(93,176,255,.06)}
+.turn.failed{border-color:rgba(255,143,143,.4);background:rgba(255,143,143,.06)}
+.turn-meta{display:flex;justify-content:space-between;font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.msg{margin-top:10px;padding:10px 12px;border-radius:10px;background:var(--surface3);font-size:13px;line-height:1.55}
+.msg.user{background:rgba(93,176,255,.08);border:1px solid rgba(93,176,255,.2)}
+.msg-head{display:flex;justify-content:space-between;font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.msg-body{white-space:pre-wrap;word-wrap:break-word}
+.why{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+.tag-pill{font-size:10px;padding:2px 8px;border-radius:999px;background:rgba(255,255,255,.05);color:var(--dim);border:1px solid var(--border)}
+.turn-actions{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.drawer-top{display:flex;justify-content:space-between;align-items:start;gap:10px;margin-bottom:8px}
+.drawer-top h3{margin:0;font-size:15px}
+.drawer-sub{font-size:11px;color:var(--dim);margin-bottom:12px}
+.block{margin-top:14px}
+.block strong{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);margin-bottom:6px}
+.copy{font-size:12px;line-height:1.55}
+.drawer-list{display:flex;flex-direction:column;gap:8px;margin-top:6px}
+.context{padding:9px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface3);font-size:11px;line-height:1.45}
+.context .label{font-size:10px;color:var(--dim);margin-bottom:3px;text-transform:uppercase;letter-spacing:.06em}
+.context .value{color:var(--text)}
+.context.skipped{opacity:.75;border-style:dashed}
+.composer{padding:16px 22px;border-top:1px solid var(--border);background:rgba(0,0,0,.2)}
+.compose{display:grid;grid-template-columns:1fr;gap:10px}
+.compose-actions{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.hint{font-size:11px;color:var(--dim)}
+.error{padding:10px 12px;border-radius:10px;background:rgba(255,143,143,.1);color:var(--danger);font-size:12px;border:1px solid rgba(255,143,143,.3)}
+.error.hidden{display:none}
+.retry-bar{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap}
+.section-toggle{margin-top:8px}
+.section-toggle summary{cursor:pointer;font-size:11px;color:var(--dim);padding:4px 0}
+.section-toggle summary:hover{color:var(--text)}
+.compare{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.compare-col{border:1px solid var(--border);border-radius:10px;padding:10px;background:var(--surface3);font-size:12px;line-height:1.5}
+.compare-col .head{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);margin-bottom:6px;display:flex;justify-content:space-between}
+.compare-body{white-space:pre-wrap;word-wrap:break-word;max-height:340px;overflow:auto}
+.rerun-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px}
+.pill-tag{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;border:1px solid var(--border);font-size:10px;color:var(--dim)}
+.pill-tag.prov{color:var(--blue);border-color:rgba(93,176,255,.3);background:rgba(93,176,255,.08)}
+.code-block{font-family:'JetBrains Mono',monospace;font-size:11px;background:#0b1319;border:1px solid var(--border);border-radius:8px;padding:10px;margin-top:6px;white-space:pre-wrap;word-wrap:break-word;max-height:220px;overflow:auto;line-height:1.5}
+.tag-editor{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.tag-editor .input{width:auto;flex:1;min-width:140px;padding:6px 10px;font-size:12px}
+.tag-editor .pill-tag{cursor:pointer}
+.tag-editor .pill-tag:hover{border-color:var(--danger);color:var(--danger)}
 </style>
 </head>
 <body>
-<div class="header"><div class="brand"><h1>G_5.2</h1><span class="tag">Inquiry</span></div><nav class="nav"><a href="/">Reports</a><a href="/#diff-page">Diff</a><a href="/inquiry.html" class="active">Inquiry</a></nav><div class="spacer"></div><div class="pill"><span class="dot"></span><span>Operator surface</span></div></div>
+<div class="header">
+  <div class="brand"><h1>G_5.2</h1><span class="tag">Inquiry</span></div>
+  <nav class="nav"><a href="/">Reports</a><a href="/#diff-page">Diff</a><a href="/inquiry.html" class="active">Inquiry</a></nav>
+  <div class="spacer"></div>
+  <div class="pill"><span class="dot"></span><span id="providerPill">Operator surface</span></div>
+</div>
 <div class="layout">
 <aside class="panel sidebar">
-<div class="section"><div class="eyebrow">Sessions</div><h2>Inquiry Threads</h2><div class="sub">Search, resume, and inspect persisted sessions without reading raw JSON.</div><div class="actions"><button class="btn primary" id="newSessionBtn">New Session</button><button class="btn" id="refreshSessionsBtn">Refresh</button></div></div>
-<div class="search"><input class="input" id="sessionSearch" placeholder="Search summary, question, reply, or memory note"><div class="meta" id="searchMeta">Loading sessions...</div></div>
-<div class="list" id="sessionList"><div class="empty">Loading sessions...</div></div>
+  <div class="section">
+    <div class="eyebrow">Sessions</div>
+    <h2>Inquiry Threads</h2>
+    <div class="sub">Search, sort, tag, archive, and inspect persisted sessions.</div>
+    <div class="actions">
+      <button class="btn primary" id="newSessionBtn">New Session</button>
+      <button class="btn" id="refreshSessionsBtn">Refresh</button>
+    </div>
+  </div>
+  <div class="search">
+    <input class="input" id="sessionSearch" placeholder="Search title, summary, turn, memory, or tag">
+    <div class="row">
+      <select class="select" id="sortSelect" style="flex:1">
+        <option value="updatedAt-desc">Sort: newest update</option>
+        <option value="updatedAt-asc">Sort: oldest update</option>
+        <option value="createdAt-desc">Sort: newest created</option>
+        <option value="createdAt-asc">Sort: oldest created</option>
+        <option value="turnCount-desc">Sort: most turns</option>
+        <option value="turnCount-asc">Sort: fewest turns</option>
+        <option value="title-asc">Sort: title A→Z</option>
+      </select>
+    </div>
+    <div class="filters" id="archiveFilter">
+      <span class="chip active" data-archive="active">Active</span>
+      <span class="chip" data-archive="archived">Archived</span>
+      <span class="chip" data-archive="all">All</span>
+    </div>
+    <div class="filters" id="tagFilter"></div>
+    <div class="meta" id="searchMeta">Loading sessions...</div>
+  </div>
+  <div class="list" id="sessionList"><div class="empty">Loading sessions...</div></div>
 </aside>
 <main class="panel workspace">
-<div class="section head"><div><div class="eyebrow">Workspace</div><h2 id="workspaceTitle">Start a new inquiry</h2><div class="sub" id="workspaceSub">Pick an existing thread or start fresh. Each reply can be inspected with its stored retrieval snapshot.</div></div><div class="row"><select class="select" id="modeSelect"><option value="dialogic">dialogic</option><option value="analytic">analytic</option><option value="reflective">reflective</option><option value="editorial">editorial</option><option value="speculative">speculative</option><option value="archive">archive</option><option value="meta">meta</option></select></div></div>
-<div class="box"><div><strong>Provider</strong><div id="providerLabel">Waiting for first turn...</div></div><div id="sessionMeta">No session selected</div></div>
-<div class="box"><div><strong>Keyboard</strong><div>"/" search, "c" composer, "j/k" turn navigation, "y" copy selected reply, Esc closes inspection.</div></div></div>
-<div class="box hidden" id="summaryCard"></div>
-<div class="box" id="memoryCard"><strong>Durable Memory</strong><div class="sub">Low-precedence, non-canonical memory retrieved only when relevant. Session-linked open threads float to the top when a session is active.</div><div class="row" style="margin-top:12px"><input class="input" id="memorySearch" placeholder="Search memory statements, tags, or justification"><button class="btn quiet" id="refreshMemoryBtn">Refresh Memory</button></div><div class="meta" id="memoryMeta">Loading memory...</div><div class="drawer-list" id="memoryList"></div></div>
-<div class="body">
-<div class="conversation" id="conversationPane"><div class="empty">Ask something directly. Recent turns stay live, older context rolls into the session summary, and every reply keeps a lightweight retrieval trace.</div></div>
-<aside class="drawer" id="drawerPane"><div class="empty">Inspect any turn to see why it answered that way and which context was pulled in.</div></aside>
-</div>
-<div class="composer"><div class="compose"><div><textarea class="textarea" id="messageInput" placeholder="Ask a question, continue a thread, or test context carryover..."></textarea><div class="error hidden" id="errorBox"></div></div><div class="compose-actions"><button class="btn primary" id="sendBtn">Send Turn</button><div class="hint">Uses the dashboard server, the persisted session store, and the real orchestration pipeline. Ctrl/Cmd+Enter sends.</div></div></div></div>
+  <div class="section head">
+    <div>
+      <div class="eyebrow">Workspace</div>
+      <h2 id="workspaceTitle">Start a new inquiry</h2>
+      <div class="sub" id="workspaceSub">Pick an existing thread or start fresh. Each reply can be inspected with its stored retrieval snapshot.</div>
+    </div>
+    <div class="row">
+      <select class="select" id="modeSelect">
+        <option value="dialogic">dialogic</option>
+        <option value="analytic">analytic</option>
+        <option value="reflective">reflective</option>
+        <option value="editorial">editorial</option>
+        <option value="speculative">speculative</option>
+        <option value="archive">archive</option>
+        <option value="meta">meta</option>
+      </select>
+      <select class="select" id="providerSelect">
+        <option value="">Default provider</option>
+      </select>
+    </div>
+  </div>
+  <div class="box">
+    <div>
+      <strong>Provider</strong>
+      <div id="providerLabel">Waiting for first turn...</div>
+    </div>
+    <div id="sessionMeta">No session selected</div>
+  </div>
+  <div class="box hidden" id="sessionMetaCard">
+    <div style="flex:1;min-width:280px">
+      <strong>Session Details</strong>
+      <div class="row" style="margin-top:8px">
+        <input class="input" id="titleInput" placeholder="Optional session title" style="flex:1">
+        <button class="btn quiet" id="saveTitleBtn">Save Title</button>
+        <button class="btn quiet" id="toggleArchiveBtn">Archive</button>
+        <button class="btn danger" id="deleteSessionBtn">Delete</button>
+      </div>
+      <div class="tag-editor" style="margin-top:10px" id="tagEditor"></div>
+    </div>
+  </div>
+  <div class="box hidden" id="summaryCard"></div>
+  <div class="box hidden" id="healthCard"></div>
+  <div class="box" id="memoryCard">
+    <div style="flex:1;min-width:260px">
+      <strong>Durable Memory</strong>
+      <div class="sub">Low-precedence, non-canonical memory retrieved only when relevant. Session-linked open threads float to the top when a session is active.</div>
+      <div class="row" style="margin-top:12px">
+        <input class="input" id="memorySearch" placeholder="Search memory statements, tags, or justification">
+        <button class="btn quiet" id="refreshMemoryBtn">Refresh Memory</button>
+      </div>
+      <div class="meta" id="memoryMeta">Loading memory...</div>
+      <div class="drawer-list" id="memoryList"></div>
+    </div>
+  </div>
+  <div class="body">
+    <div class="conversation" id="conversationPane"><div class="empty">Ask something directly. Recent turns stay live, older context rolls into the session summary, and every reply keeps a lightweight retrieval trace.</div></div>
+    <aside class="drawer" id="drawerPane"><div class="empty">Inspect any turn to see why it answered that way and which context was pulled in.</div></aside>
+  </div>
+  <div class="composer">
+    <div class="compose">
+      <div>
+        <textarea class="textarea" id="messageInput" placeholder="Ask a question, continue a thread, or test context carryover..."></textarea>
+        <div class="error hidden" id="errorBox"></div>
+        <div class="retry-bar hidden" id="retryBar">
+          <button class="btn primary" id="retryBtn">Retry Turn</button>
+          <span class="meta" id="retryMeta"></span>
+        </div>
+      </div>
+      <div class="compose-actions">
+        <button class="btn primary" id="sendBtn">Send Turn</button>
+        <div class="hint">Ctrl/Cmd+Enter sends. "/" focuses search, "c" composer, "j/k" turns, "y" copy reply, "r" rerun, Esc closes drawer.</div>
+      </div>
+    </div>
+  </div>
 </main>
 </div>
 <script>
-const $=(s,p)=>(p||document).querySelector(s),esc=v=>(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
-let sessions=[],memoryItems=[],currentSession=null,currentSessionId=null,selectedTurnId=null,latestProvider=null,sessionSearch="",memorySearch="",isSending=false;
+const $=(s,p)=>(p||document).querySelector(s);
+const $$=(s,p)=>Array.from((p||document).querySelectorAll(s));
+const esc=v=>(v??"").toString().replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 const fmt=v=>!v?"-":new Intl.DateTimeFormat(undefined,{year:"numeric",month:"short",day:"2-digit",hour:"2-digit",minute:"2-digit"}).format(new Date(v));
-function setError(message){const el=$("#errorBox");if(!message){el.textContent="";el.classList.add("hidden");return}el.textContent=message;el.classList.remove("hidden")}
-function setSending(v){isSending=v;$("#sendBtn").disabled=v;$("#sendBtn").textContent=v?"Sending...":"Send Turn";$("#messageInput").disabled=v;$("#modeSelect").disabled=v}
-function why(turn){const s=turn.contextSnapshot||{},parts=[];if((s.selectedDocuments||[]).length)parts.push(`${s.selectedDocuments.length} docs`);if((s.selectedFacts||[]).length)parts.push(`${s.selectedFacts.length} facts`);if((s.selectedGlossaryTerms||[]).length)parts.push(`${s.selectedGlossaryTerms.length} terms`);if((s.selectedMemoryItems||[]).length)parts.push(`${s.selectedMemoryItems.length} memory`);if((s.selectedRecoveredArtifacts||[]).length)parts.push(`${s.selectedRecoveredArtifacts.length} artifacts`);if(s.hadSessionSummary)parts.push("session summary");if((s.recentMessageCount||0)>0)parts.push(`${s.recentMessageCount} recent msgs`);return parts.length?parts:["fresh context only"]}
-function visibleSessions(){const q=sessionSearch.trim().toLowerCase();return q?sessions.filter(s=>(s.searchableText||"").includes(q)):sessions}
-function renderSearchMeta(visible,total){$("#searchMeta").textContent=!total?"No sessions yet.":sessionSearch.trim()?`${visible} of ${total} sessions shown`:`${total} sessions available`}
-function renderSessionList(){const root=$("#sessionList"),shown=visibleSessions();renderSearchMeta(shown.length,sessions.length);if(!sessions.length){root.innerHTML='<div class="empty">No persisted sessions yet. Start one from the composer.</div>';return}if(!shown.length){root.innerHTML='<div class="empty">No sessions match that search.</div>';return}root.innerHTML=shown.map(s=>`<div class="card ${s.id===currentSessionId?"active":""}" data-session-id="${esc(s.id)}"><div class="card-meta"><span>${esc(s.id.slice(0,8))}</span><span>${s.turnCount} turn${s.turnCount===1?"":"s"}</span></div><div class="preview">${esc(s.preview)}</div><div class="card-meta" style="margin-top:10px"><span>${fmt(s.updatedAt)}</span><span>${fmt(s.createdAt)}</span></div></div>`).join("");root.querySelectorAll("[data-session-id]").forEach(n=>n.addEventListener("click",async()=>{const id=n.getAttribute("data-session-id");if(id)await loadSession(id)}))}
-function renderItems(items,render,emptyMessage='Nothing was retrieved in this section for this turn.'){if(!items||!items.length)return`<div class="meta" style="margin-top:10px">${esc(emptyMessage)}</div>`;const visible=items.slice(0,4),overflow=items.slice(4),main=`<div class="drawer-list">${visible.map(item=>`<div class="context">${render(item)}</div>`).join("")}</div>`;if(!overflow.length)return main;return `${main}<details class="section-toggle"><summary>Show ${overflow.length} more</summary><div class="drawer-list">${overflow.map(item=>`<div class="context">${render(item)}</div>`).join("")}</div></details>`}
-function copyText(text){navigator.clipboard.writeText(text).catch(()=>{})}
+
+const state={
+  sessions:[],memoryItems:[],currentSession:null,currentSessionId:null,selectedTurnId:null,
+  latestProvider:null,sessionSearch:"",memorySearch:"",
+  sortKey:"updatedAt",sortDir:"desc",archiveFilter:"active",tagFilter:null,
+  providerList:[],defaultProvider:null,hasApiKey:false,
+  isSending:false,lastError:null,pendingRetry:null
+};
+
+function setError(msg,details){
+  const el=$("#errorBox"),bar=$("#retryBar");
+  if(!msg){el.textContent="";el.classList.add("hidden");bar.classList.add("hidden");state.pendingRetry=null;return}
+  el.textContent=msg;el.classList.remove("hidden");
+  if(details&&details.retryable){
+    state.pendingRetry=details;
+    $("#retryMeta").textContent=`Failed with ${details.provider?.name||"provider"} at ${fmt(details.failedAt)} — retry with the currently selected provider.`;
+    bar.classList.remove("hidden");
+  }else{bar.classList.add("hidden");state.pendingRetry=null}
+}
+
+function setSending(v){
+  state.isSending=v;
+  $("#sendBtn").disabled=v;$("#sendBtn").textContent=v?"Sending...":"Send Turn";
+  $("#messageInput").disabled=v;$("#modeSelect").disabled=v;$("#providerSelect").disabled=v;
+  if($("#retryBtn"))$("#retryBtn").disabled=v;
+}
+
+function why(turn){
+  const s=turn.contextSnapshot||{},parts=[];
+  if((s.selectedDocuments||[]).length)parts.push(`${s.selectedDocuments.length} docs`);
+  if((s.selectedFacts||[]).length)parts.push(`${s.selectedFacts.length} facts`);
+  if((s.selectedGlossaryTerms||[]).length)parts.push(`${s.selectedGlossaryTerms.length} terms`);
+  if((s.selectedMemoryItems||[]).length)parts.push(`${s.selectedMemoryItems.length} memory`);
+  if((s.selectedRecoveredArtifacts||[]).length)parts.push(`${s.selectedRecoveredArtifacts.length} artifacts`);
+  if((s.consideredButSkippedDocuments||[]).length)parts.push(`${s.consideredButSkippedDocuments.length} skipped`);
+  if(s.hadSessionSummary)parts.push("session summary");
+  if((s.recentMessageCount||0)>0)parts.push(`${s.recentMessageCount} recent msgs`);
+  if(turn.reruns?.length)parts.push(`${turn.reruns.length} rerun${turn.reruns.length===1?"":"s"}`);
+  return parts.length?parts:["fresh context only"];
+}
+
+function sortSessions(list){
+  const dir=state.sortDir==="asc"?1:-1,key=state.sortKey;
+  return[...list].sort((a,b)=>{
+    if(key==="turnCount")return(a.turnCount-b.turnCount)*dir;
+    if(key==="title"){
+      const ta=(a.title||a.preview||a.id).toLowerCase(),tb=(b.title||b.preview||b.id).toLowerCase();
+      return ta.localeCompare(tb)*dir;
+    }
+    const av=key==="createdAt"?a.createdAt:a.updatedAt;
+    const bv=key==="createdAt"?b.createdAt:b.updatedAt;
+    return av.localeCompare(bv)*dir;
+  });
+}
+
+function visibleSessions(){
+  let list=state.sessions;
+  if(state.archiveFilter==="active")list=list.filter(s=>!s.archived);
+  else if(state.archiveFilter==="archived")list=list.filter(s=>s.archived);
+  if(state.tagFilter){
+    const t=state.tagFilter.toLowerCase();
+    list=list.filter(s=>(s.tags||[]).some(x=>x.toLowerCase()===t));
+  }
+  const q=state.sessionSearch.trim().toLowerCase();
+  if(q)list=list.filter(s=>(s.searchableText||"").includes(q));
+  return sortSessions(list);
+}
+
+function collectTags(){
+  const counts=new Map();
+  for(const s of state.sessions)for(const t of(s.tags||[]))counts.set(t,(counts.get(t)||0)+1);
+  return[...counts.entries()].map(([tag,count])=>({tag,count})).sort((a,b)=>b.count-a.count||a.tag.localeCompare(b.tag));
+}
+
+function renderTagFilter(){
+  const root=$("#tagFilter"),tags=collectTags();
+  if(!tags.length){root.innerHTML="";return}
+  const items=[`<span class="chip ${!state.tagFilter?"active":""}" data-tag="">All tags</span>`]
+    .concat(tags.map(t=>`<span class="chip tag ${state.tagFilter===t.tag?"active":""}" data-tag="${esc(t.tag)}">${esc(t.tag)} · ${t.count}</span>`));
+  root.innerHTML=items.join("");
+  $$("[data-tag]",root).forEach(n=>n.addEventListener("click",()=>{
+    const v=n.getAttribute("data-tag");state.tagFilter=v||null;renderTagFilter();renderSessionList();
+  }));
+}
+
+function renderSessionList(){
+  const root=$("#sessionList"),shown=visibleSessions();
+  const total=state.sessions.length;
+  $("#searchMeta").textContent=!total?"No sessions yet.":(state.sessionSearch.trim()||state.tagFilter||state.archiveFilter!=="all")?`${shown.length} of ${total} sessions shown`:`${total} sessions available`;
+  if(!total){root.innerHTML='<div class="empty">No persisted sessions yet. Start one from the composer.</div>';return}
+  if(!shown.length){root.innerHTML='<div class="empty">No sessions match these filters.</div>';return}
+  root.innerHTML=shown.map(s=>`
+    <div class="card ${s.id===state.currentSessionId?"active":""} ${s.archived?"archived":""}" data-session-id="${esc(s.id)}">
+      <div class="card-meta"><span>${esc((s.title||s.id).slice(0,28))}</span><span>${s.turnCount} turn${s.turnCount===1?"":"s"}${s.archived?" · archived":""}</span></div>
+      <div class="preview">${esc(s.preview)}</div>
+      ${(s.tags||[]).length?`<div class="card-tags">${s.tags.map(t=>`<span class="card-tag">${esc(t)}</span>`).join("")}</div>`:""}
+      <div class="card-meta" style="margin-top:10px"><span>Updated ${fmt(s.updatedAt)}</span><span>Created ${fmt(s.createdAt)}</span></div>
+    </div>`).join("");
+  $$("[data-session-id]",root).forEach(n=>n.addEventListener("click",async()=>{
+    const id=n.getAttribute("data-session-id");if(id)await loadSession(id);
+  }));
+}
+
+function renderItems(items,render,emptyMessage,extraClass){
+  if(!items||!items.length)return`<div class="meta" style="margin-top:8px">${esc(emptyMessage)}</div>`;
+  const visible=items.slice(0,4),overflow=items.slice(4);
+  const cls=extraClass?` ${extraClass}`:"";
+  const main=`<div class="drawer-list">${visible.map(item=>`<div class="context${cls}">${render(item)}</div>`).join("")}</div>`;
+  if(!overflow.length)return main;
+  return`${main}<details class="section-toggle"><summary>Show ${overflow.length} more</summary><div class="drawer-list">${overflow.map(item=>`<div class="context${cls}">${render(item)}</div>`).join("")}</div></details>`;
+}
+
+function copyText(text){navigator.clipboard.writeText(text||"").catch(()=>{})}
 function memorySearchText(item){return[item.statement,item.justification,item.scope,item.type,item.sessionId||"",...(item.tags||[])].join(" ").toLowerCase()}
-function visibleMemoryItems(){const filtered=memorySearch.trim()?memoryItems.filter(item=>memorySearchText(item).includes(memorySearch.trim().toLowerCase())):memoryItems;return [...filtered].sort((a,b)=>{const aSession=currentSessionId&&a.sessionId===currentSessionId?1:0;const bSession=currentSessionId&&b.sessionId===currentSessionId?1:0;return bSession-aSession||b.updatedAt.localeCompare(a.updatedAt)})}
-function renderMemoryList(){const root=$("#memoryList"),meta=$("#memoryMeta"),shown=visibleMemoryItems();if(!memoryItems.length){meta.textContent="No stored memory items yet.";root.innerHTML='<div class="meta">High-confidence durable items will appear here after inquiry turns.</div>';return}meta.textContent=memorySearch.trim()?`${shown.length} of ${memoryItems.length} memory items shown`:`${memoryItems.length} memory item${memoryItems.length===1?"":"s"} loaded`;if(!shown.length){root.innerHTML='<div class="meta">No memory items match that search.</div>';return}root.innerHTML=shown.map(item=>`<div class="context"><div class="label">${esc(item.type.replace(/_/g," "))} / ${esc(item.scope)}</div><div class="value">${esc(item.statement)}</div><div class="meta">Justification: ${esc(item.justification)}</div><div class="meta">Updated ${fmt(item.updatedAt)} · confirmations ${item.confirmationCount}${item.tags?.length?` · tags ${esc(item.tags.join(", "))}`:""}</div><div class="drawer-actions" style="margin-top:10px">${item.sessionId?`<button class="btn quiet" data-memory-session="${esc(item.sessionId)}">Open Session ${esc(item.sessionId.slice(0,8))}</button>`:""}<button class="btn quiet" data-delete-memory="${esc(item.id)}">Delete</button></div></div>`).join("");root.querySelectorAll("[data-memory-session]").forEach(n=>n.addEventListener("click",async()=>{const id=n.getAttribute("data-memory-session");if(id)await loadSession(id)}));root.querySelectorAll("[data-delete-memory]").forEach(n=>n.addEventListener("click",async()=>{const id=n.getAttribute("data-delete-memory");if(id)await deleteMemory(id)}))}
-function renderStoredMemory(items){return renderItems(items,item=>`<div class="label">${esc(item.action)} · ${esc(item.type.replace(/_/g," "))} / ${esc(item.scope)}</div><div class="value">${esc(item.statement)}</div><div class="meta">Justification: ${esc(item.justification)}</div><div class="meta">Confirmations: ${item.confirmationCount}</div>`,'No durable memory item was stored or confirmed by this turn.')}
-function renderSkippedCandidates(items){return renderItems(items,item=>`<div class="label">${esc(item.type.replace(/_/g," "))} / ${esc(item.scope)} / ${esc(item.confidence)}</div><div class="value">${esc(item.statement)}</div><div class="meta">Why skipped: ${esc(item.rejectionReason||"Not stored.")}</div><div class="meta">Justification: ${esc(item.justification)}</div>`,'No memory candidates were skipped on this turn.')}
-function renderDrawer(){const pane=$("#drawerPane"),turn=currentSession?.turns?.find(t=>t.id===selectedTurnId)??null;if(!turn){pane.innerHTML='<div class="empty">Inspect any turn to see why it answered that way and which context was pulled in.</div>';return}const s=turn.contextSnapshot||{};pane.innerHTML=`<div class="drawer-top"><div><div class="eyebrow">Turn Inspection</div><h3>Reply ${esc(turn.id.slice(0,8))}</h3></div><button class="btn quiet" id="closeDrawerBtn">Close</button></div><div class="drawer-sub">Created ${fmt(turn.createdAt)} in <strong style="display:inline;margin:0;letter-spacing:0;text-transform:none">${esc(turn.mode)}</strong> mode.</div><div class="why">${why(turn).map(item=>`<span class="tag-pill">${esc(item)}</span>`).join("")}</div><div class="block"><strong>Why This Answer</strong><div class="copy">The reply was composed from the turn retrieval set plus the persisted session state shown below. This is a stored turn snapshot, not a reconstructed guess.</div></div><div class="block"><strong>Memory Decision</strong><div class="copy">${esc(turn.memoryDecision.reason)}</div><div class="meta" style="margin-top:8px">Proposed ${turn.memoryDecision.candidates?.length||0} candidate(s) · stored ${turn.memoryDecision.storedItems?.length||0}</div></div><div class="block"><strong>Stored Memory</strong>${renderStoredMemory(turn.memoryDecision.storedItems||[])}</div><div class="block"><strong>Skipped Candidates</strong>${renderSkippedCandidates(turn.memoryDecision.skippedCandidates||[])}</div><div class="block"><strong>Turn Tools</strong><div class="drawer-actions"><button class="btn quiet" id="copyReplyBtn">Copy Reply</button><button class="btn quiet" id="copyContextBtn">Copy Context</button></div></div><div class="block"><strong>Retrieved Context</strong><details class="section-toggle" open><summary>Documents (${s.selectedDocuments?.length||0})</summary>${renderItems(s.selectedDocuments,d=>`<div class="label">${esc(d.slug)}</div><div class="value">${esc(d.title)}</div>`)}</details><details class="section-toggle"><summary>Facts (${s.selectedFacts?.length||0})</summary>${renderItems(s.selectedFacts,f=>`<div class="label">${esc(f.id)}</div><div class="value">${esc(f.statement)}</div>`)}</details><details class="section-toggle"><summary>Glossary (${s.selectedGlossaryTerms?.length||0})</summary>${renderItems(s.selectedGlossaryTerms,t=>`<div class="label">${esc(t.term)}</div><div class="value">${esc(t.definition)}</div>`)}</details><details class="section-toggle"><summary>Memory (${s.selectedMemoryItems?.length||0})</summary>${renderItems(s.selectedMemoryItems,m=>`<div class="label">${esc(m.type.replace(/_/g," "))} / ${esc(m.scope)}</div><div class="value">${esc(m.statement)}</div>`,'No durable memory was retrieved for this turn.')}</details><details class="section-toggle"><summary>Recovered Artifacts (${s.selectedRecoveredArtifacts?.length||0})</summary>${renderItems(s.selectedRecoveredArtifacts,a=>`<div class="label">${esc(a.slug)}</div><div class="value">${esc(a.title)}</div>`)}</details></div>`;$("#closeDrawerBtn").addEventListener("click",()=>{selectedTurnId=null;renderConversation();renderDrawer()});$("#copyReplyBtn").addEventListener("click",()=>copyText(turn.assistantMessage));$("#copyContextBtn").addEventListener("click",()=>copyText(JSON.stringify({contextSnapshot:s,memoryDecision:turn.memoryDecision},null,2)))}
-function renderConversation(){const pane=$("#conversationPane");if(!currentSession||!currentSession.turns.length){pane.innerHTML='<div class="empty">Ask something directly. Recent turns stay live, older context rolls into the session summary, and every reply keeps a lightweight retrieval trace.</div>';return}pane.innerHTML=currentSession.turns.map(turn=>`<article class="turn ${selectedTurnId===turn.id?"active":""}" data-turn-id="${esc(turn.id)}"><div class="turn-meta"><span>${fmt(turn.createdAt)}</span><span>${esc(turn.mode)}</span></div><div class="why">${why(turn).map(item=>`<span class="tag-pill">${esc(item)}</span>`).join("")}</div><div class="msg user"><div class="msg-head"><span>User</span><span>${fmt(turn.createdAt)}</span></div><div class="msg-body">${esc(turn.userMessage)}</div></div><div class="msg assistant"><div class="msg-head"><span>Assistant</span><span>${turn.contextSnapshot?.selectedDocuments?.length||0} docs / ${turn.contextSnapshot?.selectedFacts?.length||0} facts / ${turn.contextSnapshot?.selectedMemoryItems?.length||0} memory</span></div><div class="msg-body">${esc(turn.assistantMessage)}</div></div><div class="turn-actions"><button class="btn quiet" data-copy-turn="${esc(turn.id)}">Copy Reply</button><button class="btn quiet" data-inspect-turn="${esc(turn.id)}">${selectedTurnId===turn.id?"Inspecting":"Inspect Turn"}</button></div></article>`).join("");pane.querySelectorAll("[data-inspect-turn]").forEach(n=>n.addEventListener("click",()=>{selectedTurnId=n.getAttribute("data-inspect-turn");renderConversation();renderDrawer()}));pane.querySelectorAll("[data-copy-turn]").forEach(n=>n.addEventListener("click",()=>{const id=n.getAttribute("data-copy-turn"),turn=currentSession.turns.find(t=>t.id===id);if(turn)copyText(turn.assistantMessage)}));pane.scrollTop=pane.scrollHeight}
-function renderWorkspace(){$("#workspaceTitle").textContent=currentSession?`Session ${currentSession.id.slice(0,8)}`:"Start a new inquiry";$("#workspaceSub").textContent=currentSession?`Updated ${fmt(currentSession.updatedAt)}. Older turns can roll into the session summary, while each persisted reply keeps its own inspection snapshot.`:"Pick an existing thread or start fresh. Each reply keeps a lightweight retrieval trace for inspection.";$("#sessionMeta").textContent=currentSession?`${currentSession.turns.length} persisted turn${currentSession.turns.length===1?"":"s"}`:"No session selected";$("#providerLabel").textContent=latestProvider?`${latestProvider.name} / ${latestProvider.model}`:"Waiting for first turn...";const summary=$("#summaryCard");if(currentSession?.summary){summary.classList.remove("hidden");summary.innerHTML=`<strong>Session Summary</strong><div class="summary">${esc(currentSession.summary)}</div>`}else{summary.classList.add("hidden");summary.innerHTML=""}renderConversation();renderDrawer();renderMemoryList()}
-async function loadSessions(){const res=await fetch("/api/inquiry/sessions"),data=await res.json();sessions=Array.isArray(data)?data:[];renderSessionList()}
-async function loadMemory(){const res=await fetch("/api/memory"),data=await res.json();memoryItems=Array.isArray(data)?data:[];renderMemoryList()}
-async function deleteMemory(memoryId){if(!window.confirm("Delete this memory item?"))return;const res=await fetch(`/api/memory/${encodeURIComponent(memoryId)}`,{method:"DELETE"}),data=await res.json();if(!res.ok||data.deleted===false){setError(data.error||"Failed to delete memory item.");return}setError("");await loadMemory()}
-async function loadSession(sessionId){setError("");const res=await fetch(`/api/inquiry/sessions/${encodeURIComponent(sessionId)}`),data=await res.json();if(!res.ok){setError(data.error||"Failed to load session.");return}currentSession=data;currentSessionId=data.id;selectedTurnId=data.turns?.at(-1)?.id??null;renderSessionList();await loadMemory();renderWorkspace()}
-async function sendTurn(){if(isSending)return;const userMessage=$("#messageInput").value.trim();if(!userMessage){setError("Write a message before sending.");return}setError("");setSending(true);try{const res=await fetch("/api/inquiry/turn",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sessionId:currentSessionId,mode:$("#modeSelect").value,userMessage})}),data=await res.json();if(!res.ok)throw new Error(data.error||"Turn failed.");currentSession=data.session;currentSessionId=data.session.id;selectedTurnId=data.persistedTurn?.id??null;latestProvider=data.provider;$("#messageInput").value="";await Promise.all([loadSessions(),loadMemory()]);renderWorkspace()}catch(error){setError(error instanceof Error?error.message:String(error))}finally{setSending(false)}}
-function moveTurn(dir){if(!currentSession?.turns?.length)return;const i=currentSession.turns.findIndex(t=>t.id===selectedTurnId),next=i===-1?Math.max(0,currentSession.turns.length-1):Math.min(currentSession.turns.length-1,Math.max(0,i+dir));selectedTurnId=currentSession.turns[next].id;renderConversation();renderDrawer()}
-$("#sendBtn").addEventListener("click",sendTurn);$("#messageInput").addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key==="Enter"){e.preventDefault();sendTurn()}});$("#newSessionBtn").addEventListener("click",async()=>{currentSession=null;currentSessionId=null;selectedTurnId=null;setError("");renderSessionList();await loadMemory();renderWorkspace();$("#messageInput").focus()});$("#refreshSessionsBtn").addEventListener("click",()=>Promise.all([loadSessions(),loadMemory()]));$("#refreshMemoryBtn").addEventListener("click",loadMemory);$("#sessionSearch").addEventListener("input",e=>{sessionSearch=e.target.value;renderSessionList()});$("#memorySearch").addEventListener("input",e=>{memorySearch=e.target.value;renderMemoryList()});document.addEventListener("keydown",e=>{const tag=document.activeElement?.tagName||"",typing=tag==="TEXTAREA"||tag==="INPUT";if(e.key==="/"&&!typing){e.preventDefault();$("#sessionSearch").focus();return}if(e.key.toLowerCase()==="c"&&!typing){e.preventDefault();$("#messageInput").focus();return}if(e.key.toLowerCase()==="j"&&!typing){e.preventDefault();moveTurn(1);return}if(e.key.toLowerCase()==="k"&&!typing){e.preventDefault();moveTurn(-1);return}if(e.key.toLowerCase()==="y"&&!typing&&selectedTurnId&&currentSession){const turn=currentSession.turns.find(t=>t.id===selectedTurnId);if(turn){e.preventDefault();copyText(turn.assistantMessage)}return}if(e.key==="Escape"&&selectedTurnId){selectedTurnId=null;renderConversation();renderDrawer()}});Promise.all([loadSessions(),loadMemory()]).then(renderWorkspace).catch(error=>setError(error instanceof Error?error.message:String(error)));
+function visibleMemoryItems(){
+  const filtered=state.memorySearch.trim()?state.memoryItems.filter(i=>memorySearchText(i).includes(state.memorySearch.trim().toLowerCase())):state.memoryItems;
+  return[...filtered].sort((a,b)=>{
+    const aS=state.currentSessionId&&a.sessionId===state.currentSessionId?1:0;
+    const bS=state.currentSessionId&&b.sessionId===state.currentSessionId?1:0;
+    return bS-aS||b.updatedAt.localeCompare(a.updatedAt);
+  });
+}
+
+function renderMemoryList(){
+  const root=$("#memoryList"),meta=$("#memoryMeta"),shown=visibleMemoryItems();
+  if(!state.memoryItems.length){meta.textContent="No stored memory items yet.";root.innerHTML='<div class="meta">High-confidence durable items will appear here after inquiry turns.</div>';return}
+  meta.textContent=state.memorySearch.trim()?`${shown.length} of ${state.memoryItems.length} memory items shown`:`${state.memoryItems.length} memory item${state.memoryItems.length===1?"":"s"} loaded`;
+  if(!shown.length){root.innerHTML='<div class="meta">No memory items match that search.</div>';return}
+  root.innerHTML=shown.map(item=>`
+    <div class="context">
+      <div class="label">${esc(item.type.replace(/_/g," "))} / ${esc(item.scope)}</div>
+      <div class="value">${esc(item.statement)}</div>
+      <div class="meta">Justification: ${esc(item.justification)}</div>
+      <div class="meta">Updated ${fmt(item.updatedAt)} · confirmations ${item.confirmationCount}${item.tags?.length?` · tags ${esc(item.tags.join(", "))}`:""}</div>
+      <div class="rerun-row" style="margin-top:8px">
+        ${item.sessionId?`<button class="btn quiet" data-memory-session="${esc(item.sessionId)}">Open Session ${esc(item.sessionId.slice(0,8))}</button>`:""}
+        <button class="btn quiet" data-delete-memory="${esc(item.id)}">Delete</button>
+      </div>
+    </div>`).join("");
+  $$("[data-memory-session]",root).forEach(n=>n.addEventListener("click",async()=>{await loadSession(n.getAttribute("data-memory-session"))}));
+  $$("[data-delete-memory]",root).forEach(n=>n.addEventListener("click",async()=>{await deleteMemory(n.getAttribute("data-delete-memory"))}));
+}
+
+function renderStoredMemory(items){
+  return renderItems(items,item=>`
+    <div class="label">${esc(item.action)} · ${esc(item.type.replace(/_/g," "))} / ${esc(item.scope)}</div>
+    <div class="value">${esc(item.statement)}</div>
+    <div class="meta">Justification: ${esc(item.justification)}</div>
+    <div class="meta">Confirmations: ${item.confirmationCount}</div>`,
+    "No durable memory item was stored or confirmed by this turn.");
+}
+
+function renderSkippedCandidates(items){
+  return renderItems(items,item=>`
+    <div class="label">${esc(item.type.replace(/_/g," "))} / ${esc(item.scope)} / ${esc(item.confidence)}</div>
+    <div class="value">${esc(item.statement)}</div>
+    <div class="meta">Why skipped: ${esc(item.rejectionReason||"Not stored.")}</div>
+    <div class="meta">Justification: ${esc(item.justification)}</div>`,
+    "No memory candidates were skipped on this turn.","skipped");
+}
+
+function renderReruns(turn){
+  if(!turn.reruns||!turn.reruns.length)return'<div class="meta" style="margin-top:6px">No reruns yet. Use the rerun button to compare this turn with a different provider.</div>';
+  return turn.reruns.map(r=>`
+    <div class="compare">
+      <div class="compare-col">
+        <div class="head"><span>Original · ${esc(turn.provider?.name||"?")} / ${esc(turn.provider?.model||"?")}</span><span>${fmt(turn.createdAt)}</span></div>
+        <div class="compare-body">${esc(turn.assistantMessage)}</div>
+      </div>
+      <div class="compare-col">
+        <div class="head"><span>Rerun · ${esc(r.provider.name)} / ${esc(r.provider.model)}</span><span>${fmt(r.createdAt)}</span></div>
+        <div class="compare-body">${esc(r.assistantMessage)}</div>
+      </div>
+    </div>`).join("");
+}
+
+function renderDrawer(){
+  const pane=$("#drawerPane");
+  const turn=state.currentSession?.turns?.find(t=>t.id===state.selectedTurnId)??null;
+  if(!turn){pane.innerHTML='<div class="empty">Inspect any turn to see why it answered that way and which context was pulled in.</div>';return}
+  const s=turn.contextSnapshot||{};
+  const providerOpts=state.providerList.length?state.providerList:["mock"];
+  const rerunSelect=`<select class="select" id="rerunProvider" style="min-width:130px">${providerOpts.map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join("")}</select>`;
+
+  pane.innerHTML=`
+    <div class="drawer-top">
+      <div><div class="eyebrow">Turn Inspection</div><h3>Reply ${esc(turn.id.slice(0,8))}</h3></div>
+      <button class="btn quiet" id="closeDrawerBtn">Close</button>
+    </div>
+    <div class="drawer-sub">Created ${fmt(turn.createdAt)} · ${esc(turn.mode)} mode${turn.provider?` · ${esc(turn.provider.name)}/${esc(turn.provider.model)}`:""}.</div>
+    <div class="why">${why(turn).map(item=>`<span class="tag-pill">${esc(item)}</span>`).join("")}</div>
+    <div class="block"><strong>Why This Answer</strong><div class="copy">The reply was composed from the turn retrieval set plus the persisted session state shown below. This is a stored turn snapshot, not a reconstructed guess.</div></div>
+    <div class="block">
+      <strong>Rerun / Compare</strong>
+      <div class="rerun-row">
+        ${rerunSelect}
+        <button class="btn primary" id="rerunBtn">Rerun with provider</button>
+        <span class="meta">Compares this turn's prompt against a different model without writing new memory.</span>
+      </div>
+      ${renderReruns(turn)}
+    </div>
+    <div class="block"><strong>Memory Decision</strong>
+      <div class="copy">${esc(turn.memoryDecision.reason)}</div>
+      <div class="meta" style="margin-top:8px">Proposed ${turn.memoryDecision.candidates?.length||0} candidate(s) · stored ${turn.memoryDecision.storedItems?.length||0} · skipped ${turn.memoryDecision.skippedCandidates?.length||0}</div>
+    </div>
+    <div class="block"><strong>Stored Memory</strong>${renderStoredMemory(turn.memoryDecision.storedItems||[])}</div>
+    <div class="block"><strong>Skipped Candidates</strong>${renderSkippedCandidates(turn.memoryDecision.skippedCandidates||[])}</div>
+    <div class="block"><strong>Turn Tools</strong>
+      <div class="rerun-row">
+        <button class="btn quiet" id="copyReplyBtn">Copy Reply</button>
+        <button class="btn quiet" id="copyContextBtn">Copy Context</button>
+      </div>
+    </div>
+    <div class="block"><strong>Retrieved Context</strong>
+      <details class="section-toggle" open><summary>Documents selected (${s.selectedDocuments?.length||0})</summary>${renderItems(s.selectedDocuments,d=>`<div class="label">${esc(d.slug)}</div><div class="value">${esc(d.title)}</div>`,"No canon documents were selected for this turn.")}</details>
+      <details class="section-toggle"><summary>Documents considered but skipped (${s.consideredButSkippedDocuments?.length||0})</summary>${renderItems(s.consideredButSkippedDocuments,d=>`<div class="label">${esc(d.slug)}</div><div class="value">${esc(d.title)}</div><div class="meta">${esc(d.reason)}</div>`,"No canon documents were considered but skipped.","skipped")}</details>
+      <details class="section-toggle"><summary>Continuity facts (${s.selectedFacts?.length||0})</summary>${renderItems(s.selectedFacts,f=>`<div class="label">${esc(f.id)}</div><div class="value">${esc(f.statement)}</div>`,"No continuity facts were selected.")}</details>
+      <details class="section-toggle"><summary>Glossary terms (${s.selectedGlossaryTerms?.length||0})</summary>${renderItems(s.selectedGlossaryTerms,t=>`<div class="label">${esc(t.term)}</div><div class="value">${esc(t.definition)}</div>`,"No glossary terms were selected.")}</details>
+      <details class="section-toggle"><summary>Recovered artifacts (${s.selectedRecoveredArtifacts?.length||0})</summary>${renderItems(s.selectedRecoveredArtifacts,a=>`<div class="label">${esc(a.slug)}</div><div class="value">${esc(a.title)}</div>`,"No recovered artifacts were selected.")}</details>
+      <details class="section-toggle"><summary>Memory items (${s.selectedMemoryItems?.length||0})</summary>${renderItems(s.selectedMemoryItems,m=>`<div class="label">${esc(m.type)} / ${esc(m.scope)}</div><div class="value">${esc(m.statement)}</div>`,"No memory items were retrieved for this turn.")}</details>
+    </div>
+    <div class="block"><strong>Pipeline Artifacts</strong>
+      <details class="section-toggle"><summary>Draft</summary><pre class="code-block">${esc(turn.trace?.draft||"(draft not captured)")}</pre></details>
+      <details class="section-toggle"><summary>Critique</summary><pre class="code-block">${esc(turn.trace?.critique||"(critique not captured)")}</pre></details>
+      <details class="section-toggle"><summary>Revision</summary><pre class="code-block">${esc(turn.trace?.revision||"(revision not captured)")}</pre></details>
+      <details class="section-toggle" open><summary>Final</summary><pre class="code-block">${esc(turn.trace?.final||turn.assistantMessage)}</pre></details>
+    </div>`;
+  $("#closeDrawerBtn").addEventListener("click",()=>{state.selectedTurnId=null;renderConversation();renderDrawer()});
+  $("#copyReplyBtn").addEventListener("click",()=>copyText(turn.assistantMessage));
+  $("#copyContextBtn").addEventListener("click",()=>copyText(JSON.stringify(s,null,2)));
+  $("#rerunBtn").addEventListener("click",()=>rerunTurn(turn.id,$("#rerunProvider").value));
+}
+
+function renderConversation(){
+  const pane=$("#conversationPane");
+  if(!state.currentSession||!state.currentSession.turns.length){
+    pane.innerHTML='<div class="empty">Ask something directly. Recent turns stay live, older context rolls into the session summary, and every reply keeps a lightweight retrieval trace.</div>';
+    return;
+  }
+  pane.innerHTML=state.currentSession.turns.map(turn=>`
+    <article class="turn ${state.selectedTurnId===turn.id?"active":""} ${turn.error?"failed":""}" data-turn-id="${esc(turn.id)}">
+      <div class="turn-meta">
+        <span>${fmt(turn.createdAt)}</span>
+        <span>${esc(turn.mode)}${turn.provider?` · ${esc(turn.provider.name)}`:""}${turn.reruns?.length?` · ${turn.reruns.length} rerun(s)`:""}</span>
+      </div>
+      <div class="why">${why(turn).map(item=>`<span class="tag-pill">${esc(item)}</span>`).join("")}</div>
+      <div class="msg user">
+        <div class="msg-head"><span>User</span><span>${fmt(turn.createdAt)}</span></div>
+        <div class="msg-body">${esc(turn.userMessage)}</div>
+      </div>
+      <div class="msg assistant">
+        <div class="msg-head"><span>Assistant</span><span>${turn.contextSnapshot?.selectedDocuments?.length||0} docs / ${turn.contextSnapshot?.selectedFacts?.length||0} facts / ${turn.contextSnapshot?.selectedMemoryItems?.length||0} memory</span></div>
+        <div class="msg-body">${esc(turn.assistantMessage)}</div>
+      </div>
+      <div class="turn-actions">
+        <button class="btn quiet" data-copy-turn="${esc(turn.id)}">Copy Reply</button>
+        <button class="btn quiet" data-inspect-turn="${esc(turn.id)}">${state.selectedTurnId===turn.id?"Inspecting":"Inspect Turn"}</button>
+        <button class="btn quiet" data-rerun-turn="${esc(turn.id)}">Rerun…</button>
+      </div>
+    </article>`).join("");
+  $$("[data-inspect-turn]",pane).forEach(n=>n.addEventListener("click",()=>{
+    state.selectedTurnId=n.getAttribute("data-inspect-turn");renderConversation();renderDrawer();
+  }));
+  $$("[data-copy-turn]",pane).forEach(n=>n.addEventListener("click",()=>{
+    const turn=state.currentSession.turns.find(t=>t.id===n.getAttribute("data-copy-turn"));
+    if(turn)copyText(turn.assistantMessage);
+  }));
+  $$("[data-rerun-turn]",pane).forEach(n=>n.addEventListener("click",()=>{
+    state.selectedTurnId=n.getAttribute("data-rerun-turn");renderConversation();renderDrawer();
+    setTimeout(()=>{const sel=$("#rerunProvider");if(sel)sel.focus()},50);
+  }));
+  pane.scrollTop=pane.scrollHeight;
+}
+
+function renderHealth(){
+  const card=$("#healthCard"),s=state.currentSession;
+  if(!s){card.classList.add("hidden");card.innerHTML="";return}
+  const recentLimit=4;
+  const recentInWindow=Math.min(s.turns.length,recentLimit);
+  const turnsInSummary=Math.max(0,s.turns.length-recentLimit);
+  const summaryText=s.summary?.text||"";
+  const summaryChars=summaryText.length;
+  const summaryTokens=summaryText?Math.max(1,Math.round(summaryText.split(/\s+/).filter(Boolean).length*1.3)):0;
+  const ageMs=Math.max(0,Date.now()-new Date(s.updatedAt).getTime());
+  const ageLabel=ageMs<60000?"moments ago":ageMs<3600000?`${Math.round(ageMs/60000)} min ago`:ageMs<86400000?`${Math.round(ageMs/3600000)} hr ago`:`${Math.round(ageMs/86400000)} day(s) ago`;
+  card.classList.remove("hidden");
+  card.innerHTML=`
+    <div style="flex:1;min-width:260px">
+      <strong>Session Health</strong>
+      <div class="sub">Summary carries older history; recent window is always live. Track bloat and staleness here.</div>
+      <div class="health">
+        <div class="cell"><strong>${s.summary?"yes":"no"}</strong><div>Has rolling summary</div></div>
+        <div class="cell"><strong>${summaryChars}</strong><div>Summary chars</div></div>
+        <div class="cell"><strong>~${summaryTokens}</strong><div>Summary tokens</div></div>
+        <div class="cell"><strong>${turnsInSummary}</strong><div>Turns rolled in</div></div>
+        <div class="cell"><strong>${recentInWindow}/${recentLimit}</strong><div>Recent window</div></div>
+        <div class="cell"><strong>${ageLabel}</strong><div>Last updated</div></div>
+      </div>
+    </div>`;
+}
+
+function renderSessionMetaCard(){
+  const card=$("#sessionMetaCard"),s=state.currentSession;
+  if(!s){card.classList.add("hidden");return}
+  card.classList.remove("hidden");
+  $("#titleInput").value=s.title||"";
+  $("#toggleArchiveBtn").textContent=s.archived?"Unarchive":"Archive";
+  const tags=s.tags||[];
+  $("#tagEditor").innerHTML=`
+    ${tags.map(t=>`<span class="pill-tag" data-remove-tag="${esc(t)}">${esc(t)} ×</span>`).join("")}
+    <input class="input" id="newTagInput" placeholder="Add tag and press Enter">
+  `;
+  $$("[data-remove-tag]").forEach(n=>n.addEventListener("click",()=>removeTag(n.getAttribute("data-remove-tag"))));
+  const input=$("#newTagInput");
+  input.addEventListener("keydown",e=>{
+    if(e.key==="Enter"){e.preventDefault();const v=input.value.trim();if(v)addTag(v)}
+  });
+}
+
+function renderWorkspace(){
+  const s=state.currentSession;
+  $("#workspaceTitle").textContent=s?(s.title||`Session ${s.id.slice(0,8)}`):"Start a new inquiry";
+  $("#workspaceSub").textContent=s?`Updated ${fmt(s.updatedAt)}. Older turns can roll into the session summary, while each persisted reply keeps its own inspection snapshot.`:"Pick an existing thread or start fresh. Each reply keeps a lightweight retrieval trace for inspection.";
+  $("#sessionMeta").textContent=s?`${s.turns.length} persisted turn${s.turns.length===1?"":"s"}${s.archived?" · archived":""}`:"No session selected";
+  $("#providerLabel").textContent=state.latestProvider?`${state.latestProvider.name} / ${state.latestProvider.model}`:(state.defaultProvider?`default → ${state.defaultProvider.name} / ${state.defaultProvider.model}`:"Waiting for first turn...");
+  const summary=$("#summaryCard");
+  if(s?.summary?.text){summary.classList.remove("hidden");summary.innerHTML=`<div style="flex:1"><strong>Session Summary</strong><div class="sub">${esc(s.summary.text)}</div></div>`}
+  else{summary.classList.add("hidden");summary.innerHTML=""}
+  renderSessionMetaCard();
+  renderHealth();
+  renderConversation();
+  renderDrawer();
+  renderMemoryList();
+}
+
+async function loadProviders(){
+  try{
+    const res=await fetch("/api/providers"),data=await res.json();
+    state.providerList=data.available||[];state.defaultProvider=data.defaultProvider||null;state.hasApiKey=!!data.hasApiKey;
+    const sel=$("#providerSelect");
+    sel.innerHTML=`<option value="">Default (${esc(data.defaultProvider?.name||"?")})</option>`+state.providerList.map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join("");
+    $("#providerPill").textContent=data.hasApiKey?`Operator · ${data.defaultProvider?.name||"provider"}`:"Operator · mock (no OPENROUTER_API_KEY)";
+  }catch(e){/* ignore */}
+}
+async function loadSessions(){
+  const res=await fetch("/api/inquiry/sessions"),data=await res.json();
+  state.sessions=Array.isArray(data)?data:[];renderTagFilter();renderSessionList();
+}
+async function loadMemory(){
+  const res=await fetch("/api/memory"),data=await res.json();
+  state.memoryItems=Array.isArray(data)?data:[];renderMemoryList();
+}
+async function deleteMemory(id){
+  if(!window.confirm("Delete this memory item?"))return;
+  const res=await fetch(`/api/memory/${encodeURIComponent(id)}`,{method:"DELETE"}),data=await res.json();
+  if(!res.ok||data.deleted===false){setError(data.error||"Failed to delete memory item.");return}
+  setError("");await loadMemory();
+}
+async function loadSession(id){
+  setError("");
+  const res=await fetch(`/api/inquiry/sessions/${encodeURIComponent(id)}`),data=await res.json();
+  if(!res.ok){setError(data.error||"Failed to load session.");return}
+  state.currentSession=data;state.currentSessionId=data.id;state.selectedTurnId=data.turns?.at(-1)?.id??null;
+  renderSessionList();await loadMemory();renderWorkspace();
+}
+
+async function sendTurn(retry){
+  if(state.isSending)return;
+  const msg=retry?retry.userMessage:$("#messageInput").value.trim();
+  if(!msg){setError("Write a message before sending.");return}
+  setError("");setSending(true);
+  try{
+    const res=await fetch("/api/inquiry/turn",{
+      method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({
+        sessionId:retry?retry.sessionId:state.currentSessionId,
+        mode:retry?retry.mode:$("#modeSelect").value,
+        provider:$("#providerSelect").value||undefined,
+        userMessage:msg
+      })
+    });
+    const data=await res.json();
+    if(!res.ok){
+      setError(data.error||"Turn failed.",data);
+      return;
+    }
+    state.currentSession=data.session;state.currentSessionId=data.session.id;
+    state.selectedTurnId=data.persistedTurn?.id??null;state.latestProvider=data.provider;
+    if(!retry)$("#messageInput").value="";
+    await Promise.all([loadSessions(),loadMemory()]);renderWorkspace();
+  }catch(err){
+    setError(err instanceof Error?err.message:String(err));
+  }finally{setSending(false)}
+}
+
+async function rerunTurn(turnId,providerName){
+  if(!state.currentSessionId)return;
+  setError("");setSending(true);
+  try{
+    const res=await fetch(`/api/inquiry/sessions/${encodeURIComponent(state.currentSessionId)}/turns/${encodeURIComponent(turnId)}/rerun`,{
+      method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({provider:providerName||undefined})
+    });
+    const data=await res.json();
+    if(!res.ok){setError(data.error||"Rerun failed.");return}
+    state.currentSession=data.session;renderWorkspace();
+  }catch(err){setError(err instanceof Error?err.message:String(err))}
+  finally{setSending(false)}
+}
+
+async function patchSession(body){
+  if(!state.currentSessionId)return;
+  const res=await fetch(`/api/inquiry/sessions/${encodeURIComponent(state.currentSessionId)}`,{
+    method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)
+  });
+  const data=await res.json();
+  if(!res.ok){setError(data.error||"Update failed.");return}
+  state.currentSession=data;await loadSessions();renderWorkspace();
+}
+
+function addTag(tag){
+  const cur=state.currentSession?.tags||[];
+  if(cur.some(t=>t.toLowerCase()===tag.toLowerCase()))return;
+  patchSession({tags:[...cur,tag]});
+}
+function removeTag(tag){
+  const cur=state.currentSession?.tags||[];
+  patchSession({tags:cur.filter(t=>t!==tag)});
+}
+
+async function deleteSession(){
+  if(!state.currentSessionId)return;
+  if(!window.confirm("Delete this session permanently?"))return;
+  const res=await fetch(`/api/inquiry/sessions/${encodeURIComponent(state.currentSessionId)}`,{method:"DELETE"});
+  if(!res.ok){const data=await res.json().catch(()=>({}));setError(data.error||"Failed to delete session.");return}
+  state.currentSession=null;state.currentSessionId=null;state.selectedTurnId=null;
+  await loadSessions();renderWorkspace();
+}
+
+function moveTurn(dir){
+  const s=state.currentSession;if(!s?.turns?.length)return;
+  const i=s.turns.findIndex(t=>t.id===state.selectedTurnId);
+  const next=i===-1?Math.max(0,s.turns.length-1):Math.min(s.turns.length-1,Math.max(0,i+dir));
+  state.selectedTurnId=s.turns[next].id;renderConversation();renderDrawer();
+}
+
+// wire events
+$("#sendBtn").addEventListener("click",()=>sendTurn());
+$("#messageInput").addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key==="Enter"){e.preventDefault();sendTurn()}});
+$("#newSessionBtn").addEventListener("click",async()=>{
+  state.currentSession=null;state.currentSessionId=null;state.selectedTurnId=null;setError("");
+  renderSessionList();await loadMemory();renderWorkspace();$("#messageInput").focus();
+});
+$("#refreshSessionsBtn").addEventListener("click",()=>Promise.all([loadSessions(),loadMemory(),loadProviders()]));
+$("#refreshMemoryBtn").addEventListener("click",loadMemory);
+$("#sessionSearch").addEventListener("input",e=>{state.sessionSearch=e.target.value;renderSessionList()});
+$("#memorySearch").addEventListener("input",e=>{state.memorySearch=e.target.value;renderMemoryList()});
+$("#sortSelect").addEventListener("change",e=>{const[k,d]=e.target.value.split("-");state.sortKey=k;state.sortDir=d;renderSessionList()});
+$("#retryBtn").addEventListener("click",()=>{if(state.pendingRetry)sendTurn(state.pendingRetry)});
+$("#saveTitleBtn").addEventListener("click",()=>patchSession({title:$("#titleInput").value.trim()||null}));
+$("#toggleArchiveBtn").addEventListener("click",()=>patchSession({archived:!state.currentSession?.archived}));
+$("#deleteSessionBtn").addEventListener("click",deleteSession);
+$$("#archiveFilter [data-archive]").forEach(n=>n.addEventListener("click",()=>{
+  state.archiveFilter=n.getAttribute("data-archive");
+  $$("#archiveFilter .chip").forEach(c=>c.classList.toggle("active",c===n));
+  renderSessionList();
+}));
+
+document.addEventListener("keydown",e=>{
+  const tag=document.activeElement?.tagName||"",typing=tag==="TEXTAREA"||tag==="INPUT";
+  if(e.key==="/"&&!typing){e.preventDefault();$("#sessionSearch").focus();return}
+  if(e.key.toLowerCase()==="c"&&!typing){e.preventDefault();$("#messageInput").focus();return}
+  if(e.key.toLowerCase()==="j"&&!typing){e.preventDefault();moveTurn(1);return}
+  if(e.key.toLowerCase()==="k"&&!typing){e.preventDefault();moveTurn(-1);return}
+  if(e.key.toLowerCase()==="y"&&!typing&&state.selectedTurnId&&state.currentSession){
+    const turn=state.currentSession.turns.find(t=>t.id===state.selectedTurnId);
+    if(turn){e.preventDefault();copyText(turn.assistantMessage)}return;
+  }
+  if(e.key.toLowerCase()==="r"&&!typing&&state.selectedTurnId){
+    e.preventDefault();const sel=$("#rerunProvider");if(sel)rerunTurn(state.selectedTurnId,sel.value);return;
+  }
+  if(e.key==="Escape"&&state.selectedTurnId){state.selectedTurnId=null;renderConversation();renderDrawer()}
+});
+
+Promise.all([loadProviders(),loadSessions(),loadMemory()])
+  .then(renderWorkspace)
+  .catch(err=>setError(err instanceof Error?err.message:String(err)));
 </script>
 </body>
 </html>

@@ -82,7 +82,7 @@ export function migrateSession(raw: unknown): PersistedInquirySession {
     typeof raw.updatedAt === "string" ? raw.updatedAt : new Date().toISOString()
   );
 
-  const candidate = {
+  const candidate: Record<string, unknown> = {
     schemaVersion: SCHEMA_VERSIONS.session,
     id: raw.id,
     createdAt: raw.createdAt,
@@ -90,6 +90,16 @@ export function migrateSession(raw: unknown): PersistedInquirySession {
     summary,
     turns: upgradedTurns,
   };
+
+  if (Array.isArray(raw.tags)) {
+    candidate.tags = raw.tags.filter((t): t is string => typeof t === "string");
+  }
+  if (typeof raw.archived === "boolean") {
+    candidate.archived = raw.archived;
+  }
+  if (typeof raw.title === "string") {
+    candidate.title = raw.title;
+  }
 
   const parsed = InquirySessionSchema.safeParse(candidate);
   if (!parsed.success) {

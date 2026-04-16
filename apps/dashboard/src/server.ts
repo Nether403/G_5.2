@@ -5,16 +5,20 @@
  * Zero external dependencies — uses Node's built-in http module.
  *
  * API:
- *   GET /                              → eval dashboard HTML
- *   GET /inquiry.html                  → inquiry UI HTML
- *   GET /api/reports                   → list of report filenames (newest first)
- *   GET /api/reports/:name             → full report JSON
- *   GET /api/diff?a=:name&b=:name      → computed diff between two reports
- *   GET /api/inquiry/sessions          → list of inquiry sessions
- *   GET /api/inquiry/sessions/:id      → full inquiry session JSON
- *   POST /api/inquiry/turn             → run and persist a new inquiry turn
- *   GET /api/memory                    → list durable memory items
- *   DELETE /api/memory/:id             → hard-delete a durable memory item
+ *   GET /                                              → eval dashboard HTML
+ *   GET /inquiry.html                                  → inquiry UI HTML
+ *   GET /api/reports                                   → list of report filenames (newest first)
+ *   GET /api/reports/:name                             → full report JSON
+ *   GET /api/diff?a=:name&b=:name                      → computed diff between two reports
+ *   GET /api/providers                                 → default provider + available providers
+ *   GET /api/inquiry/sessions                          → list of inquiry sessions
+ *   GET /api/inquiry/sessions/:id                      → full inquiry session JSON
+ *   PATCH /api/inquiry/sessions/:id                    → update tags / archived / title
+ *   DELETE /api/inquiry/sessions/:id                   → delete a persisted session
+ *   POST /api/inquiry/sessions/:id/turns/:turnId/rerun → rerun a turn (compare by provider)
+ *   POST /api/inquiry/turn                             → run and persist a new inquiry turn
+ *   GET /api/memory                                    → list durable memory items
+ *   DELETE /api/memory/:id                             → hard-delete a durable memory item
  *
  * Usage:
  *   pnpm dashboard    (or: pnpm --filter @g52/dashboard dev)
@@ -29,9 +33,17 @@ import { FileMemoryStore } from "../../../packages/orchestration/src/memory/file
 import { MODES, type Mode } from "../../../packages/orchestration/src/types/modes";
 import type { MemoryScope } from "../../../packages/orchestration/src/types/memory";
 import type { BuiltContext } from "../../../packages/orchestration/src/types/pipeline";
-import type { InquirySession } from "../../../packages/orchestration/src/types/session";
+import type {
+  InquirySession,
+  SessionTurnRerun,
+} from "../../../packages/orchestration/src/types/session";
 import { providerFromEnv } from "../../../packages/orchestration/src/providers/fromEnv";
+import {
+  isKnownProviderName,
+  providerByName,
+} from "../../../packages/orchestration/src/providers/byName";
 import { runSessionTurn } from "../../../packages/orchestration/src/sessions/runSessionTurn";
+import { runCompareTurn } from "../../../packages/orchestration/src/sessions/runCompareTurn";
 import { FileSessionStore } from "../../../packages/orchestration/src/sessions/fileSessionStore";
 import { validateReport } from "../../../packages/evals/src/reporters/reportSchema";
 import { computeDiff, type JsonReport } from "./reportUtils";
@@ -167,9 +179,57 @@ function buildContextSnapshot(context: BuiltContext) {
       statement: item.statement,
       ...(item.sessionId ? { sessionId: item.sessionId } : {}),
     })),
+    consideredButSkippedDocuments: (
+      context.consideredButSkippedDocuments ?? []
+    ).map((doc) => ({
+      slug: doc.slug,
+      title: doc.title,
+      reason: doc.reason,
+    })),
     hadSessionSummary: Boolean(context.sessionSummary),
     recentMessageCount: context.recentMessages.length,
   };
+}
+
+function sanitizeTag(raw: string): string {
+  return raw.trim().replace(/\s+/g, " ").slice(0, 48);
+}
+
+function sanitizeTags(input: unknown): string[] {
+  if (!Array.isArray(input)) {
+    return [];
+  }
+
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const value of input) {
+    if (typeof value !== "string") {
+      continue;
+    }
+
+    const clean = sanitizeTag(value);
+    const key = clean.toLowerCase();
+    if (!clean || seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+    out.push(clean);
+    if (out.length >= 12) {
+      break;
+    }
+  }
+
+  return out;
+}
+
+async function writeSession(session: InquirySession) {
+  await fs.mkdir(SESSIONS_DIR, { recursive: true });
+  await fs.writeFile(
+    path.join(SESSIONS_DIR, `${session.id}.json`),
+    `${JSON.stringify(session, null, 2)}\n`,
+    "utf8"
+  );
 }
 
 async function ensureSessionSnapshot(
@@ -256,6 +316,22 @@ async function handleRequest(
     return;
   }
 
+  if (url.pathname === "/api/providers") {
+    const hasKey = Boolean(process.env.OPENROUTER_API_KEY);
+    const envDefault = providerFromEnv();
+    sendJson(res, 200, {
+      hasApiKey: hasKey,
+      defaultProvider: {
+        name: envDefault.name,
+        model: (envDefault as { model?: string }).model ?? "unknown",
+      },
+      available: hasKey
+        ? ["openai", "anthropic", "gemini"]
+        : ["mock"],
+    });
+    return;
+  }
+
   if (url.pathname === "/api/inquiry/sessions") {
     try {
       sendJson(res, 200, await listSessionSummaries());
@@ -307,7 +383,7 @@ async function handleRequest(
   }
 
   const inquirySessionMatch = url.pathname.match(/^\/api\/inquiry\/sessions\/([^/]+)$/);
-  if (inquirySessionMatch) {
+  if (inquirySessionMatch && req.method === "GET") {
     try {
       const session = await readSession(inquirySessionMatch[1]);
       if (!session) {
@@ -324,30 +400,176 @@ async function handleRequest(
     return;
   }
 
-  if (url.pathname === "/api/inquiry/turn" && req.method === "POST") {
+  if (inquirySessionMatch && req.method === "PATCH") {
     try {
-      const body = (await readJsonBody(req)) as {
-        sessionId?: string;
-        mode?: string;
-        userMessage?: string;
-      };
-
-      if (!body.userMessage || !body.userMessage.trim()) {
-        sendJson(res, 400, { error: "userMessage is required" });
+      const session = await readSession(inquirySessionMatch[1]);
+      if (!session) {
+        sendJson(res, 404, { error: "Session not found" });
         return;
       }
 
-      const mode = isMode(body.mode) ? body.mode : "dialogic";
-      const provider = providerFromEnv();
+      const body = (await readJsonBody(req)) as {
+        tags?: unknown;
+        archived?: unknown;
+        title?: unknown;
+      };
+
+      let changed = false;
+      if (body.tags !== undefined) {
+        session.tags = sanitizeTags(body.tags);
+        changed = true;
+      }
+
+      if (body.archived !== undefined) {
+        session.archived = Boolean(body.archived);
+        changed = true;
+      }
+
+      if (body.title !== undefined) {
+        if (body.title === null || body.title === "") {
+          delete session.title;
+        } else if (typeof body.title === "string") {
+          session.title = body.title.trim().slice(0, 200) || undefined;
+        }
+        changed = true;
+      }
+
+      if (changed) {
+        session.updatedAt = new Date().toISOString();
+        await writeSession(session);
+      }
+
+      sendJson(res, 200, session);
+    } catch (err) {
+      sendJson(res, 500, {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+    return;
+  }
+
+  if (inquirySessionMatch && req.method === "DELETE") {
+    try {
+      const filePath = path.join(SESSIONS_DIR, `${inquirySessionMatch[1]}.json`);
+      try {
+        await fs.unlink(filePath);
+        sendJson(res, 200, { deleted: true });
+      } catch (error) {
+        const code = (error as NodeJS.ErrnoException).code;
+        if (code === "ENOENT") {
+          sendJson(res, 404, { error: "Session not found" });
+          return;
+        }
+
+        throw error;
+      }
+    } catch (err) {
+      sendJson(res, 500, {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+    return;
+  }
+
+  const inquiryRerunMatch = url.pathname.match(
+    /^\/api\/inquiry\/sessions\/([^/]+)\/turns\/([^/]+)\/rerun$/
+  );
+  if (inquiryRerunMatch && req.method === "POST") {
+    try {
+      const session = await readSession(inquiryRerunMatch[1]);
+      if (!session) {
+        sendJson(res, 404, { error: "Session not found" });
+        return;
+      }
+
+      const body = (await readJsonBody(req)) as {
+        provider?: string;
+        mode?: string;
+        userMessageOverride?: string;
+      };
+
+      const providerName = isKnownProviderName(body.provider)
+        ? body.provider
+        : undefined;
+      const provider = providerByName(providerName);
+
+      const rerun = await runCompareTurn({
+        session,
+        turnId: inquiryRerunMatch[2],
+        canonRoot: CANON_ROOT,
+        memoryRoot: MEMORY_DIR,
+        provider,
+        mode: isMode(body.mode) ? body.mode : undefined,
+        userMessageOverride:
+          typeof body.userMessageOverride === "string" &&
+          body.userMessageOverride.trim()
+            ? body.userMessageOverride.trim()
+            : undefined,
+      });
+
+      const targetIndex = session.turns.findIndex(
+        (turn) => turn.id === inquiryRerunMatch[2]
+      );
+      if (targetIndex !== -1) {
+        const target = session.turns[targetIndex];
+        const reruns: SessionTurnRerun[] = Array.isArray(target.reruns)
+          ? [...target.reruns, rerun]
+          : [rerun];
+        session.turns[targetIndex] = { ...target, reruns };
+        session.updatedAt = new Date().toISOString();
+        await writeSession(session);
+      }
+
+      sendJson(res, 200, { rerun, session });
+    } catch (err) {
+      sendJson(res, 500, {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+    return;
+  }
+
+  if (url.pathname === "/api/inquiry/turn" && req.method === "POST") {
+    let body: {
+      sessionId?: string;
+      mode?: string;
+      userMessage?: string;
+      provider?: string;
+    } = {};
+    try {
+      body = (await readJsonBody(req)) as typeof body;
+    } catch {
+      sendJson(res, 400, { error: "Request body must be valid JSON." });
+      return;
+    }
+
+    if (!body.userMessage || !body.userMessage.trim()) {
+      sendJson(res, 400, { error: "userMessage is required" });
+      return;
+    }
+
+    const mode = isMode(body.mode) ? body.mode : "dialogic";
+    const providerName = isKnownProviderName(body.provider)
+      ? body.provider
+      : undefined;
+    const provider = providerName
+      ? providerByName(providerName)
+      : providerFromEnv();
+    const providerLabel = {
+      name: provider.name,
+      model: (provider as { model?: string }).model ?? "unknown",
+    };
+
+    try {
       const result = await ensureSessionSnapshot(
         SESSIONS_DIR,
         await runSessionTurn(provider, {
-        canonRoot: CANON_ROOT,
-        sessionsRoot: SESSIONS_DIR,
-        memoryRoot: MEMORY_DIR,
-        sessionId: body.sessionId,
-        mode,
-        userMessage: body.userMessage.trim(),
+          canonRoot: CANON_ROOT,
+          sessionsRoot: SESSIONS_DIR,
+          memoryRoot: MEMORY_DIR,
+          sessionId: body.sessionId,
+          mode,
+          userMessage: body.userMessage.trim(),
         })
       );
 
@@ -355,14 +577,18 @@ async function handleRequest(
         session: result.session,
         persistedTurn: result.persistedTurn,
         memoryDecision: result.memoryDecision,
-        provider: {
-          name: provider.name,
-          model: (provider as { model?: string }).model ?? "unknown",
-        },
+        provider: providerLabel,
       });
     } catch (err) {
-      sendJson(res, 500, {
-        error: err instanceof Error ? err.message : String(err),
+      const message = err instanceof Error ? err.message : String(err);
+      sendJson(res, 502, {
+        error: message,
+        retryable: true,
+        provider: providerLabel,
+        failedAt: new Date().toISOString(),
+        userMessage: body.userMessage.trim(),
+        mode,
+        sessionId: body.sessionId ?? null,
       });
     }
     return;

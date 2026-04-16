@@ -45,6 +45,22 @@ export const TurnTraceSchema = z.object({
   final: z.string(),
 });
 
+const SessionTurnProviderSchema = z.object({
+  name: z.string().min(1),
+  model: z.string().min(1),
+});
+
+const SessionTurnRerunSchema = z.object({
+  id: z.string().min(1),
+  createdAt: z.string().min(1),
+  mode: ModeSchema,
+  assistantMessage: z.string(),
+  provider: SessionTurnProviderSchema,
+  trace: TurnTraceSchema.optional(),
+  contextSnapshot: ContextSnapshotInlineSchema.optional(),
+  memoryDecision: MemoryDecisionSchema,
+});
+
 export const SessionTurnRecordSchema = z.object({
   schemaVersion: z.literal(SCHEMA_VERSIONS.sessionTurn).optional(),
   id: z.string().min(1),
@@ -57,6 +73,11 @@ export const SessionTurnRecordSchema = z.object({
   contextSnapshotId: z.string().min(1).optional(),
   runMetadata: RunMetadataSchema.optional(),
   trace: TurnTraceSchema.optional(),
+  provider: SessionTurnProviderSchema.optional(),
+  reruns: z.array(SessionTurnRerunSchema).optional(),
+  error: z
+    .object({ message: z.string(), failedAt: z.string().min(1) })
+    .optional(),
 });
 
 export const SessionSummarySchema = z.object({
@@ -72,6 +93,9 @@ export const InquirySessionSchema = z.object({
   updatedAt: z.string().min(1),
   summary: SessionSummarySchema.nullable(),
   turns: z.array(SessionTurnRecordSchema),
+  tags: z.array(z.string()).optional(),
+  archived: z.boolean().optional(),
+  title: z.string().optional(),
 });
 
 export type PersistedInquirySession = z.infer<typeof InquirySessionSchema>;

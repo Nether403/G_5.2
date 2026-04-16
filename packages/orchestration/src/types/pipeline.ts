@@ -19,6 +19,12 @@ export interface BuildContextInput {
   canonRoot: string;
 }
 
+export interface ConsideredButSkippedDocument {
+  slug: string;
+  title: string;
+  reason: string;
+}
+
 export interface BuiltContext {
   mode: Mode;
   selectedDocuments: CanonDocument[];
@@ -26,6 +32,7 @@ export interface BuiltContext {
   selectedGlossaryTerms: GlossaryTerm[];
   selectedRecoveredArtifacts: LoadedRecoveredArtifact[];
   selectedMemoryItems: MemoryItem[];
+  consideredButSkippedDocuments: ConsideredButSkippedDocument[];
   systemPrompt: string;
   recentMessages: Message[];
   sessionSummary?: string;

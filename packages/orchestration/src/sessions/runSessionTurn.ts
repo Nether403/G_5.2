@@ -88,7 +88,7 @@ function summarizeTurns(
   };
 }
 
-function buildContextSnapshot(
+export function buildContextSnapshot(
   turn: SessionTurnArtifacts["context"]
 ): SessionContextSnapshot {
   return {
@@ -116,6 +116,13 @@ function buildContextSnapshot(
       scope: item.scope,
       statement: item.statement,
       ...(item.sessionId ? { sessionId: item.sessionId } : {}),
+    })),
+    consideredButSkippedDocuments: (
+      turn.consideredButSkippedDocuments ?? []
+    ).map((doc) => ({
+      slug: doc.slug,
+      title: doc.title,
+      reason: doc.reason,
     })),
     hadSessionSummary: Boolean(turn.sessionSummary),
     recentMessageCount: turn.recentMessages.length,
@@ -210,6 +217,11 @@ export async function runSessionTurn(
     storedItems.push(await memoryStore.upsert(candidate, memorySource));
   }
 
+  const providerLabel = {
+    name: provider.name,
+    model: (provider as { model?: string }).model ?? "unknown",
+  };
+
   const memoryDecision = finalizeMemoryDecision(turn.memoryDecision, storedItems);
   const inlineSnapshot = buildContextSnapshot(turn.context);
 
@@ -272,6 +284,7 @@ export async function runSessionTurn(
       revision: turn.revision,
       final: turn.final,
     },
+    provider: providerLabel,
   };
 
   const turns = [...existing.turns, persistedTurn];

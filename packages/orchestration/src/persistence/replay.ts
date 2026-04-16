@@ -170,6 +170,7 @@ function reconstructTurnFromPersisted(
     selectedFacts: [],
     selectedGlossaryTerms: [],
     selectedRecoveredArtifacts: [],
+    consideredButSkippedDocuments: [],
     selectedMemoryItems: snapshot.memoryItems,
     systemPrompt: snapshot.systemPrompt,
     userPrompt: snapshot.userPrompt,
