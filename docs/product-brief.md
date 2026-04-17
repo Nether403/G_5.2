@@ -55,7 +55,7 @@ A convincing persona is not a single prompt. It is a system:
 | Operator dashboard | ✅ Implemented |
 | Session persistence | ✅ Implemented (minimal file-backed layer) |
 | Inquiry surface | ✅ Implemented (operator dashboard inquiry UI with session search, turn inspection, and retrieved-context drawer) |
-| Memory discipline | ✅ Implemented (M3 landed: typed stateful memory lifecycle, `open_thread` resolution, conflict checks, and anti-pollution eval coverage) |
+| Memory discipline | ✅ Implemented in v1 form (M3 landed: typed stateful memory lifecycle, `open_thread` resolution, conflict checks, and anti-pollution eval coverage; longer-lived policy refinement remains operational work) |
 | Canon editorial workflow | ✅ Implemented (M4) |
 | Reflection workflow | ✅ Implemented (M5) |
 | Operator studio integration | ✅ Implemented (M7) |
@@ -71,7 +71,7 @@ Formal v1 declaration is still an operator release decision: the remaining gate 
 - Full long-term memory web
 - Multi-user architecture
 
-## Development phases
+## Development milestones
 
 The execution ladder is tracked as milestones M0 – M8 in [`../g_52_project_overview_and_roadmap.md`](../g_52_project_overview_and_roadmap.md). The release-rung vocabulary (operator-grade → editorial-grade → reflection-grade → v1) is defined in [`release-criteria.md`](release-criteria.md). Repo capability work through M8 is implemented; the remaining release gate is the per-RC provider baseline capture and operator checkoff recorded outside the milestone implementation commits.
 
@@ -85,4 +85,3 @@ Public hardening (auth, rate limits, monitoring) is explicitly post-v1; see [`re
 | Provider drift | Unified canon pack, critique pass, cross-model evals |
 | Memory pollution | Strict memory policy and confidence thresholds |
 | Architecture inflation | Keep durable memory minimal, file-backed, and operator-first until the editorial workflow truly needs more |
-

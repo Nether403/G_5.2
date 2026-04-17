@@ -31,7 +31,7 @@ Implemented now:
 - active-canon retrieval with continuity facts, glossary terms, and selectively retrieved recovered artifacts
 - multi-pass response orchestration with provider abstraction through OpenRouter-backed providers
 - session persistence, context snapshots, replay, export/import, and migration-guarded schema versioning
-- selective durable memory with global/session scope, dedupe, contradiction detection, and operator delete
+- selective durable memory implemented in v1 form: global/session scope, dedupe, contradiction detection, operator transitions, with longer-lived policy refinement still ahead
 - operator dashboard for reports, diffs, inquiry sessions, memory inspection, editorial workflow, and authored-artifact workflow
 - canon / continuity-fact editorial workflow with diffable proposals, apply-on-accept, and changelog scaffolding
 - reflection and authored-artifact workflow with operator approval and promote-to-proposal handoff
@@ -86,6 +86,10 @@ Default environment variables:
 - `DASHBOARD_PORT` — dashboard port, default `5000`
 - `DASHBOARD_HOST` — bind host, default `0.0.0.0`
 - `OPENROUTER_API_KEY` — required for live inquiry turns
+- `OPENROUTER_DEFAULT_MODEL` / `OPENROUTER_OPENAI_MODEL` — primary OpenAI model slug, typically `openai/gpt-5.4`
+- `OPENROUTER_SECONDARY_MODEL` — lighter OpenAI model slug, typically `openai/gpt-5.4-mini`
+- `OPENROUTER_IGNORE_PROVIDERS` — set to `none` to allow Azure BYOK routing on OpenRouter
+- `EVAL_PROVIDER` — default live provider: `openai`, `openai-secondary`, `anthropic`, or `gemini`
 - `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY` — optional direct provider keys
 
 Primary operator surfaces:

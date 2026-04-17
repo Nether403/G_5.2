@@ -488,7 +488,7 @@ async function handleRequest(
         model: (envDefault as { model?: string }).model ?? "unknown",
       },
       available: hasKey
-        ? ["openai", "anthropic", "gemini"]
+        ? ["openai", "openai-secondary", "anthropic", "gemini"]
         : ["mock"],
     });
     return;
@@ -2212,5 +2212,4 @@ server.listen(PORT, HOST, () => {
   console.log(`  http://${HOST}:${PORT}`);
   console.log(`  http://${HOST}:${PORT}/inquiry.html\n`);
 });
-
 

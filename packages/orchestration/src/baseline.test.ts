@@ -8,6 +8,7 @@ import { loadCanon } from "./canon/loadCanon";
 import { buildContext } from "./pipeline/buildContext";
 import { selectCanonDocuments } from "./canon/selectCanon";
 import { providerFromEnv } from "./providers/fromEnv";
+import { providerByName } from "./providers/byName";
 import { MockProvider } from "./providers/mock";
 import { selectContinuityFacts } from "./retrieval/selectContinuityFacts";
 import { selectGlossaryTerms } from "./retrieval/selectGlossaryTerms";
@@ -233,6 +234,47 @@ test("providerFromEnv defaults to gemini when unset", () => {
       delete process.env.EVAL_PROVIDER;
     } else {
       process.env.EVAL_PROVIDER = originalProvider;
+    }
+  }
+});
+
+test("providerFromEnv supports openai-secondary", () => {
+  const originalKey = process.env.OPENROUTER_API_KEY;
+  const originalProvider = process.env.EVAL_PROVIDER;
+
+  process.env.OPENROUTER_API_KEY = "test-key";
+  process.env.EVAL_PROVIDER = "openai-secondary";
+
+  try {
+    const provider = providerFromEnv();
+    assert.equal(provider.name, "openai-secondary");
+  } finally {
+    if (originalKey === undefined) {
+      delete process.env.OPENROUTER_API_KEY;
+    } else {
+      process.env.OPENROUTER_API_KEY = originalKey;
+    }
+
+    if (originalProvider === undefined) {
+      delete process.env.EVAL_PROVIDER;
+    } else {
+      process.env.EVAL_PROVIDER = originalProvider;
+    }
+  }
+});
+
+test("providerByName resolves openai-secondary", () => {
+  const originalKey = process.env.OPENROUTER_API_KEY;
+  process.env.OPENROUTER_API_KEY = "test-key";
+
+  try {
+    const provider = providerByName("openai-secondary");
+    assert.equal(provider.name, "openai-secondary");
+  } finally {
+    if (originalKey === undefined) {
+      delete process.env.OPENROUTER_API_KEY;
+    } else {
+      process.env.OPENROUTER_API_KEY = originalKey;
     }
   }
 });

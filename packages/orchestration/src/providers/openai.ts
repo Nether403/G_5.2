@@ -2,10 +2,13 @@
  * OpenAI provider — routed through OpenRouter.
  *
  * Uses model: openai/gpt-5.4 by default.
- * Override with OPENROUTER_OPENAI_MODEL env var.
+ * Override with OPENROUTER_OPENAI_MODEL or OPENROUTER_DEFAULT_MODEL.
+ * OPENROUTER_SECONDARY_MODEL provides a lighter OpenAI route for
+ * compare/rerun or default-provider use when desired.
  *
- * Azure is excluded by default so that OpenRouter routes to the OpenAI
- * non-BYOK endpoint. Set OPENROUTER_IGNORE_PROVIDERS=none to disable.
+ * Azure is a provider choice on OpenRouter, not part of the model slug.
+ * Use standard model IDs such as openai/gpt-5.4 and control provider
+ * routing with OPENROUTER_IGNORE_PROVIDERS or request-level provider rules.
  *
  * Model page: https://openrouter.ai/openai/gpt-5.4
  */
@@ -17,22 +20,34 @@ import type {
 } from "../types/providers";
 import { openRouterGenerate } from "./openrouter";
 
-const DEFAULT_MODEL =
-  process.env.OPENROUTER_OPENAI_MODEL ?? "openai/gpt-5.4";
+export function getDefaultOpenAIModel(): string {
+  return (
+    process.env.OPENROUTER_OPENAI_MODEL ??
+    process.env.OPENROUTER_DEFAULT_MODEL ??
+    "openai/gpt-5.4"
+  );
+}
 
-// Skip Azure by default; OPENROUTER_IGNORE_PROVIDERS=none to disable
-const IGNORE_RAW = process.env.OPENROUTER_IGNORE_PROVIDERS ?? "Azure";
-const IGNORE_PROVIDERS =
-  IGNORE_RAW.toLowerCase() === "none"
+export function getSecondaryOpenAIModel(): string {
+  return process.env.OPENROUTER_SECONDARY_MODEL ?? "openai/gpt-5.4-mini";
+}
+
+function getIgnoredProviders(): string[] {
+  const raw = process.env.OPENROUTER_IGNORE_PROVIDERS ?? "none";
+  return raw.toLowerCase() === "none"
     ? []
-    : IGNORE_RAW.split(",").map((provider) => provider.trim());
+    : raw
+        .split(",")
+        .map((provider) => provider.trim())
+        .filter(Boolean);
+}
 
 export class OpenAIProvider implements ModelProvider {
   name = "openai";
   readonly model: string;
 
   constructor(model?: string) {
-    this.model = model ?? DEFAULT_MODEL;
+    this.model = model ?? getDefaultOpenAIModel();
   }
 
   async generateText(input: GenerateTextInput): Promise<GenerateTextOutput> {
@@ -40,7 +55,25 @@ export class OpenAIProvider implements ModelProvider {
       input.model ?? this.model,
       input,
       this.name,
-      IGNORE_PROVIDERS
+      getIgnoredProviders()
+    );
+  }
+}
+
+export class OpenAISecondaryProvider implements ModelProvider {
+  name = "openai-secondary";
+  readonly model: string;
+
+  constructor(model?: string) {
+    this.model = model ?? getSecondaryOpenAIModel();
+  }
+
+  async generateText(input: GenerateTextInput): Promise<GenerateTextOutput> {
+    return openRouterGenerate(
+      input.model ?? this.model,
+      input,
+      this.name,
+      getIgnoredProviders()
     );
   }
 }
