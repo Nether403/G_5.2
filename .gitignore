@@ -20,6 +20,7 @@ build/
 
 # Local workspace / IDE state
 .local/
+.worktrees/
 .agents/
 .config/
 .playwright-cli/
