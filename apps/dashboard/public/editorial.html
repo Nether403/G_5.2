@@ -186,9 +186,15 @@
     <a class="nav-tab" href="/">Reports</a>
     <a class="nav-tab" href="/#diff-page">Diff</a>
     <a class="nav-tab" href="/inquiry.html">Inquiry</a>
+    <a class="nav-tab" href="/inquiry.html?focus=memory">Memory</a>
     <a class="nav-tab active" href="/editorial.html">Editorial</a>
+    <a class="nav-tab" href="/authoring.html">Reflection</a>
   </nav>
   <div class="spacer"></div>
+  <div style="position:relative;display:flex;align-items:center;padding:0 16px">
+    <input id="globalSearch" placeholder="Search…" style="background:var(--surface-2);color:var(--text);border:1px solid var(--border);padding:6px 10px;border-radius:var(--radius);font-family:inherit;font-size:12px;width:240px" autocomplete="off">
+    <div id="globalSearchResults" style="display:none;position:absolute;top:42px;right:16px;width:420px;max-height:60vh;overflow:auto;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);z-index:50;padding:6px;box-shadow:0 12px 28px rgba(0,0,0,.4)"></div>
+  </div>
 </div>
 
 <div class="container">
@@ -255,6 +261,7 @@ let state = {
   activeTab: 'overview',
   draftMode: null, // null | 'doc' | 'fact'
   draft: null,
+  compareWith: null,
 };
 
 function toast(msg, kind = '') {
@@ -376,13 +383,21 @@ async function renderDetail() {
     diff = null;
   }
 
-  const tabs = ['overview', 'diff', 'rationale', 'review', 'review-history'];
+  const tabs = ['overview', 'diff', 'rationale', 'compare', 'review', 'review-history'];
   if (state.activeTab === null || !tabs.includes(state.activeTab)) state.activeTab = 'overview';
 
   const provenance = proposal.provenance;
+  function provLink(k, v) {
+    const sid = provenance.sessionId;
+    if (k === 'sessionId') return `<a href="/inquiry.html?sessionId=${encodeURIComponent(v)}" style="color:var(--accent)">${esc(String(v))} ↗</a>`;
+    if (k === 'turnId' && sid) return `<a href="/inquiry.html?sessionId=${encodeURIComponent(sid)}&turnId=${encodeURIComponent(v)}" style="color:var(--accent)">${esc(String(v))} ↗</a>`;
+    if (k === 'memoryId' && sid) return `<a href="/inquiry.html?sessionId=${encodeURIComponent(sid)}&focus=memory&memoryId=${encodeURIComponent(v)}" style="color:var(--accent)">${esc(String(v))} ↗</a>`;
+    if (k === 'reflectionId') return `<a href="/authoring.html?artifact=${encodeURIComponent(v)}" style="color:var(--accent)">${esc(String(v))} ↗</a>`;
+    return esc(String(v));
+  }
   const provenanceList = Object.entries(provenance)
     .filter(([k, v]) => v && k !== 'source')
-    .map(([k, v]) => `<div class="k">${esc(k)}</div><div>${esc(String(v))}</div>`)
+    .map(([k, v]) => `<div class="k">${esc(k)}</div><div>${provLink(k, v)}</div>`)
     .join('');
 
   const overview = `
@@ -393,7 +408,7 @@ async function renderDetail() {
         <div class="k">kind</div><div>${esc(proposal.target.kind)}</div>
         <div class="k">change</div><div>${esc(proposal.changeKind)}</div>
         ${proposal.target.factId ? `<div class="k">fact id</div><div>${esc(proposal.target.factId)}</div>` : ''}
-        ${proposal.changelogPath ? `<div class="k">changelog</div><div>${esc(proposal.changelogPath)}</div>` : ''}
+        ${proposal.changelogPath ? `<div class="k">changelog</div><div><a href="/api/canon/changelog#${encodeURIComponent(proposal.changelogPath)}" target="_blank" style="color:var(--accent)">${esc(proposal.changelogPath)} ↗</a></div>` : ''}
       </div>
     </div>
     <div class="detail-section">
@@ -417,6 +432,26 @@ async function renderDetail() {
 
   const diffPane = renderDiffBlock(diff);
   const rationalePane = `<div class="diff-pre" style="padding:14px;white-space:pre-wrap;">${esc(proposal.rationale)}</div>`;
+  const compareCandidates = state.proposals.filter(p => p.id !== proposal.id);
+  const comparePane = `
+    <div class="form-row" style="margin-bottom:10px;">
+      <label>Compare against another proposal</label>
+      <select id="compareWith">
+        <option value="">— pick a proposal —</option>
+        ${compareCandidates.map(p => `<option value="${esc(p.id)}" ${state.compareWith===p.id?'selected':''}>${esc(p.title)} · ${esc(p.target.path)} (${esc(p.status)})</option>`).join('')}
+      </select>
+    </div>
+    <div id="compareBody" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div>
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim);margin-bottom:6px;">A · ${esc(proposal.title)}</div>
+        ${diffPane}
+      </div>
+      <div>
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim);margin-bottom:6px;">B · ${state.compareWith ? esc((compareCandidates.find(p=>p.id===state.compareWith)||{}).title||state.compareWith) : '—'}</div>
+        <div id="compareDiffB">${state.compareWith ? '<div class="empty">Loading…</div>' : '<div class="empty">Pick a proposal on the left to compare side by side.</div>'}</div>
+      </div>
+    </div>
+  `;
 
   const isTerminal = proposal.status === 'accepted' || proposal.status === 'rejected';
   const reviewControls = isTerminal ? `
@@ -455,6 +490,7 @@ async function renderDetail() {
     overview,
     diff: diffPane,
     rationale: rationalePane,
+    compare: comparePane,
     review: reviewControls,
     'review-history': history ? `<ul class="review-list">${history}</ul>` : '<div class="empty">No history yet.</div>',
   };
@@ -479,6 +515,25 @@ async function renderDetail() {
       renderDetail();
     });
   });
+
+  const compareSel = $('#compareWith');
+  if (compareSel) {
+    compareSel.addEventListener('change', async () => {
+      state.compareWith = compareSel.value || null;
+      const slot = $('#compareDiffB');
+      if (!state.compareWith) { if (slot) slot.innerHTML = '<div class="empty">Pick a proposal on the left to compare side by side.</div>'; return; }
+      if (slot) slot.innerHTML = '<div class="empty">Loading…</div>';
+      try {
+        const otherDiff = await api(`/api/canon/proposals/${state.compareWith}/diff`);
+        if (slot) slot.innerHTML = renderDiffBlock(otherDiff);
+      } catch (e) {
+        if (slot) slot.innerHTML = `<div class="empty">Could not load diff: ${esc(e.message||e)}</div>`;
+      }
+    });
+    if (state.compareWith && state.activeTab === 'compare') {
+      compareSel.dispatchEvent(new Event('change'));
+    }
+  }
 
   if (!isTerminal) {
     $('#acceptBtn')?.addEventListener('click', () => transition('accepted'));
@@ -864,14 +919,28 @@ $('#newFactBtn').addEventListener('click', () => {
   renderDetail();
 });
 
+async function applyEditorialDeepLink() {
+  const params = new URLSearchParams(window.location.search);
+  const pid = params.get('proposal');
+  const cmp = params.get('compareWith');
+  const tab = params.get('tab');
+  if (cmp) state.compareWith = cmp;
+  if (tab) state.activeTab = tab;
+  if (pid && state.proposals.find(p => p.id === pid)) {
+    await selectProposal(pid);
+  }
+}
+
 (async () => {
   try {
     await loadFiles();
     await loadProposals();
+    await applyEditorialDeepLink();
   } catch (err) {
     toast(err.message, 'error');
   }
 })();
 </script>
+<script src="/operator-shell.js"></script>
 </body>
 </html>

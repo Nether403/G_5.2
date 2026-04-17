@@ -87,9 +87,13 @@ body{margin:0;min-height:100vh;font-family:Inter,sans-serif;color:var(--text);ba
 </head>
 <body>
 <div class="header">
-  <div class="brand"><h1>G_5.2</h1><span class="tag">Authoring</span></div>
-  <nav class="nav"><a href="/">Reports</a><a href="/#diff-page">Diff</a><a href="/inquiry.html">Inquiry</a><a href="/authoring.html" class="active">Authoring</a></nav>
+  <div class="brand"><h1>G_5.2</h1><span class="tag">Reflection</span></div>
+  <nav class="nav"><a href="/">Reports</a><a href="/#diff-page">Diff</a><a href="/inquiry.html">Inquiry</a><a href="/inquiry.html?focus=memory">Memory</a><a href="/editorial.html">Editorial</a><a href="/authoring.html" class="active">Reflection</a></nav>
   <div class="spacer"></div>
+  <div style="position:relative">
+    <input id="globalSearch" placeholder="Search sessions, turns, memory…" style="background:rgba(255,255,255,.05);color:var(--text);border:1px solid var(--border);padding:7px 11px;border-radius:999px;font-family:inherit;font-size:12px;width:260px" autocomplete="off">
+    <div id="globalSearchResults" style="display:none;position:absolute;top:38px;right:0;width:420px;max-height:60vh;overflow:auto;background:var(--surface,#13161f);border:1px solid var(--border);border-radius:14px;z-index:50;padding:6px;box-shadow:0 12px 28px rgba(0,0,0,.4)"></div>
+  </div>
   <div class="pill"><span class="dot"></span><span id="providerPill">Reflection authoring</span></div>
 </div>
 <div class="layout">
@@ -266,7 +270,7 @@ function renderArtifactDetail(a){
       <div><b>Approved</b><br>${fmtDate(m.approvedAt)}${m.approvedBy?` by ${escapeHtml(m.approvedBy)}`:''}</div>
       <div><b>Sessions</b><br>${m.linkedSessionIds.length ? m.linkedSessionIds.map(escapeHtml).join(', ') : '—'}</div>
     </div>
-    ${a.proposalRef ? `<div class="proposal-card" style="margin-top:12px">Proposed to canon as <code>${escapeHtml(a.proposalRef.proposalId)}</code> at <code>${escapeHtml(a.proposalRef.proposalPath)}</code> (still requires editorial review).</div>` : ''}
+    ${a.proposalRef ? `<div class="proposal-card" style="margin-top:12px">Proposed to canon as <a href="/editorial.html?proposal=${encodeURIComponent(a.proposalRef.proposalId)}" style="color:var(--blue,#5db0ff)"><code>${escapeHtml(a.proposalRef.proposalId)}</code> ↗</a> at <code>${escapeHtml(a.proposalRef.proposalPath)}</code> (still requires editorial review).</div>` : ''}
     <div class="actions" style="margin-top:14px">
       ${editable ? '<button class="btn primary" id="saveArtifactBtn">Save draft</button>' : ''}
       ${a.status==='draft' ? '<button class="btn green" id="approveBtn">Approve</button>' : ''}
@@ -389,7 +393,27 @@ document.getElementById('ntSave').onclick = async () => {
 };
 document.getElementById('refreshBtn').onclick = loadTopics;
 
-loadTopics().catch(e => toast(e.message,true));
+async function applyAuthoringDeepLink(){
+  const params = new URLSearchParams(window.location.search);
+  const topicId = params.get('topic');
+  const artifactId = params.get('artifact');
+  if (topicId) {
+    try { await selectTopic(topicId); } catch {}
+  }
+  if (artifactId) {
+    const found = state.artifacts.find(x => x.id === artifactId);
+    if (found) {
+      state.selectedArtifact = found;
+      state.tab = 'artifacts';
+      renderTab();
+    }
+  }
+}
+
+loadTopics()
+  .then(applyAuthoringDeepLink)
+  .catch(e => toast(e.message,true));
 </script>
+<script src="/operator-shell.js"></script>
 </body>
 </html>

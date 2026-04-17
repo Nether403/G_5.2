@@ -421,7 +421,14 @@ async function handleRequest(
   req: http.IncomingMessage,
   res: http.ServerResponse
 ) {
-  const url = new URL(req.url ?? "/", `http://localhost:${PORT}`);
+  let url: URL;
+  try {
+    url = new URL(req.url ?? "/", `http://localhost:${PORT}`);
+  } catch {
+    res.writeHead(400);
+    res.end("Bad request");
+    return;
+  }
 
   if (url.pathname === "/api/reports") {
     try {
@@ -603,6 +610,15 @@ async function handleRequest(
 
       if (sessionId) {
         items = items.filter((item) => item.sessionId === sessionId);
+      }
+
+      const turnId = url.searchParams.get("turnId");
+      if (turnId) {
+        items = items.filter(
+          (item) =>
+            item.createdFrom?.turnId === turnId ||
+            item.lastConfirmedFrom?.turnId === turnId
+        );
       }
 
       if (isMemoryScope(scope)) {
@@ -1871,6 +1887,250 @@ async function handleRequest(
       const message = err instanceof Error ? err.message : String(err);
       const status = /must be approved|already has/.test(message) ? 400 : 500;
       sendJson(res, status, { error: message });
+    }
+    return;
+  }
+
+  if (url.pathname === "/api/canon/changelog" && req.method === "GET") {
+    try {
+      const dir = path.join(CANON_ROOT, "changelog");
+      let files: string[] = [];
+      try {
+        files = (await fs.readdir(dir))
+          .filter((f) => f.endsWith(".md"))
+          .sort();
+      } catch (err) {
+        const code = (err as NodeJS.ErrnoException).code;
+        if (code !== "ENOENT") throw err;
+      }
+      const entries = await Promise.all(
+        files.map(async (file) => {
+          const raw = await fs.readFile(path.join(dir, file), "utf8");
+          const firstLine = raw.split(/\r?\n/).find((l) => l.startsWith("# "));
+          return {
+            file,
+            path: `packages/canon/changelog/${file}`,
+            title: firstLine ? firstLine.replace(/^#\s+/, "") : file,
+            body: raw,
+          };
+        })
+      );
+      sendJson(res, 200, entries);
+    } catch (err) {
+      sendJson(res, 500, {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+    return;
+  }
+
+  if (url.pathname === "/api/search" && req.method === "GET") {
+    const qRaw = (url.searchParams.get("q") ?? "").trim();
+    if (!qRaw) {
+      sendJson(res, 200, { query: "", results: [] });
+      return;
+    }
+    const q = qRaw.toLowerCase();
+    const limit = Math.min(
+      parseInt(url.searchParams.get("limit") ?? "40", 10) || 40,
+      200
+    );
+    type SearchHit = {
+      type:
+        | "session"
+        | "turn"
+        | "memory"
+        | "proposal"
+        | "artifact"
+        | "report"
+        | "case";
+      id: string;
+      label: string;
+      sublabel?: string;
+      href: string;
+      sessionId?: string;
+    };
+    const results: SearchHit[] = [];
+
+    // Sessions + turns
+    try {
+      const sessionFiles = await fs
+        .readdir(SESSIONS_DIR)
+        .catch((err) =>
+          (err as NodeJS.ErrnoException).code === "ENOENT" ? [] : Promise.reject(err)
+        );
+      for (const file of sessionFiles) {
+        if (!file.endsWith(".json")) continue;
+        const id = file.slice(0, -5);
+        const session = await sessionStore.load(id).catch(() => null);
+        if (!session) continue;
+        const title =
+          session.title || session.summary?.text?.slice(0, 60) || `Session ${id.slice(0, 8)}`;
+        const haystack = [
+          session.title ?? "",
+          session.summary?.text ?? "",
+          ...(session.tags ?? []),
+        ]
+          .join(" ")
+          .toLowerCase();
+        if (haystack.includes(q)) {
+          results.push({
+            type: "session",
+            id: session.id,
+            label: title,
+            sublabel: `${session.turns.length} turn${session.turns.length === 1 ? "" : "s"}`,
+            href: `/inquiry.html?sessionId=${encodeURIComponent(session.id)}`,
+            sessionId: session.id,
+          });
+        }
+        for (const turn of session.turns) {
+          const turnHay = `${turn.userMessage}\n${turn.assistantMessage}`.toLowerCase();
+          if (turnHay.includes(q)) {
+            results.push({
+              type: "turn",
+              id: turn.id,
+              label: turn.userMessage.slice(0, 80),
+              sublabel: `${title} · ${turn.mode}`,
+              href: `/inquiry.html?sessionId=${encodeURIComponent(session.id)}&turnId=${encodeURIComponent(turn.id)}`,
+              sessionId: session.id,
+            });
+          }
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+
+    // Memory
+    try {
+      const items = await new FileMemoryStore(MEMORY_DIR).list();
+      for (const item of items) {
+        const hay = [item.statement, item.justification, ...(item.tags ?? [])]
+          .join(" ")
+          .toLowerCase();
+        if (hay.includes(q)) {
+          results.push({
+            type: "memory",
+            id: item.id,
+            label: item.statement.slice(0, 80),
+            sublabel: `${item.type} · ${item.state}${item.sessionId ? ` · ${item.sessionId.slice(0, 8)}` : ""}`,
+            href: item.sessionId
+              ? `/inquiry.html?sessionId=${encodeURIComponent(item.sessionId)}&focus=memory&memoryId=${encodeURIComponent(item.id)}`
+              : `/inquiry.html?focus=memory&memoryId=${encodeURIComponent(item.id)}`,
+            sessionId: item.sessionId,
+          });
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+
+    // Proposals
+    try {
+      const proposals = await proposalStore.list();
+      for (const p of proposals) {
+        const hay = [p.title, p.rationale, p.target.path, p.target.label]
+          .join(" ")
+          .toLowerCase();
+        if (hay.includes(q)) {
+          results.push({
+            type: "proposal",
+            id: p.id,
+            label: p.title,
+            sublabel: `${p.status} · ${p.target.path}`,
+            href: `/editorial.html?proposal=${encodeURIComponent(p.id)}`,
+          });
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+
+    // Artifacts
+    try {
+      const artifactStore = new FileAuthoredArtifactStore(ARTIFACT_DIR);
+      const artifacts = await artifactStore.list();
+      for (const a of artifacts) {
+        const hay = [a.title, a.body].join(" ").toLowerCase();
+        if (hay.includes(q)) {
+          results.push({
+            type: "artifact",
+            id: a.id,
+            label: a.title,
+            sublabel: `${a.status} · topic ${a.topicId.slice(0, 8)}`,
+            href: `/authoring.html?topic=${encodeURIComponent(a.topicId)}&artifact=${encodeURIComponent(a.id)}`,
+          });
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+
+    // Reports + cases
+    try {
+      const reportFiles = (await fs.readdir(REPORTS_DIR).catch(() => []))
+        .filter((f) => f.endsWith(".json"))
+        .sort()
+        .reverse()
+        .slice(0, 6);
+      for (const file of reportFiles) {
+        try {
+          const raw = await fs.readFile(path.join(REPORTS_DIR, file), "utf8");
+          const report = JSON.parse(raw) as {
+            results?: Array<{
+              id: string;
+              description?: string;
+              category?: string;
+              passed?: boolean;
+            }>;
+          };
+          if (file.toLowerCase().includes(q)) {
+            results.push({
+              type: "report",
+              id: file,
+              label: file,
+              sublabel: "report",
+              href: `/#report-page&report=${encodeURIComponent(file)}`,
+            });
+          }
+          for (const c of report.results ?? []) {
+            const hay = `${c.id} ${c.description ?? ""} ${c.category ?? ""}`.toLowerCase();
+            if (hay.includes(q)) {
+              results.push({
+                type: "case",
+                id: c.id,
+                label: c.id,
+                sublabel: `${c.category ?? "case"} · ${c.passed ? "PASS" : "FAIL"} · ${file}`,
+                href: `/#report-page&report=${encodeURIComponent(file)}&case=${encodeURIComponent(c.id)}`,
+              });
+            }
+          }
+        } catch {
+          /* ignore individual report failures */
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+
+    sendJson(res, 200, {
+      query: qRaw,
+      results: results.slice(0, limit),
+      truncated: results.length > limit,
+      total: results.length,
+    });
+    return;
+  }
+
+  if (url.pathname.endsWith(".js") && !url.pathname.includes("..")) {
+    try {
+      const filePath = path.join(STATIC_DIR, url.pathname.replace(/^\//, ""));
+      const js = await fs.readFile(filePath, "utf8");
+      res.writeHead(200, { "Content-Type": "application/javascript; charset=utf-8" });
+      res.end(js);
+    } catch {
+      res.writeHead(404);
+      res.end("Not found");
     }
     return;
   }

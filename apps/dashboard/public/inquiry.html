@@ -120,8 +120,12 @@ body{margin:0;min-height:100vh;font-family:Inter,sans-serif;color:var(--text);ba
 <body>
 <div class="header">
   <div class="brand"><h1>G_5.2</h1><span class="tag">Inquiry</span></div>
-  <nav class="nav"><a href="/">Reports</a><a href="/#diff-page">Diff</a><a href="/inquiry.html" class="active">Inquiry</a><a href="/editorial.html">Editorial</a><a href="/authoring.html">Authoring</a></nav>
+  <nav class="nav"><a href="/">Reports</a><a href="/#diff-page">Diff</a><a href="/inquiry.html" class="active">Inquiry</a><a href="/inquiry.html?focus=memory">Memory</a><a href="/editorial.html">Editorial</a><a href="/authoring.html">Reflection</a></nav>
   <div class="spacer"></div>
+  <div style="position:relative">
+    <input id="globalSearch" placeholder="Search sessions, turns, memory…" style="background:var(--surface2);color:var(--text);border:1px solid var(--border);padding:7px 11px;border-radius:999px;font-family:inherit;font-size:12px;width:280px" autocomplete="off">
+    <div id="globalSearchResults" style="display:none;position:absolute;top:38px;right:0;width:420px;max-height:60vh;overflow:auto;background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow);z-index:50;padding:6px"></div>
+  </div>
   <div class="pill"><span class="dot"></span><span id="providerPill">Operator surface</span></div>
 </div>
 <div class="layout">
@@ -542,6 +546,7 @@ function renderDrawer(){
       <div class="meta" style="margin-top:8px">Proposed ${turn.memoryDecision.candidates?.length||0} candidate(s) · stored ${turn.memoryDecision.storedItems?.length||0} · skipped ${turn.memoryDecision.skippedCandidates?.length||0}</div>
     </div>
     <div class="block"><strong>Stored Memory</strong>${renderStoredMemory(turn.memoryDecision.storedItems||[])}</div>
+    <div class="block" id="turnCrossLinks"><strong>Cross-links</strong><div class="copy" id="turnCrossLinksBody"><div class="meta">Loading related memory & proposals…</div></div></div>
     <div class="block"><strong>Skipped Candidates</strong>${renderSkippedCandidates(turn.memoryDecision.skippedCandidates||[])}</div>
     <div class="block"><strong>Turn Tools</strong>
       <div class="rerun-row">
@@ -567,6 +572,29 @@ function renderDrawer(){
   $("#copyReplyBtn").addEventListener("click",()=>copyText(turn.assistantMessage));
   $("#copyContextBtn").addEventListener("click",()=>copyText(JSON.stringify(s,null,2)));
   $("#rerunBtn").addEventListener("click",()=>rerunTurn(turn.id,$("#rerunProvider").value));
+  loadTurnCrossLinks(turn).catch(()=>{});
+}
+
+async function loadTurnCrossLinks(turn){
+  const target=$("#turnCrossLinksBody");
+  if(!target||!state.currentSession)return;
+  const sid=state.currentSession.id;
+  try{
+    const [memRes,propRes]=await Promise.all([
+      fetch(`/api/memory?turnId=${encodeURIComponent(turn.id)}`).then(r=>r.json()),
+      fetch(`/api/canon/proposals`).then(r=>r.json()),
+    ]);
+    const memItems=Array.isArray(memRes)?memRes:[];
+    const proposals=Array.isArray(propRes)?propRes.filter(p=>p.provenance&&(p.provenance.turnId===turn.id||p.provenance.sessionId===sid)):[];
+    const memHtml=memItems.length?memItems.map(m=>`<div class="context"><div class="label">${esc(m.type)} · ${esc(m.state)}</div><div class="value">${esc(m.statement)}</div><div class="meta"><a href="/inquiry.html?sessionId=${encodeURIComponent(sid)}&focus=memory&memoryId=${encodeURIComponent(m.id)}" style="color:var(--blue)">Open in memory ↗</a></div></div>`).join(""):'<div class="meta">No durable memory items recorded from this turn.</div>';
+    const propHtml=proposals.length?proposals.map(p=>`<div class="context"><div class="label">${esc(p.status)} · ${esc(p.provenance.source)}</div><div class="value">${esc(p.title)}</div><div class="meta">${esc(p.target.path)} · <a href="/editorial.html?proposal=${encodeURIComponent(p.id)}" style="color:var(--blue)">Open in editorial ↗</a></div></div>`).join(""):'<div class="meta">No canon proposals reference this session or turn.</div>';
+    target.innerHTML=`
+      <div style="margin-bottom:10px"><div class="meta" style="margin-bottom:4px">Memory items from this turn</div>${memHtml}</div>
+      <div><div class="meta" style="margin-bottom:4px">Canon proposals from this session</div>${propHtml}</div>
+    `;
+  }catch(err){
+    target.innerHTML=`<div class="meta">Could not load cross-links: ${esc(err.message||err)}</div>`;
+  }
 }
 
 function renderConversation(){
@@ -818,6 +846,35 @@ $("#addMemoryForm").addEventListener("submit", async e => {
   }
 });
 
+async function applyInquiryDeepLink(){
+  const params=new URLSearchParams(window.location.search);
+  const sid=params.get("sessionId");
+  const tid=params.get("turnId");
+  const focus=params.get("focus");
+  const memId=params.get("memoryId");
+  if(sid){
+    try{ await loadSession(sid); }catch{}
+    if(tid&&state.currentSession){
+      state.selectedTurnId=tid;
+      renderConversation();renderDrawer();
+      setTimeout(()=>{const el=document.querySelector(`[data-turn-id="${CSS.escape(tid)}"]`);if(el)el.scrollIntoView({behavior:"smooth",block:"center"})},80);
+    }
+  }
+  if(focus==="memory"){
+    const mem=$("#memoryList");
+    if(mem)mem.scrollIntoView({behavior:"smooth",block:"start"});
+    if(memId){
+      state.memorySearch=memId;
+      const ms=$("#memorySearch"); if(ms) ms.value=memId;
+      renderMemoryList();
+    }
+  }
+}
+
 Promise.all([loadProviders(),loadSessions(),loadMemory()])
   .then(renderWorkspace)
+  .then(applyInquiryDeepLink)
   .catch(err=>setError(err instanceof Error?err.message:String(err)));
+</script>
+<script src="/operator-shell.js"></script>
+</body></html>

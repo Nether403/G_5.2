@@ -236,10 +236,15 @@
     <a class="nav-tab active" data-page="report-page" href="#report-page">Reports</a>
     <a class="nav-tab" data-page="diff-page" href="#diff-page">Diff</a>
     <a class="nav-tab" href="/inquiry.html">Inquiry</a>
+    <a class="nav-tab" href="/inquiry.html?focus=memory">Memory</a>
     <a class="nav-tab" href="/editorial.html">Editorial</a>
-    <a class="nav-tab" href="/authoring.html">Authoring</a>
+    <a class="nav-tab" href="/authoring.html">Reflection</a>
   </nav>
   <div class="spacer"></div>
+  <div class="header-controls" style="position:relative">
+    <input id="globalSearch" placeholder="Search sessions, turns, memory, proposals…" style="background:var(--surface-2);color:var(--text);border:1px solid var(--border);padding:5px 10px;border-radius:var(--radius);font-family:'Inter',sans-serif;font-size:12px;width:280px" autocomplete="off">
+    <div id="globalSearchResults" style="display:none;position:absolute;top:36px;right:0;width:420px;max-height:60vh;overflow:auto;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:0 8px 24px rgba(0,0,0,.4);z-index:50;padding:6px"></div>
+  </div>
   <div class="header-controls" id="report-controls">
     <label>Report</label>
     <select id="reportSelector"><option>Loading…</option></select>
@@ -667,10 +672,45 @@ function bindDiffRows() {
   });
 }
 
+// ─── Deep-link helpers ──────────────────────────────────────────────────────
+function parseDeepLink() {
+  const hash = window.location.hash.slice(1);
+  const out = { page: null, report: null, caseId: null };
+  hash.split('&').forEach(part => {
+    if (!part) return;
+    if (part === 'report-page' || part === 'diff-page') out.page = part;
+    else {
+      const [k, v] = part.split('=');
+      if (k === 'report') out.report = decodeURIComponent(v || '');
+      else if (k === 'case') out.caseId = decodeURIComponent(v || '');
+    }
+  });
+  return out;
+}
+
+async function applyDeepLink() {
+  const dl = parseDeepLink();
+  if (dl.page) setActivePage(dl.page, { updateHash: false });
+  if (dl.report && reports.includes(dl.report)) {
+    $('#reportSelector').value = dl.report;
+    await loadReport(dl.report);
+  }
+  if (dl.caseId) {
+    reportExpandedId = dl.caseId;
+    renderReport();
+    setTimeout(() => {
+      const row = document.querySelector(`.case-table tr[data-id="${CSS.escape(dl.caseId)}"]`);
+      if (row) row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 50);
+  }
+}
+
 // ─── Boot ────────────────────────────────────────────────────────────────────
 syncPageFromHash();
-loadReportList();
+loadReportList().then(applyDeepLink);
+window.addEventListener('hashchange', applyDeepLink);
 </script>
+<script src="/operator-shell.js"></script>
 </body>
 </html>
 
