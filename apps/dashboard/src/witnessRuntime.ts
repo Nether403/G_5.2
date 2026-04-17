@@ -40,6 +40,7 @@ export interface PersistWitnessTurnArtifactsInput {
   witnessId: string;
   session: InquirySession;
   persistedTurn: SessionTurnRecord;
+  sessionStore?: Pick<FileSessionStore, "save">;
 }
 
 export interface PersistWitnessTurnArtifactsResult {
@@ -50,14 +51,13 @@ export interface PersistWitnessTurnArtifactsResult {
 export async function persistWitnessTurnArtifacts(
   input: PersistWitnessTurnArtifactsInput
 ): Promise<PersistWitnessTurnArtifactsResult> {
-  const sessionStore = new FileSessionStore(input.sessionRoot);
+  const sessionStore =
+    input.sessionStore ?? new FileSessionStore(input.sessionRoot);
   const stampedSession: InquirySession = {
     ...input.session,
     productId: "witness",
     witnessId: input.witnessId,
   };
-
-  await sessionStore.save(stampedSession);
 
   const existing = (await input.testimonyStore.list()).find(
     (record) =>
@@ -65,21 +65,52 @@ export async function persistWitnessTurnArtifacts(
       record.witnessId === input.witnessId
   );
 
-  const testimony =
-    existing ??
-    (await input.testimonyStore.create({
-      witnessId: input.witnessId,
-      sessionId: stampedSession.id,
-      capturedAt: input.persistedTurn.createdAt,
-      title: stampedSession.title ?? "Witness Session",
-    }));
+  const rollbackTestimony = async (
+    createdTestimonyId: string | null,
+    previousRecord: typeof existing
+  ) => {
+    if (previousRecord) {
+      await input.testimonyStore.save(previousRecord);
+      return;
+    }
 
-  const updated = await appendTurnToTestimony(input.testimonyStore, {
-    testimonyId: testimony.id,
-    witnessText: input.persistedTurn.userMessage,
-    assistantText: input.persistedTurn.assistantMessage,
-    createdAt: input.persistedTurn.createdAt,
-  });
+    if (createdTestimonyId) {
+      await input.testimonyStore.delete(createdTestimonyId);
+    }
+  };
+
+  let createdTestimonyId: string | null = null;
+  let updated;
+
+  try {
+    const testimony =
+      existing ??
+      (await input.testimonyStore.create({
+        witnessId: input.witnessId,
+        sessionId: stampedSession.id,
+        capturedAt: input.persistedTurn.createdAt,
+        title: stampedSession.title ?? "Witness Session",
+      }));
+
+    createdTestimonyId = existing ? null : testimony.id;
+
+    updated = await appendTurnToTestimony(input.testimonyStore, {
+      testimonyId: testimony.id,
+      witnessText: input.persistedTurn.userMessage,
+      assistantText: input.persistedTurn.assistantMessage,
+      createdAt: input.persistedTurn.createdAt,
+    });
+  } catch (error) {
+    await rollbackTestimony(createdTestimonyId, existing);
+    throw error;
+  }
+
+  try {
+    await sessionStore.save(stampedSession);
+  } catch (error) {
+    await rollbackTestimony(createdTestimonyId, existing);
+    throw error;
+  }
 
   return {
     session: stampedSession,

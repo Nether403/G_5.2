@@ -110,3 +110,38 @@ test("persistWitnessTurnArtifacts stamps witness metadata onto the session and a
     await rm(testimonyRoot, { recursive: true, force: true });
   }
 });
+
+test("persistWitnessTurnArtifacts rolls back testimony when session persistence fails", async () => {
+  const sessionRoot = await mkdtemp(path.join(os.tmpdir(), "g52-witness-session-fail-"));
+  const testimonyRoot = await mkdtemp(path.join(os.tmpdir(), "g52-witness-testimony-fail-"));
+
+  try {
+    const testimonyStore = new FileWitnessTestimonyStore(testimonyRoot);
+    const session = buildSession({
+      turns: [buildTurn()],
+    });
+
+    await assert.rejects(
+      () =>
+        persistWitnessTurnArtifacts({
+          sessionRoot,
+          testimonyStore,
+          witnessId: "wit-1",
+          session,
+          persistedTurn: session.turns[0],
+          sessionStore: {
+            save: async () => {
+              throw new Error("session write failed");
+            },
+          },
+        }),
+      /session write failed/
+    );
+
+    const testimony = await testimonyStore.list();
+    assert.equal(testimony.length, 0);
+  } finally {
+    await rm(sessionRoot, { recursive: true, force: true });
+    await rm(testimonyRoot, { recursive: true, force: true });
+  }
+});
