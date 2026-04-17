@@ -100,6 +100,14 @@ body{margin:0;min-height:100vh;font-family:Inter,sans-serif;color:var(--text);ba
 .error{padding:10px 12px;border-radius:10px;background:rgba(255,143,143,.1);color:var(--danger);font-size:12px;border:1px solid rgba(255,143,143,.3)}
 .error.hidden{display:none}
 .retry-bar{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap}
+.preview-card{margin-top:10px;border:1px solid var(--border);border-radius:12px;background:var(--surface3);padding:12px 14px}
+.preview-card.hidden{display:none}
+.preview-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+.preview-head strong{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim)}
+.preview-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;font-size:11px;color:var(--dim)}
+.preview-grid .cell{padding:6px 8px;border:1px solid var(--border);border-radius:8px;background:rgba(255,255,255,.03)}
+.preview-grid .cell strong{display:block;color:var(--text);font-size:13px;margin-bottom:2px}
+.preview-list{margin-top:8px;display:flex;flex-direction:column;gap:6px}
 .section-toggle{margin-top:8px}
 .section-toggle summary{cursor:pointer;font-size:11px;color:var(--dim);padding:4px 0}
 .section-toggle summary:hover{color:var(--text)}
@@ -265,9 +273,14 @@ body{margin:0;min-height:100vh;font-family:Inter,sans-serif;color:var(--text);ba
         </div>
       </div>
       <div class="compose-actions">
-        <button class="btn primary" id="sendBtn">Send Turn</button>
-        <div class="hint">Ctrl/Cmd+Enter sends. "/" focuses search, "c" composer, "j/k" turns, "y" copy reply, "r" rerun, Esc closes drawer.</div>
+        <div class="row">
+          <button class="btn primary" id="sendBtn">Send Turn</button>
+          <button class="btn" id="previewBtn">Preview Retrieval</button>
+          <button class="btn quiet hidden" id="clearPreviewBtn">Clear Preview</button>
+        </div>
+        <div class="hint">Ctrl/Cmd+Enter sends. "/" focuses search, "c" composer, "j/k" turns, "y" copy reply, "r" rerun, "p" preview, Esc closes drawer.</div>
       </div>
+      <div class="preview-card hidden" id="previewCard"></div>
     </div>
   </div>
 </main>
@@ -283,7 +296,8 @@ const state={
   latestProvider:null,sessionSearch:"",memorySearch:"",
   sortKey:"updatedAt",sortDir:"desc",archiveFilter:"active",tagFilter:null,
   providerList:[],defaultProvider:null,hasApiKey:false,
-  isSending:false,lastError:null,pendingRetry:null
+  isSending:false,lastError:null,pendingRetry:null,
+  previewSnapshot:null,previewMode:null,previewSessionId:null
 };
 
 function setError(msg,details){
@@ -302,6 +316,85 @@ function setSending(v){
   $("#sendBtn").disabled=v;$("#sendBtn").textContent=v?"Sending...":"Send Turn";
   $("#messageInput").disabled=v;$("#modeSelect").disabled=v;$("#providerSelect").disabled=v;
   if($("#retryBtn"))$("#retryBtn").disabled=v;
+  if($("#previewBtn"))$("#previewBtn").disabled=v;
+}
+
+function clearPreview(){
+  state.previewSnapshot=null;state.previewMode=null;state.previewSessionId=null;
+  const card=$("#previewCard");if(card){card.classList.add("hidden");card.innerHTML=""}
+  const clear=$("#clearPreviewBtn");if(clear)clear.classList.add("hidden");
+}
+
+function renderPreviewList(items,render,emptyMessage){
+  if(!items||!items.length)return`<div class="meta">${esc(emptyMessage)}</div>`;
+  return items.slice(0,8).map(item=>`<div class="context">${render(item)}</div>`).join("")
+    +(items.length>8?`<div class="meta">+ ${items.length-8} more not shown</div>`:"");
+}
+
+function renderPreview(){
+  const card=$("#previewCard"),snap=state.previewSnapshot;
+  if(!card)return;
+  if(!snap){card.classList.add("hidden");card.innerHTML="";return}
+  const mode=state.previewMode||"dialogic";
+  const sid=state.previewSessionId;
+  const counts=[
+    {label:"Documents",value:snap.selectedDocuments?.length||0},
+    {label:"Continuity facts",value:snap.selectedFacts?.length||0},
+    {label:"Glossary terms",value:snap.selectedGlossaryTerms?.length||0},
+    {label:"Memory items",value:snap.selectedMemoryItems?.length||0},
+    {label:"Recovered artifacts",value:snap.selectedRecoveredArtifacts?.length||0},
+    {label:"Skipped docs",value:snap.consideredButSkippedDocuments?.length||0},
+  ];
+  card.classList.remove("hidden");
+  card.innerHTML=`
+    <div class="preview-head">
+      <div><strong>Retrieval Preview</strong><div class="meta" style="margin-top:2px">${esc(mode)} mode · ${sid?"continuing session "+esc(sid.slice(0,8)):"new session"} · ${snap.hadSessionSummary?"with session summary":"no rolling summary"}</div></div>
+      <div class="row"><button class="btn quiet" id="previewSendBtn">Commit as Turn</button><button class="btn quiet" id="previewDismissBtn">Dismiss</button></div>
+    </div>
+    <div class="preview-grid">${counts.map(c=>`<div class="cell"><strong>${c.value}</strong>${esc(c.label)}</div>`).join("")}</div>
+    <details class="section-toggle" open><summary>Documents (${snap.selectedDocuments?.length||0})</summary>
+      <div class="preview-list">${renderPreviewList(snap.selectedDocuments,d=>`<div class="label">${esc(d.slug)}</div><div class="value">${esc(d.title)}</div>`,"No canon documents would be selected.")}</div>
+    </details>
+    <details class="section-toggle"><summary>Continuity facts (${snap.selectedFacts?.length||0})</summary>
+      <div class="preview-list">${renderPreviewList(snap.selectedFacts,f=>`<div class="label">${esc(f.id)}</div><div class="value">${esc(f.statement)}</div>`,"No continuity facts would be selected.")}</div>
+    </details>
+    <details class="section-toggle"><summary>Glossary terms (${snap.selectedGlossaryTerms?.length||0})</summary>
+      <div class="preview-list">${renderPreviewList(snap.selectedGlossaryTerms,t=>`<div class="label">${esc(t.term)}</div><div class="value">${esc(t.definition)}</div>`,"No glossary terms would be selected.")}</div>
+    </details>
+    <details class="section-toggle"><summary>Memory items (${snap.selectedMemoryItems?.length||0})</summary>
+      <div class="preview-list">${renderPreviewList(snap.selectedMemoryItems,m=>`<div class="label">${esc(m.type)} / ${esc(m.scope)}</div><div class="value">${esc(m.statement)}</div>`,"No durable memory items would be retrieved.")}</div>
+    </details>
+    <details class="section-toggle"><summary>Skipped docs (${snap.consideredButSkippedDocuments?.length||0})</summary>
+      <div class="preview-list">${renderPreviewList(snap.consideredButSkippedDocuments,d=>`<div class="label">${esc(d.slug)}</div><div class="value">${esc(d.title)}</div><div class="meta">${esc(d.reason)}</div>`,"No documents were considered but skipped.")}</div>
+    </details>`;
+  $("#previewSendBtn").addEventListener("click",()=>sendTurn());
+  $("#previewDismissBtn").addEventListener("click",clearPreview);
+  $("#clearPreviewBtn").classList.remove("hidden");
+}
+
+async function previewRetrieval(){
+  if(state.isSending)return;
+  const msg=$("#messageInput").value.trim();
+  if(!msg){setError("Write a message before previewing retrieval.");return}
+  setError("");
+  const btn=$("#previewBtn");if(btn){btn.disabled=true;btn.textContent="Previewing..."}
+  try{
+    const res=await fetch("/api/inquiry/preview",{
+      method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({
+        sessionId:state.currentSessionId||undefined,
+        mode:$("#modeSelect").value,
+        userMessage:msg,
+      })
+    });
+    const data=await res.json();
+    if(!res.ok){setError(data.error||"Preview failed.");return}
+    state.previewSnapshot=data.snapshot;state.previewMode=data.mode;state.previewSessionId=data.sessionId;
+    renderPreview();
+    $("#previewCard").scrollIntoView({behavior:"smooth",block:"nearest"});
+  }catch(err){
+    setError(err instanceof Error?err.message:String(err));
+  }finally{if(btn){btn.disabled=false;btn.textContent="Preview Retrieval"}}
 }
 
 function why(turn){
@@ -718,6 +811,7 @@ async function sendTurn(retry){
     state.currentSession=data.session;state.currentSessionId=data.session.id;
     state.selectedTurnId=data.persistedTurn?.id??null;state.latestProvider=data.provider;
     if(!retry)$("#messageInput").value="";
+    clearPreview();
     await Promise.all([loadSessions(),loadMemory()]);renderWorkspace();
   }catch(err){
     setError(err instanceof Error?err.message:String(err));
@@ -777,9 +871,14 @@ function moveTurn(dir){
 
 // wire events
 $("#sendBtn").addEventListener("click",()=>sendTurn());
+$("#previewBtn").addEventListener("click",previewRetrieval);
+$("#clearPreviewBtn").addEventListener("click",clearPreview);
+$("#modeSelect").addEventListener("change",clearPreview);
 $("#messageInput").addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key==="Enter"){e.preventDefault();sendTurn()}});
+$("#messageInput").addEventListener("input",()=>{if(state.previewSnapshot)clearPreview()});
+$("#providerSelect").addEventListener("change",()=>{if(state.previewSnapshot)clearPreview()});
 $("#newSessionBtn").addEventListener("click",async()=>{
-  state.currentSession=null;state.currentSessionId=null;state.selectedTurnId=null;setError("");
+  state.currentSession=null;state.currentSessionId=null;state.selectedTurnId=null;setError("");clearPreview();
   renderSessionList();await loadMemory();renderWorkspace();$("#messageInput").focus();
 });
 $("#refreshSessionsBtn").addEventListener("click",()=>Promise.all([loadSessions(),loadMemory(),loadProviders()]));
@@ -810,6 +909,7 @@ document.addEventListener("keydown",e=>{
   if(e.key.toLowerCase()==="r"&&!typing&&state.selectedTurnId){
     e.preventDefault();const sel=$("#rerunProvider");if(sel)rerunTurn(state.selectedTurnId,sel.value);return;
   }
+  if(e.key.toLowerCase()==="p"&&!typing){e.preventDefault();previewRetrieval();return}
   if(e.key==="Escape"&&state.selectedTurnId){state.selectedTurnId=null;renderConversation();renderDrawer()}
 });
 

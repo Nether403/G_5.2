@@ -16,6 +16,7 @@
  *   PATCH /api/inquiry/sessions/:id                    → update tags / archived / title
  *   DELETE /api/inquiry/sessions/:id                   → delete a persisted session
  *   POST /api/inquiry/sessions/:id/turns/:turnId/rerun → rerun a turn (compare by provider)
+ *   POST /api/inquiry/preview                          → preview retrieval set for a candidate turn (no provider call)
  *   POST /api/inquiry/turn                             → run and persist a new inquiry turn
  *   GET /api/memory                                    → list durable memory items (?state=, ?type=, ?scope=, ?sessionId=)
  *   POST /api/memory                                   → manually create a memory item
@@ -76,6 +77,7 @@ import {
   providerByName,
 } from "../../../packages/orchestration/src/providers/byName";
 import { runSessionTurn } from "../../../packages/orchestration/src/sessions/runSessionTurn";
+import { buildContext } from "../../../packages/orchestration/src/pipeline/buildContext";
 import { runCompareTurn } from "../../../packages/orchestration/src/sessions/runCompareTurn";
 import { FileSessionStore } from "../../../packages/orchestration/src/sessions/fileSessionStore";
 import { randomUUID } from "node:crypto";
@@ -875,6 +877,51 @@ async function handleRequest(
       }
 
       sendJson(res, 200, { rerun, session });
+    } catch (err) {
+      sendJson(res, 500, {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+    return;
+  }
+
+  if (url.pathname === "/api/inquiry/preview" && req.method === "POST") {
+    let body: {
+      sessionId?: string;
+      mode?: string;
+      userMessage?: string;
+    } = {};
+    try {
+      body = (await readJsonBody(req)) as typeof body;
+    } catch {
+      sendJson(res, 400, { error: "Request body must be valid JSON." });
+      return;
+    }
+
+    if (!body.userMessage || !body.userMessage.trim()) {
+      sendJson(res, 400, { error: "userMessage is required" });
+      return;
+    }
+
+    const previewMode = isMode(body.mode) ? body.mode : "dialogic";
+    try {
+      const existing = body.sessionId
+        ? await sessionStore.load(body.sessionId)
+        : null;
+      const context = await buildContext({
+        canonRoot: CANON_ROOT,
+        mode: previewMode,
+        userMessage: body.userMessage.trim(),
+        recentMessages: [],
+        sessionSummary: existing?.summary?.text ?? undefined,
+        sessionId: existing?.id,
+        memoryRoot: MEMORY_DIR,
+      });
+      sendJson(res, 200, {
+        mode: previewMode,
+        sessionId: existing?.id ?? null,
+        snapshot: buildContextSnapshot(context),
+      });
     } catch (err) {
       sendJson(res, 500, {
         error: err instanceof Error ? err.message : String(err),
