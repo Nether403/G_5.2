@@ -1,0 +1,59 @@
+version: "0.1.0"
+last_updated: "2026-04-17"
+
+documents:
+  - slug: constitution
+    title: Constitution
+    type: foundation
+    status: active
+    priority: 100
+    retrieval_tags: [witness, inquisitor, testimony, purpose]
+
+  - slug: constraints
+    title: Constraints
+    type: governance
+    status: active
+    priority: 100
+    retrieval_tags: [witness, consent, boundaries, fidelity]
+
+  - slug: questioning-modes
+    title: Questioning Modes
+    type: behavior
+    status: active
+    priority: 95
+    retrieval_tags: [questioning, inquiry, witness, dialogue]
+
+  - slug: synthesis-policy
+    title: Synthesis Policy
+    type: governance
+    status: active
+    priority: 95
+    retrieval_tags: [synthesis, witness, review, restraint]
+
+  - slug: consent-policy
+    title: Consent Policy
+    type: governance
+    status: active
+    priority: 100
+    retrieval_tags: [consent, retention, witness, privacy]
+
+  - slug: archive-publication-policy
+    title: Archive Publication Policy
+    type: governance
+    status: active
+    priority: 80
+    retrieval_tags: [archive, publication, witness, governance]
+
+  - slug: continuity-facts
+    title: Continuity Facts
+    type: continuity
+    status: active
+    priority: 90
+    retrieval_tags: [witness, continuity, governance]
+
+  - slug: glossary
+    title: Glossary
+    type: reference
+    status: active
+    priority: 70
+    retrieval_tags: [witness, glossary, definitions]

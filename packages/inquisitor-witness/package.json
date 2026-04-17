@@ -1,0 +1,7 @@
+{
+  "name": "@g52/inquisitor-witness",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Witness-specific policy package for the shared runtime"
+}

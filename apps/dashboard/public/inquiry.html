@@ -65,6 +65,7 @@ body{margin:0;min-height:100vh;font-family:Inter,sans-serif;color:var(--text);ba
 .select{width:auto;min-width:140px}
 .box{padding:14px 22px;border-bottom:1px solid var(--border);font-size:12px;color:var(--dim);line-height:1.5;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
 .box strong{color:var(--text);font-size:12px;display:block;margin-bottom:3px}
+.hidden{display:none!important}
 .box.hidden{display:none}
 .health{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;font-size:11px;color:var(--dim);margin-top:8px}
 .health .cell strong{font-size:13px;color:var(--text);font-weight:600}
@@ -128,7 +129,7 @@ body{margin:0;min-height:100vh;font-family:Inter,sans-serif;color:var(--text);ba
 <body>
 <div class="header">
   <div class="brand"><h1>G_5.2</h1><span class="tag">Inquiry</span></div>
-  <nav class="nav"><a href="/">Reports</a><a href="/#diff-page">Diff</a><a href="/inquiry.html" class="active">Inquiry</a><a href="/inquiry.html?focus=memory">Memory</a><a href="/editorial.html">Editorial</a><a href="/authoring.html">Reflection</a></nav>
+  <nav class="nav"><a href="/">Reports</a><a href="/#diff-page">Diff</a><a href="/inquiry.html" class="active" id="inquiryNav">Inquiry</a><a href="/inquiry.html?focus=memory" id="memoryNav">Memory</a><a href="/editorial.html" id="editorialNav">Editorial</a><a href="/authoring.html" id="reflectionNav">Reflection</a></nav>
   <div class="spacer"></div>
   <div style="position:relative">
     <input id="globalSearch" placeholder="Search sessions, turns, memory…" style="background:var(--surface2);color:var(--text);border:1px solid var(--border);padding:7px 11px;border-radius:999px;font-family:inherit;font-size:12px;width:280px" autocomplete="off">
@@ -178,6 +179,11 @@ body{margin:0;min-height:100vh;font-family:Inter,sans-serif;color:var(--text);ba
       <div class="sub" id="workspaceSub">Pick an existing thread or start fresh. Each reply can be inspected with its stored retrieval snapshot.</div>
     </div>
     <div class="row">
+      <select class="select" id="productSelect">
+        <option value="pes">P-E-S</option>
+        <option value="witness">Witness</option>
+      </select>
+      <input class="input hidden" id="witnessIdInput" placeholder="Witness ID" style="width:160px">
       <select class="select" id="modeSelect">
         <option value="dialogic">dialogic</option>
         <option value="analytic">analytic</option>
@@ -213,6 +219,19 @@ body{margin:0;min-height:100vh;font-family:Inter,sans-serif;color:var(--text);ba
   </div>
   <div class="box hidden" id="summaryCard"></div>
   <div class="box hidden" id="healthCard"></div>
+  <div class="box hidden" id="witnessCard">
+    <div style="flex:1;min-width:280px">
+      <strong>Witness Runtime</strong>
+      <div class="sub" id="witnessSub">Witness mode requires conversational and retention consent before a turn can be persisted.</div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn quiet" id="grantConversationalBtn">Grant conversational</button>
+        <button class="btn quiet" id="grantRetentionBtn">Grant retention</button>
+        <button class="btn quiet" id="refreshWitnessBtn">Refresh Witness State</button>
+      </div>
+      <div class="meta" id="witnessConsentMeta" style="margin-top:10px">No witness selected.</div>
+      <div class="drawer-list" id="witnessTestimonyList" style="margin-top:10px"></div>
+    </div>
+  </div>
   <div class="box" id="memoryCard">
     <div style="flex:1;min-width:260px">
       <strong>Durable Memory</strong>
@@ -296,14 +315,75 @@ const state={
   latestProvider:null,sessionSearch:"",memorySearch:"",
   sortKey:"updatedAt",sortDir:"desc",archiveFilter:"active",tagFilter:null,
   providerList:[],defaultProvider:null,hasApiKey:false,
+  product:"pes",witnessId:"",witnessConsent:[],witnessTestimony:[],memoryStateFilter:"accepted",
   isSending:false,lastError:null,pendingRetry:null,
   previewSnapshot:null,previewMode:null,previewSessionId:null
 };
 
+const PRODUCT_LABELS={pes:"P-E-S",witness:"Witness"};
+const WITNESS_SCOPES=["conversational","retention"];
+
+function productLabel(product){return PRODUCT_LABELS[product||state.product]||"P-E-S"}
+function isWitness(){return state.product==="witness"}
+function activeWitnessId(){return(state.witnessId||$("#witnessIdInput").value||"").trim()}
+function latestWitnessDecision(scope){
+  return [...state.witnessConsent]
+    .flatMap(record=>(record.decisions||[]).map(decision=>({record,decision})))
+    .filter(entry=>entry.decision.scope===scope)
+    .sort((a,b)=>(a.decision.decidedAt||a.record.updatedAt||"").localeCompare(b.decision.decidedAt||b.record.updatedAt||""))
+    .at(-1)||null;
+}
+function apiUrl(path,params){
+  const url=new URL(path,window.location.origin);
+  if(state.product)url.searchParams.set("product",state.product);
+  if(params)Object.entries(params).forEach(([key,value])=>{
+    if(value!==undefined&&value!==null&&value!=="")url.searchParams.set(key,String(value));
+  });
+  return url.pathname+url.search;
+}
+function syncProductControls(){
+  $("#productSelect").value=state.product;
+  $("#witnessIdInput").value=state.witnessId||"";
+  $("#witnessIdInput").classList.toggle("hidden",!isWitness());
+  const editorialMode=$("#modeSelect").querySelector('option[value="editorial"]');
+  if(editorialMode)editorialMode.disabled=isWitness();
+  if(isWitness()&&$("#modeSelect").value==="editorial")$("#modeSelect").value="dialogic";
+  document.body.dataset.product=state.product;
+}
+function updateNavForProduct(){
+  const witness=isWitness();
+  $("#editorialNav").classList.toggle("hidden",witness);
+  $("#reflectionNav").classList.toggle("hidden",witness);
+  const base=new URLSearchParams({product:state.product});
+  if(state.witnessId)base.set("witnessId",state.witnessId);
+  const memoryParams=new URLSearchParams(base);
+  memoryParams.set("focus","memory");
+  $("#memoryNav").href=`/inquiry.html?${memoryParams.toString()}`;
+  $("#inquiryNav").href=`/inquiry.html?${base.toString()}`;
+}
+function syncProductUi(){
+  syncProductControls();
+  updateNavForProduct();
+}
+function syncUrlState(extra){
+  const params=new URLSearchParams(window.location.search);
+  params.set("product",state.product);
+  if(state.witnessId)params.set("witnessId",state.witnessId);else params.delete("witnessId");
+  if(state.currentSessionId)params.set("sessionId",state.currentSessionId);else if(!extra||extra.sessionId===undefined)params.delete("sessionId");
+  if(state.selectedTurnId)params.set("turnId",state.selectedTurnId);else if(!extra||extra.turnId===undefined)params.delete("turnId");
+  if(extra)Object.entries(extra).forEach(([key,value])=>{
+    if(value===null||value===undefined||value==="")params.delete(key);
+    else params.set(key,String(value));
+  });
+  const next=`${window.location.pathname}${params.toString()?`?${params.toString()}`:""}`;
+  window.history.replaceState(null,"",next);
+}
+
 function setError(msg,details){
   const el=$("#errorBox"),bar=$("#retryBar");
   if(!msg){el.textContent="";el.classList.add("hidden");bar.classList.add("hidden");state.pendingRetry=null;return}
-  el.textContent=msg;el.classList.remove("hidden");
+  const scopeSuffix=details?.missingScopes?.length?` Missing scopes: ${details.missingScopes.join(", ")}.`:"";
+  el.textContent=`${msg}${scopeSuffix}`;el.classList.remove("hidden");
   if(details&&details.retryable){
     state.pendingRetry=details;
     $("#retryMeta").textContent=`Failed with ${details.provider?.name||"provider"} at ${fmt(details.failedAt)} — retry with the currently selected provider.`;
@@ -315,6 +395,7 @@ function setSending(v){
   state.isSending=v;
   $("#sendBtn").disabled=v;$("#sendBtn").textContent=v?"Sending...":"Send Turn";
   $("#messageInput").disabled=v;$("#modeSelect").disabled=v;$("#providerSelect").disabled=v;
+  $("#productSelect").disabled=v;$("#witnessIdInput").disabled=v;
   if($("#retryBtn"))$("#retryBtn").disabled=v;
   if($("#previewBtn"))$("#previewBtn").disabled=v;
 }
@@ -348,7 +429,7 @@ function renderPreview(){
   card.classList.remove("hidden");
   card.innerHTML=`
     <div class="preview-head">
-      <div><strong>Retrieval Preview</strong><div class="meta" style="margin-top:2px">${esc(mode)} mode · ${sid?"continuing session "+esc(sid.slice(0,8)):"new session"} · ${snap.hadSessionSummary?"with session summary":"no rolling summary"}</div></div>
+      <div><strong>Retrieval Preview</strong><div class="meta" style="margin-top:2px">${esc(productLabel())} · ${esc(mode)} mode · ${sid?"continuing session "+esc(sid.slice(0,8)):"new session"} · ${snap.hadSessionSummary?"with session summary":"no rolling summary"}</div></div>
       <div class="row"><button class="btn quiet" id="previewSendBtn">Commit as Turn</button><button class="btn quiet" id="previewDismissBtn">Dismiss</button></div>
     </div>
     <div class="preview-grid">${counts.map(c=>`<div class="cell"><strong>${c.value}</strong>${esc(c.label)}</div>`).join("")}</div>
@@ -376,12 +457,15 @@ async function previewRetrieval(){
   if(state.isSending)return;
   const msg=$("#messageInput").value.trim();
   if(!msg){setError("Write a message before previewing retrieval.");return}
+  if(isWitness()&&!activeWitnessId()){setError("Witness mode requires a witness ID before previewing retrieval.");return}
   setError("");
   const btn=$("#previewBtn");if(btn){btn.disabled=true;btn.textContent="Previewing..."}
   try{
     const res=await fetch("/api/inquiry/preview",{
       method:"POST",headers:{"Content-Type":"application/json"},
       body:JSON.stringify({
+        product:state.product,
+        witnessId:isWitness()?activeWitnessId():undefined,
         sessionId:state.currentSessionId||undefined,
         mode:$("#modeSelect").value,
         userMessage:msg,
@@ -539,12 +623,85 @@ function renderMemoryList(){
   }));
 }
 
+function renderWitnessCard(){
+  const card=$("#witnessCard");
+  if(!isWitness()){
+    card.classList.add("hidden");
+    return;
+  }
+  card.classList.remove("hidden");
+  const witnessId=activeWitnessId();
+  if(!witnessId){
+    $("#witnessConsentMeta").textContent="Enter a witness ID to inspect consent and testimony state.";
+    $("#witnessTestimonyList").innerHTML='<div class="meta">No witness selected.</div>';
+    return;
+  }
+  const scopeSummary=WITNESS_SCOPES.map(scope=>{
+    const latest=latestWitnessDecision(scope);
+    if(!latest)return`${scope}: missing`;
+    return`${scope}: ${latest.decision.status} (${fmt(latest.decision.decidedAt||latest.record.updatedAt)})`;
+  }).join(" · ");
+  $("#witnessConsentMeta").textContent=`Witness ${witnessId} · ${scopeSummary}`;
+  const testimony=state.witnessTestimony.filter(item=>!state.currentSessionId||item.sessionId===state.currentSessionId);
+  if(!testimony.length){
+    $("#witnessTestimonyList").innerHTML='<div class="meta">No testimony records yet for this witness.</div>';
+    return;
+  }
+  $("#witnessTestimonyList").innerHTML=testimony.map(item=>`
+    <div class="context">
+      <div class="label">${esc(item.id.slice(0,8))} · ${item.state}</div>
+      <div class="value">${esc(item.title||`Session ${item.sessionId.slice(0,8)}`)}</div>
+      <div class="meta">${item.segments.length} segment${item.segments.length===1?"":"s"} · updated ${fmt(item.updatedAt)}</div>
+      <div class="rerun-row" style="margin-top:8px">
+        <button class="btn quiet" data-open-witness-session="${esc(item.sessionId)}">Open Session</button>
+      </div>
+    </div>`).join("");
+  $$("[data-open-witness-session]").forEach(node=>node.addEventListener("click",async()=>{
+    const id=node.getAttribute("data-open-witness-session");
+    if(id)await loadSession(id);
+  }));
+}
+
+async function loadWitnessData(){
+  if(!isWitness()){
+    state.witnessConsent=[];state.witnessTestimony=[];renderWitnessCard();return;
+  }
+  const witnessId=activeWitnessId();
+  if(!witnessId){
+    state.witnessConsent=[];state.witnessTestimony=[];renderWitnessCard();return;
+  }
+  try{
+    const [consentRes,testimonyRes]=await Promise.all([
+      fetch(`/api/witness/consent?witnessId=${encodeURIComponent(witnessId)}`),
+      fetch(`/api/witness/testimony?witnessId=${encodeURIComponent(witnessId)}`),
+    ]);
+    state.witnessConsent=consentRes.ok?await consentRes.json():[];
+    state.witnessTestimony=testimonyRes.ok?await testimonyRes.json():[];
+  }catch{
+    state.witnessConsent=[];state.witnessTestimony=[];
+  }
+  renderWitnessCard();
+}
+
+async function grantWitnessConsent(scope){
+  const witnessId=activeWitnessId();
+  if(!witnessId){setError("Witness mode requires a witness ID before recording consent.");return}
+  const res=await fetch("/api/witness/consent",{
+    method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({witnessId,scope,status:"granted",actor:"witness"})
+  });
+  const data=await res.json();
+  if(!res.ok){setError(data.error||"Failed to record witness consent.");return}
+  setError("");
+  await loadWitnessData();
+}
+
 async function memoryAction(id,action){
   let reason;
   if(action==="reject"||action==="resolve"||action==="archive"){
     reason=window.prompt(`Reason for ${action}?`)||undefined;
   }
-  const res=await fetch(`/api/memory/${encodeURIComponent(id)}/${action}`,{
+  const res=await fetch(apiUrl(`/api/memory/${encodeURIComponent(id)}/${action}`),{
     method:"POST",headers:{"Content-Type":"application/json"},
     body:JSON.stringify({reason})
   });
@@ -556,7 +713,7 @@ async function memoryAction(id,action){
 async function createMemory(payload){
   const res=await fetch("/api/memory",{
     method:"POST",headers:{"Content-Type":"application/json"},
-    body:JSON.stringify(payload)
+    body:JSON.stringify({...payload,product:state.product})
   });
   const data=await res.json();
   if(!res.ok){setError(data.error||"Failed to create memory");return null}
@@ -568,6 +725,7 @@ async function refreshConflicts(){
   const target=$("#newMemoryConflicts");
   if(!statement){target.textContent="";return}
   const params=new URLSearchParams({type,scope,statement});
+  params.set("product",state.product);
   if(scope==="session"&&state.currentSessionId)params.set("sessionId",state.currentSessionId);
   const res=await fetch(`/api/memory/conflicts?${params.toString()}`);
   if(!res.ok){target.textContent="";return}
@@ -673,17 +831,23 @@ async function loadTurnCrossLinks(turn){
   if(!target||!state.currentSession)return;
   const sid=state.currentSession.id;
   try{
-    const [memRes,propRes]=await Promise.all([
-      fetch(`/api/memory?turnId=${encodeURIComponent(turn.id)}`).then(r=>r.json()),
-      fetch(`/api/canon/proposals`).then(r=>r.json()),
-    ]);
+    const memRes=await fetch(apiUrl("/api/memory",{turnId:turn.id})).then(r=>r.json());
     const memItems=Array.isArray(memRes)?memRes:[];
-    const proposals=Array.isArray(propRes)?propRes.filter(p=>p.provenance&&(p.provenance.turnId===turn.id||p.provenance.sessionId===sid)):[];
-    const memHtml=memItems.length?memItems.map(m=>`<div class="context"><div class="label">${esc(m.type)} · ${esc(m.state)}</div><div class="value">${esc(m.statement)}</div><div class="meta"><a href="/inquiry.html?sessionId=${encodeURIComponent(sid)}&focus=memory&memoryId=${encodeURIComponent(m.id)}" style="color:var(--blue)">Open in memory ↗</a></div></div>`).join(""):'<div class="meta">No durable memory items recorded from this turn.</div>';
-    const propHtml=proposals.length?proposals.map(p=>`<div class="context"><div class="label">${esc(p.status)} · ${esc(p.provenance.source)}</div><div class="value">${esc(p.title)}</div><div class="meta">${esc(p.target.path)} · <a href="/editorial.html?proposal=${encodeURIComponent(p.id)}" style="color:var(--blue)">Open in editorial ↗</a></div></div>`).join(""):'<div class="meta">No canon proposals reference this session or turn.</div>';
+    const memHrefBase=`/inquiry.html?product=${encodeURIComponent(state.product)}&sessionId=${encodeURIComponent(sid)}&focus=memory`;
+    const memHtml=memItems.length?memItems.map(m=>`<div class="context"><div class="label">${esc(m.type)} · ${esc(m.state)}</div><div class="value">${esc(m.statement)}</div><div class="meta"><a href="${memHrefBase}&memoryId=${encodeURIComponent(m.id)}" style="color:var(--blue)">Open in memory ↗</a></div></div>`).join(""):'<div class="meta">No durable memory items recorded from this turn.</div>';
+    let propHtml='<div class="meta">No canon proposals reference this session or turn.</div>';
+    if(isWitness()){
+      const testimonyRes=state.witnessId?await fetch(`/api/witness/testimony?witnessId=${encodeURIComponent(state.witnessId)}`).then(r=>r.json()):[];
+      const testimony=Array.isArray(testimonyRes)?testimonyRes.filter(item=>item.sessionId===sid):[];
+      propHtml=testimony.length?testimony.map(item=>`<div class="context"><div class="label">${esc(item.state)} · ${item.segments.length} segments</div><div class="value">${esc(item.title||`Session ${item.sessionId.slice(0,8)}`)}</div><div class="meta">Witness testimony record ${esc(item.id.slice(0,8))}</div></div>`).join(""):'<div class="meta">No testimony record is linked to this witness session yet.</div>';
+    }else{
+      const propRes=await fetch(`/api/canon/proposals`).then(r=>r.json());
+      const proposals=Array.isArray(propRes)?propRes.filter(p=>p.provenance&&(p.provenance.turnId===turn.id||p.provenance.sessionId===sid)):[];
+      propHtml=proposals.length?proposals.map(p=>`<div class="context"><div class="label">${esc(p.status)} · ${esc(p.provenance.source)}</div><div class="value">${esc(p.title)}</div><div class="meta">${esc(p.target.path)} · <a href="/editorial.html?proposal=${encodeURIComponent(p.id)}" style="color:var(--blue)">Open in editorial ↗</a></div></div>`).join(""):'<div class="meta">No canon proposals reference this session or turn.</div>';
+    }
     target.innerHTML=`
       <div style="margin-bottom:10px"><div class="meta" style="margin-bottom:4px">Memory items from this turn</div>${memHtml}</div>
-      <div><div class="meta" style="margin-bottom:4px">Canon proposals from this session</div>${propHtml}</div>
+      <div><div class="meta" style="margin-bottom:4px">${isWitness()?"Witness testimony":"Canon proposals from this session"}</div>${propHtml}</div>
     `;
   }catch(err){
     target.innerHTML=`<div class="meta">Could not load cross-links: ${esc(err.message||err)}</div>`;
@@ -696,16 +860,16 @@ function renderConversation(){
     pane.innerHTML='<div class="empty">Ask something directly. Recent turns stay live, older context rolls into the session summary, and every reply keeps a lightweight retrieval trace.</div>';
     return;
   }
-  pane.innerHTML=state.currentSession.turns.map(turn=> `<article class="turn ${state.selectedTurnId===turn.id?"active":""} ${turn.error?"failed":""}" data-turn-id="${esc(turn.id)}"><div class="turn-meta"><span>${fmt(turn.createdAt)}</span><span>${esc(turn.mode)}${turn.provider?` · ${esc(turn.provider.name)}`:""}${turn.reruns?.length?` · ${turn.reruns.length} rerun(s)`:[...turn.reruns].length}</span></div><div class="why">${why(turn).map(item=> `<span class="tag-pill">${esc(item)}</span>`).join("")}</div><div class="msg user"><div class="msg-head"><span>User</span><span>${fmt(turn.createdAt)}</span></div><div class="msg-body">${esc(turn.userMessage)}</div></div><div class="msg assistant"><div class="msg-head"><span>Assistant</span><span>${(turn.contextSnapshot?.selectedDocuments?.length||0)} docs / ${(turn.contextSnapshot?.selectedFacts?.length||0)} facts / ${(turn.contextSnapshot?.selectedMemoryItems?.length||0)} memory</span></div><div class="msg-body">${esc(turn.assistantMessage)}</div></div><div class="turn-actions"><button class="btn quiet" data-copy-turn="${esc(turn.id)}">Copy Reply</button><button class="btn quiet" data-inspect-turn="${esc(turn.id)}">${(state.selectedTurnId===turn.id?"Inspecting":"Inspect Turn")}</button><button class="btn quiet" data-rerun-turn="${esc(turn.id)}">Rerun…</button></div></article>`).join("");
+  pane.innerHTML=state.currentSession.turns.map(turn=> `<article class="turn ${state.selectedTurnId===turn.id?"active":""} ${turn.error?"failed":""}" data-turn-id="${esc(turn.id)}"><div class="turn-meta"><span>${fmt(turn.createdAt)}</span><span>${esc(turn.mode)}${turn.provider?` · ${esc(turn.provider.name)}`:""}${(turn.reruns?.length||0)?` · ${turn.reruns.length} rerun(s)`:""}</span></div><div class="why">${why(turn).map(item=> `<span class="tag-pill">${esc(item)}</span>`).join("")}</div><div class="msg user"><div class="msg-head"><span>User</span><span>${fmt(turn.createdAt)}</span></div><div class="msg-body">${esc(turn.userMessage)}</div></div><div class="msg assistant"><div class="msg-head"><span>Assistant</span><span>${(turn.contextSnapshot?.selectedDocuments?.length||0)} docs / ${(turn.contextSnapshot?.selectedFacts?.length||0)} facts / ${(turn.contextSnapshot?.selectedMemoryItems?.length||0)} memory</span></div><div class="msg-body">${esc(turn.assistantMessage)}</div></div><div class="turn-actions"><button class="btn quiet" data-copy-turn="${esc(turn.id)}">Copy Reply</button><button class="btn quiet" data-inspect-turn="${esc(turn.id)}">${(state.selectedTurnId===turn.id?"Inspecting":"Inspect Turn")}</button><button class="btn quiet" data-rerun-turn="${esc(turn.id)}">Rerun…</button></div></article>`).join("");
   $$("[data-inspect-turn]",pane).forEach(n=>n.addEventListener("click",()=>{
-    state.selectedTurnId=n.getAttribute("data-inspect-turn");renderConversation();renderDrawer();
+    state.selectedTurnId=n.getAttribute("data-inspect-turn");renderConversation();renderDrawer();syncUrlState();
   }));
   $$("[data-copy-turn]",pane).forEach(n=>n.addEventListener("click",()=>{
     const turn=state.currentSession.turns.find(t=>t.id===n.getAttribute("data-copy-turn"));
     if(turn)copyText(turn.assistantMessage);
   }));
   $$("[data-rerun-turn]",pane).forEach(n=>n.addEventListener("click",()=>{
-    state.selectedTurnId=n.getAttribute("data-rerun-turn");renderConversation();renderDrawer();
+    state.selectedTurnId=n.getAttribute("data-rerun-turn");renderConversation();renderDrawer();syncUrlState();
     setTimeout(()=>{const sel=$("#rerunProvider");if(sel)sel.focus()},50);
   }));
   pane.scrollTop=pane.scrollHeight;
@@ -743,9 +907,16 @@ function renderSessionMetaCard(){
 
 function renderWorkspace(){
   const s=state.currentSession;
-  $("#workspaceTitle").textContent=s?(s.title||"Session " + s.id.slice(0,8)):"Start a new inquiry";
-  $("#workspaceSub").textContent=s?("Updated " + fmt(s.updatedAt) + ". Older turns can roll into the session summary, while each persisted reply keeps its own inspection snapshot.") : "Pick an existing thread or start fresh. Each reply keeps a lightweight retrieval trace for inspection.";
-  $("#sessionMeta").textContent=s?(s.turns.length + " persisted turn" + (s.turns.length===1?"":"s") + (s.archived?" · archived":"")):"No session selected";
+  syncProductUi();
+  $("#workspaceTitle").textContent=s?(s.title||"Session " + s.id.slice(0,8)):(isWitness()?"Start a new witness inquiry":"Start a new inquiry");
+  $("#workspaceSub").textContent=s
+    ? ("Updated " + fmt(s.updatedAt) + ". " + (isWitness()
+      ? "Witness turns require consent before persistence and write only into Witness roots."
+      : "Older turns can roll into the session summary, while each persisted reply keeps its own inspection snapshot."))
+    : (isWitness()
+      ? "Witness is the serious first responsibility. Each accepted turn persists only after conversational and retention consent exist."
+      : "Pick an existing thread or start fresh. Each reply keeps a lightweight retrieval trace for inspection.");
+  $("#sessionMeta").textContent=s?(productLabel() + " · " + s.turns.length + " persisted turn" + (s.turns.length===1?"":"s") + (s.archived?" · archived":"") + (s.witnessId?` · witness ${s.witnessId}`:"")):`${productLabel()} · no session selected`;
   $("#providerLabel").textContent=state.latestProvider? (state.latestProvider.name + " / " + state.latestProvider.model) : (state.defaultProvider? ("default → " + state.defaultProvider.name + " / " + state.defaultProvider.model) : "Waiting for first turn...");
   const summary=$("#summaryCard");
   if(s?.summary?.text){summary.classList.remove("hidden");summary.innerHTML=`<div style="flex:1"><strong>Session Summary</strong><div class="sub">${esc(s.summary.text)}</div></div>`}
@@ -754,6 +925,7 @@ function renderWorkspace(){
   renderHealth();
   renderConversation();
   renderDrawer();
+  renderWitnessCard();
   renderMemoryList();
 }
 
@@ -767,36 +939,42 @@ async function loadProviders(){
   }catch(e){/* ignore */}
 }
 async function loadSessions(){
-  const res=await fetch("/api/inquiry/sessions"),data=await res.json();
+  const res=await fetch(apiUrl("/api/inquiry/sessions")),data=await res.json();
   state.sessions=Array.isArray(data)?data:[];renderTagFilter();renderSessionList();
 }
 async function loadMemory(){
-  const res=await fetch("/api/memory"),data=await res.json();
+  const res=await fetch(apiUrl("/api/memory")),data=await res.json();
   state.memoryItems=Array.isArray(data)?data:[];renderMemoryList();
 }
 async function deleteMemory(id){
   if(!window.confirm("Delete this memory item?"))return;
-  const res=await fetch("/api/memory/" + encodeURIComponent(id),{method:"DELETE"}),data=await res.json();
+  const res=await fetch(apiUrl("/api/memory/" + encodeURIComponent(id)),{method:"DELETE"}),data=await res.json();
   if(!res.ok||data.deleted===false){setError(data.error||"Failed to delete memory item.");return}
   setError("");await loadMemory();
 }
 async function loadSession(id){
   setError("");
-  const res=await fetch("/api/inquiry/sessions/" + encodeURIComponent(id)),data=await res.json();
+  const res=await fetch(apiUrl("/api/inquiry/sessions/" + encodeURIComponent(id))),data=await res.json();
   if(!res.ok){setError(data.error||"Failed to load session.");return}
   state.currentSession=data;state.currentSessionId=data.id;state.selectedTurnId=data.turns?.at(-1)?.id??null;
-  renderSessionList();await loadMemory();renderWorkspace();
+  if(data.productId==="witness")state.product="witness";
+  if(data.witnessId){state.witnessId=data.witnessId}
+  syncProductUi();
+  renderSessionList();await Promise.all([loadMemory(),loadWitnessData()]);renderWorkspace();syncUrlState();
 }
 
 async function sendTurn(retry){
   if(state.isSending)return;
   const msg=retry?retry.userMessage:$("#messageInput").value.trim();
   if(!msg){setError("Write a message before sending.");return}
+  if(isWitness()&&!activeWitnessId()){setError("Witness mode requires a witness ID before sending.");return}
   setError("");setSending(true);
   try{
     const res=await fetch("/api/inquiry/turn",{
       method:"POST",headers:{"Content-Type":"application/json"},
       body:JSON.stringify({
+        product:state.product,
+        witnessId:isWitness()?activeWitnessId():undefined,
         sessionId:retry?retry.sessionId:state.currentSessionId,
         mode:retry?retry.mode:$("#modeSelect").value,
         provider:$("#providerSelect").value||undefined,
@@ -809,10 +987,12 @@ async function sendTurn(retry){
       return;
     }
     state.currentSession=data.session;state.currentSessionId=data.session.id;
+    if(data.session?.witnessId)state.witnessId=data.session.witnessId;
     state.selectedTurnId=data.persistedTurn?.id??null;state.latestProvider=data.provider;
     if(!retry)$("#messageInput").value="";
     clearPreview();
-    await Promise.all([loadSessions(),loadMemory()]);renderWorkspace();
+    syncProductUi();
+    await Promise.all([loadSessions(),loadMemory(),loadWitnessData()]);renderWorkspace();syncUrlState();
   }catch(err){
     setError(err instanceof Error?err.message:String(err));
   }finally{setSending(false)}
@@ -822,7 +1002,7 @@ async function rerunTurn(turnId,providerName){
   if(!state.currentSessionId)return;
   setError("");setSending(true);
   try{
-    const res=await fetch(`/api/inquiry/sessions/${encodeURIComponent(state.currentSessionId)}/turns/${encodeURIComponent(turnId)}/rerun`,{
+    const res=await fetch(apiUrl(`/api/inquiry/sessions/${encodeURIComponent(state.currentSessionId)}/turns/${encodeURIComponent(turnId)}/rerun`),{
       method:"POST",headers:{"Content-Type":"application/json"},
       body:JSON.stringify({provider:providerName||undefined})
     });
@@ -835,12 +1015,12 @@ async function rerunTurn(turnId,providerName){
 
 async function patchSession(body){
   if(!state.currentSessionId)return;
-  const res=await fetch(`/api/inquiry/sessions/${encodeURIComponent(state.currentSessionId)}`,{
+  const res=await fetch(apiUrl(`/api/inquiry/sessions/${encodeURIComponent(state.currentSessionId)}`),{
     method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)
   });
   const data=await res.json();
   if(!res.ok){setError(data.error||"Update failed.");return}
-  state.currentSession=data;await loadSessions();renderWorkspace();
+  state.currentSession=data;await loadSessions();renderWorkspace();syncUrlState();
 }
 
 function addTag(tag){
@@ -856,10 +1036,10 @@ function removeTag(tag){
 async function deleteSession(){
   if(!state.currentSessionId)return;
   if(!window.confirm("Delete this session permanently?"))return;
-  const res=await fetch(`/api/inquiry/sessions/${encodeURIComponent(state.currentSessionId)}`,{method:"DELETE"});
+  const res=await fetch(apiUrl(`/api/inquiry/sessions/${encodeURIComponent(state.currentSessionId)}`),{method:"DELETE"});
   if(!res.ok){const data=await res.json().catch(()=>({}));setError(data.error||"Failed to delete session.");return}
   state.currentSession=null;state.currentSessionId=null;state.selectedTurnId=null;
-  await loadSessions();renderWorkspace();
+  await Promise.all([loadSessions(),loadMemory(),loadWitnessData()]);renderWorkspace();syncUrlState({turnId:null,memoryId:null,focus:null});
 }
 
 function moveTurn(dir){
@@ -877,12 +1057,33 @@ $("#modeSelect").addEventListener("change",clearPreview);
 $("#messageInput").addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key==="Enter"){e.preventDefault();sendTurn()}});
 $("#messageInput").addEventListener("input",()=>{if(state.previewSnapshot)clearPreview()});
 $("#providerSelect").addEventListener("change",()=>{if(state.previewSnapshot)clearPreview()});
+$("#productSelect").addEventListener("change",async e=>{
+  state.product=e.target.value;
+  if(!isWitness())state.witnessId="";
+  state.currentSession=null;state.currentSessionId=null;state.selectedTurnId=null;
+  setError("");clearPreview();syncProductUi();
+  await Promise.all([loadSessions(),loadMemory(),loadWitnessData()]);
+  renderWorkspace();syncUrlState({sessionId:null,turnId:null,memoryId:null,focus:null});
+});
+$("#witnessIdInput").addEventListener("input",async e=>{
+  const next=e.target.value.trim();
+  if(state.currentSession?.witnessId&&state.currentSession.witnessId!==next){
+    state.currentSession=null;state.currentSessionId=null;state.selectedTurnId=null;
+  }
+  state.witnessId=next;
+  if(state.previewSnapshot)clearPreview();
+  await loadWitnessData();
+  renderWorkspace();syncUrlState();
+});
 $("#newSessionBtn").addEventListener("click",async()=>{
   state.currentSession=null;state.currentSessionId=null;state.selectedTurnId=null;setError("");clearPreview();
-  renderSessionList();await loadMemory();renderWorkspace();$("#messageInput").focus();
+  renderSessionList();await Promise.all([loadMemory(),loadWitnessData()]);renderWorkspace();syncUrlState({sessionId:null,turnId:null,memoryId:null,focus:null});$("#messageInput").focus();
 });
-$("#refreshSessionsBtn").addEventListener("click",()=>Promise.all([loadSessions(),loadMemory(),loadProviders()]));
+$("#refreshSessionsBtn").addEventListener("click",()=>Promise.all([loadSessions(),loadMemory(),loadProviders(),loadWitnessData()]));
 $("#refreshMemoryBtn").addEventListener("click",loadMemory);
+$("#grantConversationalBtn").addEventListener("click",()=>grantWitnessConsent("conversational"));
+$("#grantRetentionBtn").addEventListener("click",()=>grantWitnessConsent("retention"));
+$("#refreshWitnessBtn").addEventListener("click",loadWitnessData);
 $("#sessionSearch").addEventListener("input",e=>{state.sessionSearch=e.target.value;renderSessionList()});
 $("#memorySearch").addEventListener("input",e=>{state.memorySearch=e.target.value;renderMemoryList()});
 $("#sortSelect").addEventListener("change",e=>{const[k,d]=e.target.value.split("-");state.sortKey=k;state.sortDir=d;renderSessionList()});
@@ -910,7 +1111,7 @@ document.addEventListener("keydown",e=>{
     e.preventDefault();const sel=$("#rerunProvider");if(sel)rerunTurn(state.selectedTurnId,sel.value);return;
   }
   if(e.key.toLowerCase()==="p"&&!typing){e.preventDefault();previewRetrieval();return}
-  if(e.key==="Escape"&&state.selectedTurnId){state.selectedTurnId=null;renderConversation();renderDrawer()}
+  if(e.key==="Escape"&&state.selectedTurnId){state.selectedTurnId=null;renderConversation();renderDrawer();syncUrlState()}
 });
 
 // Memory event listeners
@@ -948,15 +1149,20 @@ $("#addMemoryForm").addEventListener("submit", async e => {
 
 async function applyInquiryDeepLink(){
   const params=new URLSearchParams(window.location.search);
+  const product=params.get("product");
+  const witnessId=params.get("witnessId");
   const sid=params.get("sessionId");
   const tid=params.get("turnId");
   const focus=params.get("focus");
   const memId=params.get("memoryId");
+  if(product==="witness"||product==="pes")state.product=product;
+  if(witnessId)state.witnessId=witnessId;
+  syncProductUi();
   if(sid){
     try{ await loadSession(sid); }catch{}
     if(tid&&state.currentSession){
       state.selectedTurnId=tid;
-      renderConversation();renderDrawer();
+      renderConversation();renderDrawer();syncUrlState();
       setTimeout(()=>{const el=document.querySelector(`[data-turn-id="${CSS.escape(tid)}"]`);if(el)el.scrollIntoView({behavior:"smooth",block:"center"})},80);
     }
   }
@@ -969,11 +1175,14 @@ async function applyInquiryDeepLink(){
       renderMemoryList();
     }
   }
+  await loadWitnessData();
+  renderWorkspace();
 }
 
-Promise.all([loadProviders(),loadSessions(),loadMemory()])
-  .then(renderWorkspace)
+Promise.all([loadProviders()])
   .then(applyInquiryDeepLink)
+  .then(()=>Promise.all([loadSessions(),loadMemory(),loadWitnessData()]))
+  .then(renderWorkspace)
   .catch(err=>setError(err instanceof Error?err.message:String(err)));
 </script>
 <script src="/operator-shell.js"></script>

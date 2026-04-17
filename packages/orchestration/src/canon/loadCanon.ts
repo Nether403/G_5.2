@@ -47,7 +47,7 @@ export async function loadCanon(rootDir: string): Promise<LoadedCanon> {
   );
 
   const recoveredIndexBySlug = new Map(
-    recoveredIndex.artifacts.map((artifact) => [artifact.slug, artifact])
+    (recoveredIndex?.artifacts ?? []).map((artifact) => [artifact.slug, artifact])
   );
 
   const recoveredArtifacts: LoadedRecoveredArtifact[] = await Promise.all(

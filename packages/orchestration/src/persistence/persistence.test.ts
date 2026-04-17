@@ -113,6 +113,22 @@ test("migrateSession upgrades v1 unversioned sessions and rejects newer versions
   assert.throws(() => migrateSession("not-an-object"), SchemaMigrationError);
 });
 
+test("migrateSession preserves witness product metadata", () => {
+  const migrated = migrateSession({
+    schemaVersion: SCHEMA_VERSIONS.session,
+    id: "witness-session",
+    productId: "witness",
+    witnessId: "wit-123",
+    createdAt: "2026-04-16T00:00:00.000Z",
+    updatedAt: "2026-04-16T00:00:00.000Z",
+    summary: null,
+    turns: [],
+  });
+
+  assert.equal(migrated.productId, "witness");
+  assert.equal(migrated.witnessId, "wit-123");
+});
+
 test("migrateMemoryItem accepts unversioned fixtures and stamps schemaVersion on load", async () => {
   const { memoryRoot } = await createRoots();
   await mkdir(memoryRoot, { recursive: true });

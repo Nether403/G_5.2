@@ -10,6 +10,7 @@
     "typecheck": "turbo typecheck",
     "test": "turbo test",
     "validate:canon": "tsx scripts/validate-canon.ts",
+    "validate:witness": "tsx scripts/validate-witness.ts",
     "validate-canon": "tsx scripts/validate-canon.ts",
     "evals": "tsx scripts/run-evals.ts",
     "dashboard": "tsx apps/dashboard/src/server.ts",

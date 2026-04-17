@@ -278,7 +278,7 @@ export const RecoveredIndexSchema = z
     version: z.union([z.number(), z.string()]),
     last_updated: z.string().optional(),
     purpose: NonEmptyStringSchema,
-    artifacts: z.array(RecoveredIndexArtifactSchema).min(1),
+    artifacts: z.array(RecoveredIndexArtifactSchema),
   })
   .superRefine((value, ctx) => {
     const seen = new Set<string>();

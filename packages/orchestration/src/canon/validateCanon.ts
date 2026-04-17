@@ -45,7 +45,7 @@ export interface CanonBoundaryResult {
   manifest: CanonManifest;
   continuity: ContinuityFactsFile;
   glossary: GlossaryFile;
-  recoveredIndex: RecoveredIndex;
+  recoveredIndex: RecoveredIndex | null;
   warnings: ValidationWarning[];
 }
 
@@ -111,13 +111,25 @@ async function parseGlossary(rootDir: string): Promise<GlossaryFile> {
   return result.data;
 }
 
-async function parseRecoveredIndex(rootDir: string): Promise<RecoveredIndex> {
+async function parseRecoveredIndex(
+  rootDir: string,
+  required: boolean
+): Promise<RecoveredIndex | null> {
   const filePath = path.join(
     rootDir,
     "recovered-artifacts",
     "recovered-index.yaml"
   );
-  const raw = await readFile(filePath, "utf8");
+  let raw: string;
+  try {
+    raw = await readFile(filePath, "utf8");
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (!required && code === "ENOENT") {
+      return null;
+    }
+    throw error;
+  }
   const parsed = parseYaml(raw, "recovered-artifacts/recovered-index.yaml");
   const result = RecoveredIndexSchema.safeParse(parsed);
   if (!result.success) {
@@ -133,7 +145,7 @@ async function parseRecoveredIndex(rootDir: string): Promise<RecoveredIndex> {
 async function validateBoundary(
   rootDir: string,
   manifest: CanonManifest,
-  recoveredIndex: RecoveredIndex
+  recoveredIndex: RecoveredIndex | null
 ): Promise<{ errors: string[]; warnings: ValidationWarning[] }> {
   const errors: string[] = [];
   const warnings: ValidationWarning[] = [];
@@ -160,7 +172,9 @@ async function validateBoundary(
   }
 
   // 2. Recovered artifacts in manifest must exist in recovered-index
-  const indexSlugSet = new Set(recoveredIndex.artifacts.map((a) => a.slug));
+  const indexSlugSet = new Set(
+    (recoveredIndex?.artifacts ?? []).map((artifact) => artifact.slug)
+  );
   for (const artifact of manifest.recovered_artifacts ?? []) {
     if (!indexSlugSet.has(artifact.slug)) {
       errors.push(
@@ -170,7 +184,7 @@ async function validateBoundary(
   }
 
   // 3. Recovered index artifacts must have their backing files
-  for (const artifact of recoveredIndex.artifacts) {
+  for (const artifact of recoveredIndex?.artifacts ?? []) {
     const artifactPath = path.join(
       rootDir,
       "recovered-artifacts",
@@ -218,12 +232,15 @@ async function validateBoundary(
 export async function validateCanonBoundary(
   rootDir: string
 ): Promise<CanonBoundaryResult> {
+  const manifest = await parseManifest(rootDir);
+  const requiresRecoveredArtifacts =
+    (manifest.recovered_artifacts?.length ?? 0) > 0;
+
   // Phase 1: structural schema validation (throws on failure)
-  const [manifest, continuity, glossary, recoveredIndex] = await Promise.all([
-    parseManifest(rootDir),
+  const [continuity, glossary, recoveredIndex] = await Promise.all([
     parseContinuityFacts(rootDir),
     parseGlossary(rootDir),
-    parseRecoveredIndex(rootDir),
+    parseRecoveredIndex(rootDir, requiresRecoveredArtifacts),
   ]);
 
   // Phase 2: cross-file boundary checks

@@ -1,0 +1,19 @@
+version: "0.1.0"
+last_updated: "2026-04-17"
+purpose: "Canonical term definitions for the Witness Inquisitor. Prevents semantic drift across testimony, synthesis, annotation, and governance workflows."
+
+terms:
+  - term: witness
+    definition: "A person whose testimony or reflection is being engaged through the Witness Protocol."
+
+  - term: testimony
+    definition: "What a witness says, describes, remembers, struggles to articulate, or reflects upon in inquiry."
+
+  - term: inquisitor
+    definition: "The Witness-specific inquiry instrument built on the shared G_5.2 runtime."
+
+  - term: consent
+    definition: "The governing permission boundary that determines what may be done with testimony."
+
+  - term: synthesis
+    definition: "A bounded and reviewable condensation of testimony that identifies themes, tensions, and open questions while preserving uncertainty."

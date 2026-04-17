@@ -38,6 +38,8 @@ import {
   exportSessionBundle,
   importSessionBundle,
 } from "../packages/orchestration/src/persistence/archive";
+import { FileWitnessConsentStore } from "../packages/orchestration/src/witness/fileConsentStore";
+import { FileWitnessTestimonyStore } from "../packages/orchestration/src/witness/fileTestimonyStore";
 import {
   CanonProposalSchema,
   PROPOSAL_SCHEMA_VERSION,
@@ -50,6 +52,10 @@ import { runReflection } from "../packages/orchestration/src/reflection/runRefle
 import { FileReflectionStore } from "../packages/orchestration/src/reflection/fileReflectionStore";
 import { FileAuthoredArtifactStore } from "../packages/orchestration/src/reflection/fileAuthoredArtifactStore";
 import { promoteArtifactToProposal } from "../packages/orchestration/src/reflection/promoteArtifact";
+import {
+  getWitnessConsentGate,
+  persistWitnessTurnArtifacts,
+} from "../apps/dashboard/src/witnessRuntime";
 import { validateReport } from "../packages/evals/src/reporters/reportSchema";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -494,6 +500,91 @@ async function pathBackupRoundTrip(): Promise<void> {
   }
 }
 
+/* ───────────── Path 7: witness vertical slice ───────────── */
+
+async function pathWitnessVerticalSlice(): Promise<void> {
+  const root = await tempRoot("witness");
+  try {
+    const witnessCanonRoot = path.join(repoRoot, "packages", "inquisitor-witness");
+    const witnessSessionsRoot = path.join(root, "witness", "sessions");
+    const witnessMemoryRoot = path.join(root, "witness", "memory");
+    const witnessTestimonyRoot = path.join(root, "witness", "testimony");
+    const witnessConsentRoot = path.join(root, "witness", "consent");
+    const pesSessionsRoot = path.join(root, "pes", "sessions");
+    const pesMemoryRoot = path.join(root, "pes", "memory");
+    const witnessId = `smoke-witness-${randomUUID()}`;
+
+    await mkdir(pesSessionsRoot, { recursive: true });
+    await mkdir(pesMemoryRoot, { recursive: true });
+
+    const provider = new MockProvider();
+    const consentStore = new FileWitnessConsentStore(witnessConsentRoot);
+    const testimonyStore = new FileWitnessTestimonyStore(witnessTestimonyRoot);
+
+    const blocked = await getWitnessConsentGate(consentStore, witnessId);
+    assert.equal(blocked.allowed, false);
+    assert.deepEqual(blocked.missingScopes, ["conversational", "retention"]);
+
+    await consentStore.appendDecision({
+      witnessId,
+      scope: "conversational",
+      status: "granted",
+      actor: "witness",
+      decidedAt: new Date().toISOString(),
+    });
+    await consentStore.appendDecision({
+      witnessId,
+      scope: "retention",
+      status: "granted",
+      actor: "witness",
+      decidedAt: new Date().toISOString(),
+    });
+
+    const allowed = await getWitnessConsentGate(consentStore, witnessId);
+    assert.equal(allowed.allowed, true);
+    assert.deepEqual(allowed.missingScopes, []);
+
+    const turn = await runSessionTurn(provider, {
+      canonRoot: witnessCanonRoot,
+      sessionsRoot: witnessSessionsRoot,
+      memoryRoot: witnessMemoryRoot,
+      mode: "dialogic",
+      userMessage: "Witness smoke test: capture a first inquiry turn.",
+    });
+
+    const persisted = await persistWitnessTurnArtifacts({
+      sessionRoot: witnessSessionsRoot,
+      testimonyStore,
+      witnessId,
+      session: turn.session,
+      persistedTurn: turn.persistedTurn,
+    });
+
+    assert.equal(persisted.session.productId, "witness");
+    assert.equal(persisted.session.witnessId, witnessId);
+
+    const storedSession = await new FileSessionStore(witnessSessionsRoot).load(
+      turn.session.id
+    );
+    assert.ok(storedSession, "witness session should persist");
+    assert.equal(storedSession?.witnessId, witnessId);
+
+    const testimony = await testimonyStore.load(persisted.testimonyId);
+    assert.ok(testimony, "testimony should persist");
+    assert.equal(testimony?.sessionId, turn.session.id);
+    assert.equal(testimony?.segments.length, 2);
+    assert.equal(testimony?.segments[0].role, "witness");
+    assert.equal(testimony?.segments[1].role, "inquisitor");
+
+    const pesSessionFiles = await readdir(pesSessionsRoot);
+    const pesMemoryFiles = await readdir(pesMemoryRoot);
+    assert.equal(pesSessionFiles.length, 0, "witness flow must not write P-E-S sessions");
+    assert.equal(pesMemoryFiles.length, 0, "witness flow must not write P-E-S memory");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+}
+
 /* ───────────── Driver ───────────── */
 
 const PATHS: SmokePath[] = [
@@ -503,6 +594,7 @@ const PATHS: SmokePath[] = [
   { name: "4. reflection authoring", run: pathReflectionAuthoring },
   { name: "5. reports & diff", run: pathReportsAndDiff },
   { name: "6. backup round-trip", run: pathBackupRoundTrip },
+  { name: "7. witness vertical slice", run: pathWitnessVerticalSlice },
 ];
 
 async function main(): Promise<void> {

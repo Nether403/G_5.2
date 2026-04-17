@@ -89,6 +89,8 @@ export const SessionSummarySchema = z.object({
 export const InquirySessionSchema = z.object({
   schemaVersion: z.literal(SCHEMA_VERSIONS.session),
   id: z.string().min(1),
+  productId: z.enum(["pes", "witness"]).optional(),
+  witnessId: z.string().min(1).optional(),
   createdAt: z.string().min(1),
   updatedAt: z.string().min(1),
   summary: SessionSummarySchema.nullable(),

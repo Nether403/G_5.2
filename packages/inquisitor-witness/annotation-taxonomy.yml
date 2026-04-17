@@ -1,0 +1,21 @@
+version: "0.1.0"
+last_updated: "2026-04-17"
+
+families:
+  - name: structure
+    description: How the testimony is shaped as discourse.
+    labels:
+      - id: STR-chronology
+        name: chronology
+        description: Time ordering or sequence is central.
+
+  - name: epistemic
+    description: How certainty, doubt, and knowledge claims appear.
+    labels:
+      - id: EPI-uncertain
+        name: uncertain
+        description: The witness explicitly signals uncertainty.
+
+annotation_rules:
+  - Annotations must distinguish direct testimony from interpretive labeling.
+  - Annotation eligibility is governed by consent and policy state.

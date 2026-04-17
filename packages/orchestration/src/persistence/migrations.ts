@@ -100,6 +100,12 @@ export function migrateSession(raw: unknown): PersistedInquirySession {
   if (typeof raw.title === "string") {
     candidate.title = raw.title;
   }
+  if (raw.productId === "pes" || raw.productId === "witness") {
+    candidate.productId = raw.productId;
+  }
+  if (typeof raw.witnessId === "string" && raw.witnessId.trim().length > 0) {
+    candidate.witnessId = raw.witnessId;
+  }
 
   const parsed = InquirySessionSchema.safeParse(candidate);
   if (!parsed.success) {

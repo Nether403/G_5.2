@@ -71,6 +71,8 @@ export interface SessionTurnRecord {
 export interface InquirySession {
   schemaVersion?: number;
   id: string;
+  productId?: "pes" | "witness";
+  witnessId?: string;
   createdAt: string;
   updatedAt: string;
   summary: PersistedSessionSummary | null;

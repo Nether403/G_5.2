@@ -1,0 +1,11 @@
+{
+  "name": "@g52/witness-types",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Witness Protocol domain types for consent and testimony",
+  "main": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  }
+}

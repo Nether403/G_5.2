@@ -45,7 +45,16 @@
         return;
       }
       try {
-        var res = await fetch("/api/search?q=" + encodeURIComponent(q));
+        var productSelect = document.getElementById("productSelect");
+        var product =
+          (productSelect && productSelect.value) ||
+          document.body.dataset.product ||
+          "";
+        var query =
+          "/api/search?q=" +
+          encodeURIComponent(q) +
+          (product ? "&product=" + encodeURIComponent(product) : "");
+        var res = await fetch(query);
         var data = await res.json();
         renderResults(data);
       } catch (e) {

@@ -1,7 +1,7 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "rootDir": "..",
+    "rootDir": "./src",
     "outDir": "./dist",
     "module": "ESNext",
     "moduleResolution": "Bundler",
@@ -10,5 +10,5 @@
     "esModuleInterop": true,
     "resolveJsonModule": true
   },
-  "include": ["src/**/*.ts", "../witness-types/src/**/*.ts"]
+  "include": ["src/**/*.ts"]
 }

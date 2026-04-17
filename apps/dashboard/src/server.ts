@@ -82,6 +82,13 @@ import { runCompareTurn } from "../../../packages/orchestration/src/sessions/run
 import { FileSessionStore } from "../../../packages/orchestration/src/sessions/fileSessionStore";
 import { randomUUID } from "node:crypto";
 import {
+  createProductRegistry,
+  getProductConfig,
+  type ProductConfig,
+} from "../../../packages/orchestration/src/products";
+import { FileWitnessConsentStore, listConsentForWitness } from "../../../packages/orchestration/src/witness/fileConsentStore";
+import { FileWitnessTestimonyStore } from "../../../packages/orchestration/src/witness/fileTestimonyStore";
+import {
   FileProposalStore,
   PROPOSAL_SCHEMA_VERSION,
   PROPOSAL_SOURCES,
@@ -116,18 +123,26 @@ import { runReflection } from "../../../packages/orchestration/src/reflection/ru
 import { promoteArtifactToProposal } from "../../../packages/orchestration/src/reflection/promoteArtifact";
 import type { AuthoredArtifactStatus } from "../../../packages/orchestration/src/schemas/reflection";
 import { validateReport } from "../../../packages/evals/src/reporters/reportSchema";
+import { isConsentScope } from "../../../packages/witness-types/src/consent";
 import { computeDiff, type JsonReport } from "./reportUtils";
 import {
   sortSessionSummaries,
   toSessionSummary,
 } from "./inquiryUtils";
+import {
+  getWitnessConsentGate,
+  persistWitnessTurnArtifacts,
+} from "./witnessRuntime";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "../../..");
 const REPORTS_DIR = path.join(REPO_ROOT, "packages", "evals", "reports");
-const CANON_ROOT = path.join(REPO_ROOT, "packages", "canon");
-const SESSIONS_DIR = path.join(REPO_ROOT, "data", "inquiry-sessions");
-const MEMORY_DIR = path.join(REPO_ROOT, "data", "memory-items");
+const PRODUCT_REGISTRY = createProductRegistry(REPO_ROOT);
+const PES_CONFIG = PRODUCT_REGISTRY.pes;
+const WITNESS_CONFIG = PRODUCT_REGISTRY.witness;
+const CANON_ROOT = PES_CONFIG.policyRoot;
+const SESSIONS_DIR = PES_CONFIG.sessionsRoot;
+const MEMORY_DIR = PES_CONFIG.memoryRoot;
 const PROPOSALS_DIR = path.join(REPO_ROOT, "data", "canon-proposals");
 const REFLECTION_DIR = path.join(REPO_ROOT, "data", "reflection");
 const ARTIFACT_DIR = path.join(REPO_ROOT, "data", "authored-artifacts");
@@ -188,21 +203,65 @@ async function readJsonBody(req: http.IncomingMessage): Promise<unknown> {
   return raw ? JSON.parse(raw) : {};
 }
 
-const sessionStore = new FileSessionStore(SESSIONS_DIR);
+function resolveProductConfig(
+  value: unknown
+): ProductConfig | null {
+  if (value === undefined || value === null || value === "") {
+    return PES_CONFIG;
+  }
 
-async function readSession(sessionId: string): Promise<InquirySession | null> {
-  // Route through FileSessionStore so legacy data is migrated and
-  // newer-than-supported data is rejected consistently.
-  return sessionStore.load(sessionId);
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  try {
+    return getProductConfig(PRODUCT_REGISTRY, value);
+  } catch {
+    return null;
+  }
 }
 
-async function listSessionSummaries() {
+function sessionStoreFor(product: ProductConfig): FileSessionStore {
+  return new FileSessionStore(product.sessionsRoot);
+}
+
+function memoryStoreFor(product: ProductConfig): FileMemoryStore {
+  return new FileMemoryStore(product.memoryRoot);
+}
+
+function consentStoreFor(product: ProductConfig): FileWitnessConsentStore {
+  if (!product.consentRoot) {
+    throw new Error(`Product ${product.id} does not define a consent root.`);
+  }
+
+  return new FileWitnessConsentStore(product.consentRoot);
+}
+
+function testimonyStoreFor(product: ProductConfig): FileWitnessTestimonyStore {
+  if (!product.testimonyRoot) {
+    throw new Error(`Product ${product.id} does not define a testimony root.`);
+  }
+
+  return new FileWitnessTestimonyStore(product.testimonyRoot);
+}
+
+async function readSession(
+  product: ProductConfig,
+  sessionId: string
+): Promise<InquirySession | null> {
+  // Route through FileSessionStore so legacy data is migrated and
+  // newer-than-supported data is rejected consistently.
+  return sessionStoreFor(product).load(sessionId);
+}
+
+async function listSessionSummaries(product: ProductConfig) {
   try {
-    const files = await fs.readdir(SESSIONS_DIR);
+    const files = await fs.readdir(product.sessionsRoot);
     const ids = files
       .filter((file) => file.endsWith(".json"))
       .map((file) => file.slice(0, -".json".length));
-    const sessions = await Promise.all(ids.map((id) => sessionStore.load(id)));
+    const store = sessionStoreFor(product);
+    const sessions = await Promise.all(ids.map((id) => store.load(id)));
     const loaded = sessions.filter(
       (session): session is InquirySession => session !== null
     );
@@ -317,13 +376,11 @@ function sanitizeTags(input: unknown): string[] {
   return out;
 }
 
-async function writeSession(session: InquirySession) {
-  await fs.mkdir(SESSIONS_DIR, { recursive: true });
-  await fs.writeFile(
-    path.join(SESSIONS_DIR, `${session.id}.json`),
-    `${JSON.stringify(session, null, 2)}\n`,
-    "utf8"
-  );
+async function writeSession(
+  product: ProductConfig,
+  session: InquirySession
+) {
+  await sessionStoreFor(product).save(session);
 }
 
 async function ensureSessionSnapshot(
@@ -382,6 +439,36 @@ function sanitizeProposalString(value: unknown, max: number): string {
   return value.trim().slice(0, max);
 }
 
+const WITNESS_CONSENT_STATUSES = [
+  "granted",
+  "denied",
+  "revoked",
+  "unknown",
+] as const;
+const WITNESS_CONSENT_ACTORS = [
+  "witness",
+  "operator",
+  "system_import",
+] as const;
+
+function isWitnessConsentStatus(
+  value: unknown
+): value is (typeof WITNESS_CONSENT_STATUSES)[number] {
+  return (
+    typeof value === "string" &&
+    (WITNESS_CONSENT_STATUSES as readonly string[]).includes(value)
+  );
+}
+
+function isWitnessConsentActor(
+  value: unknown
+): value is (typeof WITNESS_CONSENT_ACTORS)[number] {
+  return (
+    typeof value === "string" &&
+    (WITNESS_CONSENT_ACTORS as readonly string[]).includes(value)
+  );
+}
+
 async function readCanonFileSafely(relPath: string): Promise<string | null> {
   if (!isEditableCanonFile(relPath)) {
     return null;
@@ -419,7 +506,7 @@ async function serveStaticHtml(res: http.ServerResponse, filename: string) {
   res.end(html);
 }
 
-async function handleRequest(
+export async function handleRequest(
   req: http.IncomingMessage,
   res: http.ServerResponse
 ) {
@@ -495,8 +582,13 @@ async function handleRequest(
   }
 
   if (url.pathname === "/api/inquiry/sessions") {
+    const product = resolveProductConfig(url.searchParams.get("product"));
+    if (!product) {
+      sendJson(res, 400, { error: "Unknown product" });
+      return;
+    }
     try {
-      sendJson(res, 200, await listSessionSummaries());
+      sendJson(res, 200, await listSessionSummaries(product));
     } catch (err) {
       sendJson(res, 500, {
         error: err instanceof Error ? err.message : String(err),
@@ -506,6 +598,11 @@ async function handleRequest(
   }
 
   if (url.pathname === "/api/memory/conflicts") {
+    const product = resolveProductConfig(url.searchParams.get("product"));
+    if (!product) {
+      sendJson(res, 400, { error: "Unknown product" });
+      return;
+    }
     try {
       const type = parseEnumParam<MemoryType>(
         url.searchParams.get("type"),
@@ -523,7 +620,7 @@ async function handleRequest(
         });
         return;
       }
-      const conflicts = await new FileMemoryStore(MEMORY_DIR).findConflicts({
+      const conflicts = await memoryStoreFor(product).findConflicts({
         type,
         scope,
         statement,
@@ -542,6 +639,7 @@ async function handleRequest(
     if (req.method === "POST") {
       try {
         const body = (await readJsonBody(req)) as {
+          product?: string;
           type?: string;
           scope?: string;
           statement?: string;
@@ -555,6 +653,11 @@ async function handleRequest(
 
         const typeParse = MemoryTypeSchema.safeParse(body.type);
         const scopeParse = MemoryScopeSchema.safeParse(body.scope);
+        const product = resolveProductConfig(body.product);
+        if (!product) {
+          sendJson(res, 400, { error: "Unknown product" });
+          return;
+        }
         if (!typeParse.success || !scopeParse.success) {
           sendJson(res, 400, { error: "Invalid type or scope" });
           return;
@@ -577,7 +680,7 @@ async function handleRequest(
           return;
         }
 
-        const item = await new FileMemoryStore(MEMORY_DIR).create({
+        const item = await memoryStoreFor(product).create({
           type: typeParse.data,
           scope: scopeParse.data,
           statement: body.statement,
@@ -602,8 +705,13 @@ async function handleRequest(
       return;
     }
 
+    const product = resolveProductConfig(url.searchParams.get("product"));
+    if (!product) {
+      sendJson(res, 400, { error: "Unknown product" });
+      return;
+    }
     try {
-      const store = new FileMemoryStore(MEMORY_DIR);
+      const store = memoryStoreFor(product);
       let items = await store.list();
       const sessionId = url.searchParams.get("sessionId");
       const scope = url.searchParams.get("scope");
@@ -655,13 +763,18 @@ async function handleRequest(
       sendJson(res, 400, { error: `Unknown memory action: ${actionRaw}` });
       return;
     }
+    const product = resolveProductConfig(url.searchParams.get("product"));
+    if (!product) {
+      sendJson(res, 400, { error: "Unknown product" });
+      return;
+    }
     try {
       const body = (await readJsonBody(req)) as {
         reason?: string;
         actor?: string;
         supersededById?: string;
       };
-      const updated = await new FileMemoryStore(MEMORY_DIR).transition(
+      const updated = await memoryStoreFor(product).transition(
         memoryId,
         {
           action: actionRaw,
@@ -686,9 +799,14 @@ async function handleRequest(
   const memoryItemMatch = url.pathname.match(/^\/api\/memory\/([^/]+)$/);
   if (memoryItemMatch) {
     const memoryId = memoryItemMatch[1];
+    const product = resolveProductConfig(url.searchParams.get("product"));
+    if (!product) {
+      sendJson(res, 400, { error: "Unknown product" });
+      return;
+    }
     if (req.method === "DELETE") {
       try {
-        const deleted = await new FileMemoryStore(MEMORY_DIR).delete(memoryId);
+        const deleted = await memoryStoreFor(product).delete(memoryId);
         sendJson(res, 200, { deleted });
       } catch (err) {
         sendJson(res, 500, {
@@ -705,7 +823,7 @@ async function handleRequest(
           tags?: string[];
           confidence?: "high" | "medium" | "low";
         };
-        const updated = await new FileMemoryStore(MEMORY_DIR).patch(
+        const updated = await memoryStoreFor(product).patch(
           memoryId,
           body
         );
@@ -723,7 +841,7 @@ async function handleRequest(
     }
     if (req.method === "GET") {
       try {
-        const item = await new FileMemoryStore(MEMORY_DIR).load(memoryId);
+        const item = await memoryStoreFor(product).load(memoryId);
         if (!item) {
           sendJson(res, 404, { error: "Memory item not found" });
           return;
@@ -740,8 +858,13 @@ async function handleRequest(
 
   const inquirySessionMatch = url.pathname.match(/^\/api\/inquiry\/sessions\/([^/]+)$/);
   if (inquirySessionMatch && req.method === "GET") {
+    const product = resolveProductConfig(url.searchParams.get("product"));
+    if (!product) {
+      sendJson(res, 400, { error: "Unknown product" });
+      return;
+    }
     try {
-      const session = await readSession(inquirySessionMatch[1]);
+      const session = await readSession(product, inquirySessionMatch[1]);
       if (!session) {
         sendJson(res, 404, { error: "Session not found" });
         return;
@@ -757,8 +880,13 @@ async function handleRequest(
   }
 
   if (inquirySessionMatch && req.method === "PATCH") {
+    const product = resolveProductConfig(url.searchParams.get("product"));
+    if (!product) {
+      sendJson(res, 400, { error: "Unknown product" });
+      return;
+    }
     try {
-      const session = await readSession(inquirySessionMatch[1]);
+      const session = await readSession(product, inquirySessionMatch[1]);
       if (!session) {
         sendJson(res, 404, { error: "Session not found" });
         return;
@@ -792,7 +920,7 @@ async function handleRequest(
 
       if (changed) {
         session.updatedAt = new Date().toISOString();
-        await writeSession(session);
+        await writeSession(product, session);
       }
 
       sendJson(res, 200, session);
@@ -805,8 +933,13 @@ async function handleRequest(
   }
 
   if (inquirySessionMatch && req.method === "DELETE") {
+    const product = resolveProductConfig(url.searchParams.get("product"));
+    if (!product) {
+      sendJson(res, 400, { error: "Unknown product" });
+      return;
+    }
     try {
-      const filePath = path.join(SESSIONS_DIR, `${inquirySessionMatch[1]}.json`);
+      const filePath = path.join(product.sessionsRoot, `${inquirySessionMatch[1]}.json`);
       try {
         await fs.unlink(filePath);
         sendJson(res, 200, { deleted: true });
@@ -831,8 +964,13 @@ async function handleRequest(
     /^\/api\/inquiry\/sessions\/([^/]+)\/turns\/([^/]+)\/rerun$/
   );
   if (inquiryRerunMatch && req.method === "POST") {
+    const product = resolveProductConfig(url.searchParams.get("product"));
+    if (!product) {
+      sendJson(res, 400, { error: "Unknown product" });
+      return;
+    }
     try {
-      const session = await readSession(inquiryRerunMatch[1]);
+      const session = await readSession(product, inquiryRerunMatch[1]);
       if (!session) {
         sendJson(res, 404, { error: "Session not found" });
         return;
@@ -852,8 +990,8 @@ async function handleRequest(
       const rerun = await runCompareTurn({
         session,
         turnId: inquiryRerunMatch[2],
-        canonRoot: CANON_ROOT,
-        memoryRoot: MEMORY_DIR,
+        canonRoot: product.policyRoot,
+        memoryRoot: product.memoryRoot,
         provider,
         mode: isMode(body.mode) ? body.mode : undefined,
         userMessageOverride:
@@ -873,7 +1011,7 @@ async function handleRequest(
           : [rerun];
         session.turns[targetIndex] = { ...target, reruns };
         session.updatedAt = new Date().toISOString();
-        await writeSession(session);
+        await writeSession(product, session);
       }
 
       sendJson(res, 200, { rerun, session });
@@ -887,6 +1025,8 @@ async function handleRequest(
 
   if (url.pathname === "/api/inquiry/preview" && req.method === "POST") {
     let body: {
+      product?: string;
+      witnessId?: string;
       sessionId?: string;
       mode?: string;
       userMessage?: string;
@@ -903,21 +1043,33 @@ async function handleRequest(
       return;
     }
 
+    const product = resolveProductConfig(body.product);
+    if (!product) {
+      sendJson(res, 400, { error: "Unknown product" });
+      return;
+    }
+    if (product.id === "witness" && !body.witnessId?.trim()) {
+      sendJson(res, 400, { error: "witnessId is required for Witness inquiry." });
+      return;
+    }
+
     const previewMode = isMode(body.mode) ? body.mode : "dialogic";
     try {
+      const sessionStore = sessionStoreFor(product);
       const existing = body.sessionId
         ? await sessionStore.load(body.sessionId)
         : null;
       const context = await buildContext({
-        canonRoot: CANON_ROOT,
+        canonRoot: product.policyRoot,
         mode: previewMode,
         userMessage: body.userMessage.trim(),
         recentMessages: [],
         sessionSummary: existing?.summary?.text ?? undefined,
         sessionId: existing?.id,
-        memoryRoot: MEMORY_DIR,
+        memoryRoot: product.memoryRoot,
       });
       sendJson(res, 200, {
+        product: product.id,
         mode: previewMode,
         sessionId: existing?.id ?? null,
         snapshot: buildContextSnapshot(context),
@@ -932,6 +1084,8 @@ async function handleRequest(
 
   if (url.pathname === "/api/inquiry/turn" && req.method === "POST") {
     let body: {
+      product?: string;
+      witnessId?: string;
       sessionId?: string;
       mode?: string;
       userMessage?: string;
@@ -949,6 +1103,16 @@ async function handleRequest(
       return;
     }
 
+    const product = resolveProductConfig(body.product);
+    if (!product) {
+      sendJson(res, 400, { error: "Unknown product" });
+      return;
+    }
+    if (product.id === "witness" && !body.witnessId?.trim()) {
+      sendJson(res, 400, { error: "witnessId is required for Witness inquiry." });
+      return;
+    }
+
     const mode = isMode(body.mode) ? body.mode : "dialogic";
     const providerName = isKnownProviderName(body.provider)
       ? body.provider
@@ -962,34 +1126,172 @@ async function handleRequest(
     };
 
     try {
+      if (product.id === "witness") {
+        const gate = await getWitnessConsentGate(
+          consentStoreFor(product),
+          body.witnessId!.trim()
+        );
+        if (!gate.allowed) {
+          sendJson(res, 409, {
+            error: "Witness consent requirements not met.",
+            product: product.id,
+            witnessId: body.witnessId!.trim(),
+            missingScopes: gate.missingScopes,
+          });
+          return;
+        }
+      }
+
       const result = await ensureSessionSnapshot(
-        SESSIONS_DIR,
+        product.sessionsRoot,
         await runSessionTurn(provider, {
-          canonRoot: CANON_ROOT,
-          sessionsRoot: SESSIONS_DIR,
-          memoryRoot: MEMORY_DIR,
+          canonRoot: product.policyRoot,
+          sessionsRoot: product.sessionsRoot,
+          memoryRoot: product.memoryRoot,
           sessionId: body.sessionId,
           mode,
           userMessage: body.userMessage.trim(),
         })
       );
 
+      let testimonyId: string | null = null;
+      if (product.id === "witness") {
+        const persisted = await persistWitnessTurnArtifacts({
+          sessionRoot: product.sessionsRoot,
+          testimonyStore: testimonyStoreFor(product),
+          witnessId: body.witnessId!.trim(),
+          session: result.session,
+          persistedTurn: result.persistedTurn,
+        });
+        result.session = persisted.session;
+        testimonyId = persisted.testimonyId;
+      }
+
       sendJson(res, 200, {
+        product: product.id,
         session: result.session,
         persistedTurn: result.persistedTurn,
         memoryDecision: result.memoryDecision,
         provider: providerLabel,
+        ...(testimonyId ? { testimonyId } : {}),
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      sendJson(res, 502, {
+      const isLocalFailure = /manifest|glossary|continuity|recovered|policy|canon|ENOENT/i.test(
+        message
+      );
+      sendJson(res, isLocalFailure ? 500 : 502, {
         error: message,
-        retryable: true,
+        retryable: !isLocalFailure,
+        product: product.id,
         provider: providerLabel,
         failedAt: new Date().toISOString(),
         userMessage: body.userMessage.trim(),
         mode,
         sessionId: body.sessionId ?? null,
+      });
+    }
+    return;
+  }
+
+  if (url.pathname === "/api/witness/consent") {
+    const store = consentStoreFor(WITNESS_CONFIG);
+    if (req.method === "GET") {
+      const witnessId = url.searchParams.get("witnessId")?.trim();
+      if (!witnessId) {
+        sendJson(res, 400, { error: "witnessId is required" });
+        return;
+      }
+      try {
+        sendJson(res, 200, await listConsentForWitness(store, witnessId));
+      } catch (err) {
+        sendJson(res, 500, {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+      return;
+    }
+
+    if (req.method === "POST") {
+      try {
+        const body = (await readJsonBody(req)) as {
+          witnessId?: string;
+          testimonyId?: string;
+          scope?: string;
+          status?: string;
+          actor?: string;
+          decidedAt?: string;
+          note?: string;
+        };
+        if (!body.witnessId?.trim()) {
+          sendJson(res, 400, { error: "witnessId is required" });
+          return;
+        }
+        if (!isConsentScope(body.scope)) {
+          sendJson(res, 400, { error: "Invalid consent scope" });
+          return;
+        }
+        if (!isWitnessConsentStatus(body.status)) {
+          sendJson(res, 400, { error: "Invalid consent status" });
+          return;
+        }
+        if (!isWitnessConsentActor(body.actor)) {
+          sendJson(res, 400, { error: "Invalid consent actor" });
+          return;
+        }
+
+        const created = await store.appendDecision({
+          witnessId: body.witnessId.trim(),
+          testimonyId: body.testimonyId?.trim() || undefined,
+          scope: body.scope,
+          status: body.status,
+          actor: body.actor,
+          decidedAt: body.decidedAt?.trim() || new Date().toISOString(),
+          note: typeof body.note === "string" ? body.note.trim() || undefined : undefined,
+        });
+        sendJson(res, 201, created);
+      } catch (err) {
+        sendJson(res, 500, {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+      return;
+    }
+  }
+
+  if (url.pathname === "/api/witness/testimony" && req.method === "GET") {
+    const witnessId = url.searchParams.get("witnessId")?.trim();
+    if (!witnessId) {
+      sendJson(res, 400, { error: "witnessId is required" });
+      return;
+    }
+    try {
+      const items = (await testimonyStoreFor(WITNESS_CONFIG).list()).filter(
+        (record) => record.witnessId === witnessId
+      );
+      sendJson(res, 200, items);
+    } catch (err) {
+      sendJson(res, 500, {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+    return;
+  }
+
+  const witnessTestimonyMatch = url.pathname.match(/^\/api\/witness\/testimony\/([^/]+)$/);
+  if (witnessTestimonyMatch && req.method === "GET") {
+    try {
+      const item = await testimonyStoreFor(WITNESS_CONFIG).load(
+        witnessTestimonyMatch[1]
+      );
+      if (!item) {
+        sendJson(res, 404, { error: "Testimony not found" });
+        return;
+      }
+      sendJson(res, 200, item);
+    } catch (err) {
+      sendJson(res, 500, {
+        error: err instanceof Error ? err.message : String(err),
       });
     }
     return;
@@ -1973,6 +2275,11 @@ async function handleRequest(
 
   if (url.pathname === "/api/search" && req.method === "GET") {
     const qRaw = (url.searchParams.get("q") ?? "").trim();
+    const product = resolveProductConfig(url.searchParams.get("product"));
+    if (!product) {
+      sendJson(res, 400, { error: "Unknown product" });
+      return;
+    }
     if (!qRaw) {
       sendJson(res, 200, { query: "", results: [] });
       return;
@@ -1998,11 +2305,14 @@ async function handleRequest(
       sessionId?: string;
     };
     const results: SearchHit[] = [];
+    const inquiryBaseParams = new URLSearchParams();
+    inquiryBaseParams.set("product", product.id);
 
     // Sessions + turns
     try {
+      const sessionStore = sessionStoreFor(product);
       const sessionFiles = await fs
-        .readdir(SESSIONS_DIR)
+        .readdir(product.sessionsRoot)
         .catch((err) =>
           (err as NodeJS.ErrnoException).code === "ENOENT" ? [] : Promise.reject(err)
         );
@@ -2011,6 +2321,11 @@ async function handleRequest(
         const id = file.slice(0, -5);
         const session = await sessionStore.load(id).catch(() => null);
         if (!session) continue;
+        const sessionParams = new URLSearchParams(inquiryBaseParams);
+        sessionParams.set("sessionId", session.id);
+        if (session.witnessId) {
+          sessionParams.set("witnessId", session.witnessId);
+        }
         const title =
           session.title || session.summary?.text?.slice(0, 60) || `Session ${id.slice(0, 8)}`;
         const haystack = [
@@ -2026,19 +2341,21 @@ async function handleRequest(
             id: session.id,
             label: title,
             sublabel: `${session.turns.length} turn${session.turns.length === 1 ? "" : "s"}`,
-            href: `/inquiry.html?sessionId=${encodeURIComponent(session.id)}`,
+            href: `/inquiry.html?${sessionParams.toString()}`,
             sessionId: session.id,
           });
         }
         for (const turn of session.turns) {
           const turnHay = `${turn.userMessage}\n${turn.assistantMessage}`.toLowerCase();
           if (turnHay.includes(q)) {
+            const turnParams = new URLSearchParams(sessionParams);
+            turnParams.set("turnId", turn.id);
             results.push({
               type: "turn",
               id: turn.id,
               label: turn.userMessage.slice(0, 80),
               sublabel: `${title} · ${turn.mode}`,
-              href: `/inquiry.html?sessionId=${encodeURIComponent(session.id)}&turnId=${encodeURIComponent(turn.id)}`,
+              href: `/inquiry.html?${turnParams.toString()}`,
               sessionId: session.id,
             });
           }
@@ -2050,20 +2367,24 @@ async function handleRequest(
 
     // Memory
     try {
-      const items = await new FileMemoryStore(MEMORY_DIR).list();
+      const items = await memoryStoreFor(product).list();
       for (const item of items) {
         const hay = [item.statement, item.justification, ...(item.tags ?? [])]
           .join(" ")
           .toLowerCase();
         if (hay.includes(q)) {
+          const memoryParams = new URLSearchParams(inquiryBaseParams);
+          memoryParams.set("focus", "memory");
+          memoryParams.set("memoryId", item.id);
+          if (item.sessionId) {
+            memoryParams.set("sessionId", item.sessionId);
+          }
           results.push({
             type: "memory",
             id: item.id,
             label: item.statement.slice(0, 80),
             sublabel: `${item.type} · ${item.state}${item.sessionId ? ` · ${item.sessionId.slice(0, 8)}` : ""}`,
-            href: item.sessionId
-              ? `/inquiry.html?sessionId=${encodeURIComponent(item.sessionId)}&focus=memory&memoryId=${encodeURIComponent(item.id)}`
-              : `/inquiry.html?focus=memory&memoryId=${encodeURIComponent(item.id)}`,
+            href: `/inquiry.html?${memoryParams.toString()}`,
             sessionId: item.sessionId,
           });
         }
@@ -2073,44 +2394,46 @@ async function handleRequest(
     }
 
     // Proposals
-    try {
-      const proposals = await proposalStore.list();
-      for (const p of proposals) {
-        const hay = [p.title, p.rationale, p.target.path, p.target.label]
-          .join(" ")
-          .toLowerCase();
-        if (hay.includes(q)) {
-          results.push({
-            type: "proposal",
-            id: p.id,
-            label: p.title,
-            sublabel: `${p.status} · ${p.target.path}`,
-            href: `/editorial.html?proposal=${encodeURIComponent(p.id)}`,
-          });
+    if (product.capabilities.editorial || product.capabilities.authoring) {
+      try {
+        const proposals = await proposalStore.list();
+        for (const p of proposals) {
+          const hay = [p.title, p.rationale, p.target.path, p.target.label]
+            .join(" ")
+            .toLowerCase();
+          if (hay.includes(q)) {
+            results.push({
+              type: "proposal",
+              id: p.id,
+              label: p.title,
+              sublabel: `${p.status} · ${p.target.path}`,
+              href: `/editorial.html?proposal=${encodeURIComponent(p.id)}`,
+            });
+          }
         }
+      } catch {
+        /* ignore */
       }
-    } catch {
-      /* ignore */
-    }
 
-    // Artifacts
-    try {
-      const artifactStore = new FileAuthoredArtifactStore(ARTIFACT_DIR);
-      const artifacts = await artifactStore.list();
-      for (const a of artifacts) {
-        const hay = [a.title, a.body].join(" ").toLowerCase();
-        if (hay.includes(q)) {
-          results.push({
-            type: "artifact",
-            id: a.id,
-            label: a.title,
-            sublabel: `${a.status} · topic ${a.topicId.slice(0, 8)}`,
-            href: `/authoring.html?topic=${encodeURIComponent(a.topicId)}&artifact=${encodeURIComponent(a.id)}`,
-          });
+      // Artifacts
+      try {
+        const artifactStore = new FileAuthoredArtifactStore(ARTIFACT_DIR);
+        const artifacts = await artifactStore.list();
+        for (const a of artifacts) {
+          const hay = [a.title, a.body].join(" ").toLowerCase();
+          if (hay.includes(q)) {
+            results.push({
+              type: "artifact",
+              id: a.id,
+              label: a.title,
+              sublabel: `${a.status} · topic ${a.topicId.slice(0, 8)}`,
+              href: `/authoring.html?topic=${encodeURIComponent(a.topicId)}&artifact=${encodeURIComponent(a.id)}`,
+            });
+          }
         }
+      } catch {
+        /* ignore */
       }
-    } catch {
-      /* ignore */
     }
 
     // Reports + cases
@@ -2206,10 +2529,19 @@ async function handleRequest(
   res.end("Not found");
 }
 
-const server = http.createServer(handleRequest);
-server.listen(PORT, HOST, () => {
-  console.log(`\n  G_5.2 Operator Dashboard`);
-  console.log(`  http://${HOST}:${PORT}`);
-  console.log(`  http://${HOST}:${PORT}/inquiry.html\n`);
-});
+export function createDashboardServer() {
+  return http.createServer(handleRequest);
+}
 
+const isEntrypoint =
+  process.argv[1] !== undefined &&
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+
+if (isEntrypoint) {
+  const server = createDashboardServer();
+  server.listen(PORT, HOST, () => {
+    console.log(`\n  G_5.2 Operator Dashboard`);
+    console.log(`  http://${HOST}:${PORT}`);
+    console.log(`  http://${HOST}:${PORT}/inquiry.html\n`);
+  });
+}
