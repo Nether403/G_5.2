@@ -34,16 +34,18 @@ Implemented now:
 - selective durable memory with global/session scope, confirmation-based dedupe, and operator delete
 - operator dashboard for report inspection, diffing, session inspection, and memory inspection
 - minimal operator inquiry surface backed by persisted sessions, stored context snapshots, and inspectable memory
+- canon / continuity-fact editorial workflow with diffable proposals, applyProposal, and changelog scaffolding (M4)
 - reflection & authored-artifact workflow with draft → critique → revise → operator-approve → store, full provenance metadata, and a promote-to-canon-proposal hand-off that still routes through the editorial review path (M5)
 - subsystem-tagged eval cases with per-subsystem scorecards, merge-blocking critical-case gating, drift budget docs, and a gold-baseline refresh process (M6)
+- v1 release hardening: release checklist, operator handbook, recovery & backups doc, canonical demo paths with a `pnpm smoke` runner, RC baseline procedure, and a written post-v1 support posture (M8)
 
 Not implemented yet:
 - persistence & trace hardening for long-lived sessions (M1)
 - inquiry surface v1.5 (M2)
 - memory discipline v2 — triage, open-thread resolution, anti-pollution coverage (M3)
-- canon / continuity-fact editorial workflow (M4)
 - operator studio integration (M7)
-- release hardening & v1 threshold (M8)
+
+For v1 release gating, see [`docs/v1-release-checklist.md`](docs/v1-release-checklist.md), [`docs/operator-handbook.md`](docs/operator-handbook.md), [`docs/recovery-and-backups.md`](docs/recovery-and-backups.md), [`docs/demo-paths.md`](docs/demo-paths.md), [`docs/release-candidate-baseline.md`](docs/release-candidate-baseline.md), and [`docs/post-v1-support-posture.md`](docs/post-v1-support-posture.md).
 
 See [`docs/system-map.md`](docs/system-map.md) for the full subsystem breakdown and [`docs/release-criteria.md`](docs/release-criteria.md) for the release ladder.
 
@@ -81,6 +83,7 @@ pnpm install
 pnpm validate:canon
 pnpm typecheck
 pnpm test
+pnpm smoke
 pnpm evals -- --trace
 pnpm dashboard
 ```

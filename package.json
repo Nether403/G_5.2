@@ -12,7 +12,8 @@
     "validate:canon": "tsx scripts/validate-canon.ts",
     "validate-canon": "tsx scripts/validate-canon.ts",
     "evals": "tsx scripts/run-evals.ts",
-    "dashboard": "tsx apps/dashboard/src/server.ts"
+    "dashboard": "tsx apps/dashboard/src/server.ts",
+    "smoke": "tsx scripts/smoke-tests.ts"
   },
   "devDependencies": {
     "@types/node": "^25.6.0",

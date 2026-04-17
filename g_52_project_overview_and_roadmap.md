@@ -360,8 +360,10 @@ Landed via per-case `subsystem` and `critical` tagging in `packages/evals/src/ty
 ### M7 — Operator studio integration
 Unify the inquiry, editorial, reflection, memory, and eval surfaces into one coherent operator studio experience.
 
-### M8 — Release hardening & v1 threshold
+### M8 — Release hardening & v1 threshold ✅ implemented
 Stabilize configuration, reproducibility, and upgrade paths so the system can be used regularly without repo surgery. Cross the v1 threshold as defined in `docs/release-criteria.md`.
+
+Landed via the v1 release checklist (`docs/v1-release-checklist.md`) covering canon, persistence, memory, editorial, reflection, evals, studio, docs, ops, backups, RC baselines, and invariants; an operator handbook (`docs/operator-handbook.md`); a recovery & backups doc with six numbered scenarios (`docs/recovery-and-backups.md`); six canonical demo paths (`docs/demo-paths.md`), all exercised end-to-end against the MockProvider by `scripts/smoke-tests.ts` (run via `pnpm smoke`); a per-provider RC baseline procedure (`docs/release-candidate-baseline.md`) that reuses `scripts/refresh-gold-baseline.ts`; and an explicit post-v1 support posture (`docs/post-v1-support-posture.md`) marking public-launch concerns out of scope. No runtime behavior changes.
 
 ---
 

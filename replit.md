@@ -155,6 +155,38 @@ The dashboard runs on port **5000** (bound to `0.0.0.0` for Replit preview).
   `scripts/refresh-gold-baseline.ts` to promote a report into
   `packages/evals/gold-baselines/<provider>-<canonVersion>.json`.
 
+## Release hardening & v1 threshold (M8)
+
+This milestone defines the first true v1 release gate and ships the
+operator-facing documentation that goes with it. No runtime behavior
+changes; the milestone is documentation, smoke tests, and procedure.
+
+Deliverables:
+
+- `docs/v1-release-checklist.md` — sectioned release gate (canon,
+  persistence, memory, editorial, reflection, evals, studio, docs, ops,
+  backups, RC baselines, invariants).
+- `docs/operator-handbook.md` — daily operator reference: mental model,
+  first-run setup, daily ops, demo paths pointer, common pitfalls,
+  refusal-to-start recovery.
+- `docs/recovery-and-backups.md` — four data classes, backup cadence,
+  archive bundles, replay, schema migrations, six recovery scenarios.
+- `docs/demo-paths.md` — six canonical demo paths, each grounded in
+  the corresponding subsystem and owner code paths.
+- `docs/release-candidate-baseline.md` — per-provider RC procedure that
+  reuses `scripts/refresh-gold-baseline.ts` (no new tooling).
+- `docs/post-v1-support-posture.md` — explicit out-of-scope statement
+  for post-v1 concerns (public auth, rate limiting, paid SLOs, etc.).
+- `scripts/smoke-tests.ts` (run via `pnpm smoke`) — exercises all six
+  canonical demo paths end-to-end against the MockProvider in temp
+  directories: inquiry turn + replay, memory governance, canon proposal
+  + apply + changelog, reflection authoring + promote, reports & diff,
+  and the export/import backup round-trip.
+
+The smoke runner exits non-zero on any path failure and is the
+mechanical floor for release readiness; `docs/v1-release-checklist.md`
+is the human ceiling.
+
 ## Environment Variables
 
 - `DASHBOARD_PORT` — Port for the dashboard server (default: 5000)
@@ -166,6 +198,7 @@ The dashboard runs on port **5000** (bound to `0.0.0.0` for Replit preview).
 
 ```bash
 pnpm validate:canon   # Validate canon files
+pnpm smoke            # Run end-to-end smoke tests for canonical demo paths
 pnpm evals            # Run evaluation suite
 pnpm dashboard        # Start operator dashboard
 ```
