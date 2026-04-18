@@ -14,7 +14,12 @@ The milestone ladder below (M0 – M8) is the execution plan; the rung terminolo
 
 ## 1. What G_5.2 is
 
-G_5.2 is a canon-first engineered runtime for a versioned authored persona.
+G_5.2 is the shared runtime and governance kernel behind two product tracks:
+
+- Witness — the primary mission-level consumer and serious first responsibility
+- P-E-S — the lighter public-facing / educational sibling
+
+In practical terms, G_5.2 is not a sibling at all. It is the shared nervous system.
 
 It is not a prompt shrine, a lore dump, or a generic chatbot with atmospheric writing. It is a governed inquiry system built to preserve continuity, enforce epistemic discipline, and make persona behavior legible under real operational pressure.
 
@@ -30,6 +35,8 @@ That means:
 - operator tooling makes changes inspectable instead of mystical
 
 The project began as an effort to salvage what was valuable from earlier work in the G_5 / P-E-S lineage without inheriting the ambiguity, hidden mutation, and artifact-runtime entanglement that made the earlier form powerful but brittle.
+
+The current repo state goes further than that original framing: the runtime now ships with explicit product routing (`pes` and `witness`), separate policy roots, and separate Witness storage boundaries for sessions, memory, testimony, and consent.
 
 ---
 
@@ -100,9 +107,9 @@ It is considered healthy when it keeps its rules under pressure.
 ## 4. What has been built so far
 
 ### 4.1 Canon package
-A structured canon-first identity layer now exists and is the real center of gravity of the repo.
+A structured policy-root layer now exists and is the real center of gravity of the repo.
 
-Key canon files include:
+For P-E-S, key canon files include:
 - constitution
 - axioms
 - epistemics
@@ -116,6 +123,18 @@ Key canon files include:
 - recovered-artifacts governance
 
 This means the project’s identity can be reconstructed from files rather than folklore.
+
+For Witness, a second policy package now exists under `packages/inquisitor-witness/`, with:
+- constitution
+- constraints
+- questioning modes
+- synthesis policy
+- consent policy
+- archive-publication policy
+- continuity facts
+- glossary
+
+This means the shared runtime can resolve product-specific governance without pretending Witness and P-E-S are the same thing.
 
 ### 4.2 Recovered artifact governance
 Recovered lineage materials have been typed rather than vaguely preserved.
@@ -133,10 +152,11 @@ This is one of the most important conceptual wins in the whole project.
 A real turn pipeline exists.
 
 The runtime currently supports:
-- canon loading
-- canon validation
+- product registry and product-aware routing
+- policy-root loading
+- policy-root validation
 - continuity fact loading
-- canon selection
+- policy selection
 - retrieval set construction
 - draft pass
 - critique pass
@@ -147,6 +167,11 @@ The runtime currently supports:
 - provider abstraction
 
 It is already operating as a real system rather than as a stack of aspirations.
+
+The decisive pivot now implemented is this:
+- kernel logic lives in shared orchestration, types, stores, and evals
+- Witness logic lives in the Witness policy package plus Witness consent/testimony/runtime handling
+- P-E-S logic remains in `packages/canon` and its public-facing surfaces
 
 ### 4.4 Canon/orchestration boundary hardening
 The canon boundary is validated with Zod.
@@ -236,6 +261,23 @@ This includes:
 - inquiry session search and turn inspection
 - retrieved-context drawer
 - memory inspection and delete controls
+- Witness product selection
+- Witness consent controls
+- Witness testimony inspection
+
+### 4.10 Witness-first vertical slice
+The repo now proves one full Witness slice inside G_5.2.
+
+This includes:
+- `ProductId = "pes" | "witness"`
+- dedicated Witness policy validation
+- Witness-only storage roots under `data/witness/`
+- consent-gated persisted inquiry turns
+- one testimony record per Witness session
+- compensation and rollback behavior when Witness artifact persistence fails
+- smoke coverage for the Witness path
+
+This is the main architectural shift since the original milestone ladder was written.
 
 This turned the project from “interesting runtime” into “inspectable runtime.”
 
@@ -245,7 +287,8 @@ This turned the project from “interesting runtime” into “inspectable runti
 
 G_5.2 is no longer just a design direction.
 It is now a functioning governed runtime with:
-- a typed identity layer
+- typed policy roots
+- product-aware routing
 - a real orchestration loop
 - eval-driven discipline
 - provider comparison
@@ -253,6 +296,7 @@ It is now a functioning governed runtime with:
 - operator visibility
 - persisted inquiry sessions
 - selective durable memory
+- a Witness-first operational slice
 
 That is the foundation.
 
@@ -275,11 +319,12 @@ That means:
 
 ### 6.2 Public-facing product boundary
 The current dashboard is an operator studio, not a public-facing product.
-That distinction should remain intact until there is a deliberate post-v1 decision to design auth, rate limits, monitoring, and a reader-facing UX.
+That distinction should remain intact until there is a deliberate post-v1 decision to design auth, rate limits, monitoring, and a reader-facing UX for P-E-S or any later Witness-facing surface.
 
 ### 6.3 Post-v1 refinement
 The remaining open questions are mostly operational and ergonomic:
 - how memory policy performs over longer-lived real usage
+- how Witness eval coverage should expand inside `packages/evals`
 - which studio ergonomics deserve another iteration after actual operator use
 - what, if anything, should evolve from operator-grade tooling into a public surface later
 
@@ -288,6 +333,8 @@ The remaining open questions are mostly operational and ergonomic:
 ## 7. Current maturity assessment
 
 ### What is already strong
+- shared runtime / product split
+- Witness policy package
 - identity layer
 - governance logic
 - canon/artifact separation
@@ -301,9 +348,11 @@ The remaining open questions are mostly operational and ergonomic:
 - reflection workflow
 - integrated operator studio
 - release hardening docs
+- Witness consent/testimony boundary enforcement
 
 ### What is stable enough to trust
 - canon loading and validation
+- Witness policy loading and validation
 - recovered artifact handling
 - response orchestration
 - critique pass usefulness
@@ -315,10 +364,12 @@ The remaining open questions are mostly operational and ergonomic:
 - canon proposal flow
 - authored-artifact storage and promotion handoff
 - smoke-tested demo paths
+- Witness product routing and persistence compensation
 
 ### What is still provisional
 - final v1 declaration pending per-RC baseline capture
 - long-horizon memory behavior under extended real usage
+- long-horizon Witness operational patterns beyond the first consent-gated slice
 - long-horizon product UX
 - how much of the operator surface becomes formal product surface later
 
@@ -381,7 +432,7 @@ Landed via the dashboard-served multi-surface operator UI in `apps/dashboard/pub
 ### M8 — Release hardening & v1 threshold ✅ implemented
 Stabilize configuration, reproducibility, and upgrade paths so the system can be used regularly without repo surgery. Cross the v1 threshold as defined in `docs/release-criteria.md`.
 
-Landed via the v1 release checklist (`docs/v1-release-checklist.md`) covering canon, persistence, memory, editorial, reflection, evals, studio, docs, ops, backups, RC baselines, and invariants; an operator handbook (`docs/operator-handbook.md`); a recovery & backups doc with six numbered scenarios (`docs/recovery-and-backups.md`); six canonical demo paths (`docs/demo-paths.md`), all exercised end-to-end against the MockProvider by `scripts/smoke-tests.ts` (run via `pnpm smoke`); a per-provider RC baseline procedure (`docs/release-candidate-baseline.md`) that reuses `scripts/refresh-gold-baseline.ts`; and an explicit post-v1 support posture (`docs/post-v1-support-posture.md`) marking public-launch concerns out of scope. Repo capability work is complete through M8; formal v1 declaration still depends on per-RC operator checkoff.
+Landed via the v1 release checklist (`docs/v1-release-checklist.md`) covering canon, Witness policy, persistence, memory, editorial, reflection, evals, studio, docs, ops, backups, RC baselines, and invariants; an operator handbook (`docs/operator-handbook.md`); a recovery & backups doc with six numbered scenarios (`docs/recovery-and-backups.md`); seven canonical demo paths (`docs/demo-paths.md`), all exercised end-to-end against the MockProvider by `scripts/smoke-tests.ts` (run via `pnpm smoke`); a per-provider RC baseline procedure (`docs/release-candidate-baseline.md`) that reuses `scripts/refresh-gold-baseline.ts`; and an explicit post-v1 support posture (`docs/post-v1-support-posture.md`) marking public-launch concerns out of scope. Repo capability work is complete through M8; formal v1 declaration still depends on per-RC operator checkoff.
 
 ---
 
@@ -406,11 +457,12 @@ But that should remain secondary to the actual nearer milestone:
 
 The shortest path from the current repo state to a formal v1 declaration is now operational rather than architectural:
 
-1. Run the clean-clone verification flow: `pnpm install`, `pnpm validate:canon`, `pnpm typecheck`, `pnpm test`, `pnpm smoke`.
+1. Run the clean-clone verification flow: `pnpm install`, `pnpm validate:canon`, `pnpm validate:witness`, `pnpm typecheck`, `pnpm test`, `pnpm smoke`.
 2. Capture release-candidate provider baselines for the providers in scope and promote them through `scripts/refresh-gold-baseline.ts`.
 3. Review drift against `docs/drift-budget.md` and record any explicitly accepted deltas.
-4. Operate the system through real sessions long enough to confirm the current memory/editorial/reflection ergonomics are acceptable at the target canon version.
-5. Decide whether to declare v1 for that release candidate.
+4. Operate both P-E-S and Witness sessions long enough to confirm the current memory/editorial/reflection/Witness ergonomics are acceptable at the target canon version.
+5. Expand Witness-specific eval coverage inside `packages/evals`.
+6. Decide whether to declare v1 for that release candidate.
 
 ---
 

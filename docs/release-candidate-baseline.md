@@ -9,7 +9,7 @@ The point of this procedure is to leave behind a stored, schema-validated, criti
 Before starting:
 
 - [ ] Working tree is clean (no uncommitted edits to canon, prompts, or pipeline).
-- [ ] `pnpm install && pnpm validate:canon && pnpm typecheck && pnpm test && pnpm smoke` all pass on the candidate commit.
+- [ ] `pnpm install && pnpm validate:canon && pnpm validate:witness && pnpm typecheck && pnpm test && pnpm smoke` all pass on the candidate commit.
 - [ ] `OPENROUTER_API_KEY` is set in the shell.
 - [ ] You know which providers are in scope. As of v1, the supported set is `anthropic`, `openai`, `gemini`. Anything else needs a separate decision.
 

@@ -80,7 +80,20 @@ These paths exist to prove, with one command, that the system still works as des
 
 **UI walk:** there is no UI for archive bundles in v1; this is operator tooling. See `docs/recovery-and-backups.md` § 3.
 
-## 7. How to run all of these
+## 7. Witness vertical slice
+
+**What it proves:** product-aware routing works, Witness turns are blocked until consent exists, accepted Witness turns persist only into Witness roots, and testimony is created/appended in lockstep with the session from the operator's point of view.
+
+**Steps:**
+1. Start from a fresh temp `data/` root and build the Witness product config.
+2. Confirm the consent gate blocks persistence before any decisions exist.
+3. Append `conversational=granted` and `retention=granted` decisions for a witness id.
+4. Run a Witness turn and confirm the persisted session has `productId: "witness"` and `witnessId`.
+5. Confirm the testimony record exists under the Witness testimony root with the expected segments and that the P-E-S session/memory roots remain unchanged.
+
+**UI walk:** open `inquiry.html`, switch product to `Witness`, enter a witness ID, grant conversational and retention consent, submit a turn, then inspect the witness card and session drawer.
+
+## 8. How to run all of these
 
 ```bash
 pnpm smoke
@@ -92,9 +105,9 @@ Exit codes:
 
 `pnpm smoke` requires no API keys; it uses the mock provider. To walk the same paths against a real provider, run them through the dashboard with `OPENROUTER_API_KEY` set.
 
-## 8. Why these and not others
+## 9. Why these and not others
 
-The six paths above were chosen because each one exercises a distinct invariant or subsystem boundary:
+The seven paths above were chosen because each one exercises a distinct invariant or subsystem boundary:
 
 | Path | Subsystem touched | Invariant exercised |
 |---|---|---|
@@ -104,5 +117,6 @@ The six paths above were chosen because each one exercises a distinct invariant 
 | Reflection authoring | Reflection workflow | 2 |
 | Reports & diff | Evals, dashboard | 4 |
 | Backup round-trip | Persistence | 1 (preservation) |
+| Witness vertical slice | Product registry, Witness persistence, inquiry surface | 1, 2, 3 |
 
 Adding new demo paths is welcome — but they should map to a real subsystem boundary, not a feature wishlist. Update this doc and `scripts/smoke-tests.ts` together.

@@ -28,15 +28,16 @@ Follow-up task #25 ("Capture the first cross-provider RC baseline trio and check
 1. Walk every section top-to-bottom.
 2. For each item, mark `[x]` only when there is a verifiable artifact (code, test, doc, or stored report) that proves the item.
 3. If an item cannot be marked, capture the gap in the same line and either fix it before declaring v1, or move it to `docs/post-v1-support-posture.md` with an explicit justification.
-4. Re-run `pnpm validate:canon`, `pnpm typecheck`, `pnpm test`, and `pnpm smoke` before signing the gate.
+4. Re-run `pnpm validate:canon`, `pnpm validate:witness`, `pnpm typecheck`, `pnpm test`, and `pnpm smoke` before signing the gate.
 
 ## A. Canon stability and versioning
 
 - [x] Canon manifest declares an explicit `version` and `last_updated`, and `pnpm validate:canon` passes against the working tree.
+- [x] Witness manifest declares an explicit `version` and `last_updated`, and `pnpm validate:witness` passes against the working tree.
 - [x] Canon changes flow through the editorial workflow (`packages/orchestration/src/canon-proposals/` + `editorial.html`); raw edits to canon outside the workflow are not part of normal operation.
 - [x] Every accepted canon proposal scaffolds a numbered changelog entry under `packages/canon/changelog/` capturing rationale, reviewer notes, and provenance.
 - [x] `recovered-artifacts/` is preserved as historically authoritative and behaviorally non-binding (invariant 2). The editorial workflow does not edit it.
-- [x] Canon load-time validation refuses to start the runtime when canon is malformed (invariant 1).
+- [x] Policy-root load-time validation refuses to start the runtime when either policy package is malformed (invariant 1).
 
 ## B. Inquiry sessions persist reliably across upgrades
 
@@ -44,6 +45,7 @@ Follow-up task #25 ("Capture the first cross-provider RC baseline trio and check
 - [x] Older unversioned shapes are upgraded on load by `packages/orchestration/src/persistence/migrations.ts`.
 - [x] Unknown / future shapes are refused with a `SchemaMigrationError` rather than silently degraded (`migrateSession` rejects future versions; covered by `persistence.test.ts`).
 - [x] Each turn references its context snapshot by `contextSnapshotId` and stores `runMetadata` (provider, model, canon version, prompt revision, pipeline revision, commit SHA, captured-at).
+- [x] Product-aware sessions preserve `productId`; Witness sessions also preserve `witnessId` and must persist only into Witness roots.
 - [x] `replayTurn` reproduces a persisted turn from its snapshot without provider calls; `checkReplayCompatibility` reports drift against the current environment.
 - [x] `exportSessionBundle` / `importSessionBundle` round-trip a session and its snapshots into a single archive bundle (verified end-to-end in `persistence.test.ts`).
 
@@ -55,6 +57,7 @@ Follow-up task #25 ("Capture the first cross-provider RC baseline trio and check
 - [x] Only `accepted` items are retrievable into turn context. Other states remain visible in the operator surface for audit.
 - [x] Operators can list, inspect, edit, transition, and hard-delete memory items via `apps/dashboard/`.
 - [x] `findConflicts` surfaces duplicates and polarity-based contradictions on create; never auto-resolved.
+- [x] Witness memory remains product-scoped and does not read from or write into the P-E-S memory root.
 
 ## D. Canon change workflow exists and is usable
 
@@ -72,6 +75,16 @@ Follow-up task #25 ("Capture the first cross-provider RC baseline trio and check
 - [x] Authored artifacts have `draft → approved → publishing_ready` state transitions enforced at the store layer.
 - [x] Promotion to canon goes through `promoteArtifactToProposal`, which writes a pending proposal and refuses drafts (verified in `reflection.test.ts`).
 - [x] Reflection authoring never silently mutates canon (invariant 2).
+- [x] Witness mode does not expose editorial or authoring mutation paths as part of normal operation.
+
+## E2. Witness vertical slice exists and is usable
+
+- [x] `packages/inquisitor-witness/` implements the Witness policy root using the same loader contract as P-E-S, without requiring recovered artifacts.
+- [x] `packages/witness-types/` defines first-slice Witness consent and testimony types.
+- [x] Witness persisted turns require the latest `conversational=granted` and `retention=granted` consent decisions.
+- [x] Blocked Witness turns return `409` and do not write session, testimony, or memory state.
+- [x] Accepted Witness turns create or append one testimony record per session and preserve rollback / compensation behavior on failed persistence.
+- [x] Operators can inspect Witness consent and testimony through the dashboard-backed APIs.
 
 ## F. Eval matrix is healthy enough to detect drift
 
@@ -85,21 +98,24 @@ Follow-up task #25 ("Capture the first cross-provider RC baseline trio and check
 ## G. Operator studio is coherent and navigable
 
 - [x] Eval reports + diffs (`/`), inquiry surface (`/inquiry.html`), authoring surface (`/authoring.html`), and editorial workflow (`/editorial.html`) are all served by `apps/dashboard/`.
+- [x] Inquiry surface supports both `pes` and `witness`, including Witness ID handling and consent/testimony inspection.
 - [x] Memory inspection + transitions are reachable from the dashboard.
 - [x] Reflection topics, runs, and authored artifacts are reachable from the authoring surface.
 - [x] Canon proposals and continuity-fact drafting are reachable from the editorial surface.
 - [x] No surface mutates canon without going through the proposal flow.
+- [x] Editorial and authoring controls are hidden or disabled in Witness mode.
 
 ## H. Documentation describes the actually-shipped system
 
-- [x] `README.md` current-scope list matches the system-map.
+- [x] `README.md` current-scope list matches the system-map, including the Witness-first product split.
 - [x] `docs/system-map.md`, `docs/release-criteria.md`, `docs/invariants.md` are all marked authoritative and referenced from the README.
 - [x] `g_52_project_overview_and_roadmap.md` defers to `docs/release-criteria.md` for release terminology.
+- [x] Product-aware runtime, Witness vertical slice, and validation commands are described consistently across the README, system map, handbook, demo paths, product brief, and roadmap.
 - [x] M8 deliverables are linked from the README: this checklist, `docs/operator-handbook.md`, `docs/recovery-and-backups.md`, `docs/demo-paths.md`, `docs/release-candidate-baseline.md`, `docs/post-v1-support-posture.md`.
 
 ## I. Normal operation no longer requires manual repo intervention
 
-- [x] `pnpm install && pnpm validate:canon && pnpm typecheck && pnpm test && pnpm smoke` succeeds on a clean clone (no API key required for `pnpm smoke`).
+- [x] `pnpm install && pnpm validate:canon && pnpm validate:witness && pnpm typecheck && pnpm test && pnpm smoke` succeeds on a clean clone (no API key required for `pnpm smoke`).
 - [x] `pnpm dashboard` starts the operator dashboard against a clean `data/` directory.
 - [x] Persisted data lives entirely under `data/` and `packages/evals/reports/`; nothing in those directories is checked into git as part of normal operation.
 - [x] `scripts/post-merge.sh` performs the post-merge bootstrap step automatically (no manual `pnpm install` typically required after pulling).
@@ -110,7 +126,7 @@ Follow-up task #25 ("Capture the first cross-provider RC baseline trio and check
 - [x] `docs/recovery-and-backups.md` documents the full backup surface (canon git history, `data/` directories, eval reports, gold baselines).
 - [x] `exportSessionBundle` / `importSessionBundle` round-trip is covered by `persistence.test.ts`.
 - [x] `migrateSession` and `migrateMemoryItem` upgrade legacy fixtures and are covered by `persistence.test.ts`.
-- [x] Smoke tests (`scripts/smoke-tests.ts`) exercise the demo paths — including export → import — with the mock provider.
+- [x] Smoke tests (`scripts/smoke-tests.ts`) exercise the demo paths — including export → import and the Witness vertical slice — with the mock provider.
 - [x] Recovery procedures are reproducible from the documentation alone; no operator-only knowledge is assumed.
 
 ## K. RC baseline evals across providers (per-RC operator layer)
@@ -129,6 +145,7 @@ The procedure (env, command, capture, promote, review) is documented in `docs/re
 Every release gate must affirm the four core invariants from `docs/invariants.md`:
 
 - [x] Invariant 1 — Canon is the source of truth: the runtime loads and validates canon on startup; no surface overrides canon at runtime.
+- [x] Invariant 1 also holds for the Witness policy root: the runtime loads and validates the active product policy root on startup; no surface overrides it at runtime.
 - [x] Invariant 2 — Output is not canon unless explicitly promoted: reflections, memory, and proposals all require an explicit operator action with provenance.
 - [x] Invariant 3 — Memory is selective: typed, justified, inspectable, deletable, ranked below canon / continuity / summary / recent turns.
 - [x] Invariant 4 — Provider portability is preserved: provider-specific logic is confined to `packages/orchestration/src/providers/`; eval cases are provider-agnostic.
