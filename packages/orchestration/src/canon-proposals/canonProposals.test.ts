@@ -41,8 +41,10 @@ async function makeCanonRoot(): Promise<string> {
     "constraints.md",
     "voice.md",
     "interaction-modes.md",
+    "interaction-modes-reference.md",
     "worldview.md",
     "anti-patterns.md",
+    "anti-patterns-reference.md",
     "continuity-facts.yaml",
     "glossary.yaml",
     "manifest.yaml",
@@ -119,6 +121,8 @@ test("computeLineDiff handles null/empty content (create proposals)", () => {
 
 test("isEditableCanonFile allowlists only known canon files", () => {
   assert.equal(isEditableCanonFile("constitution.md"), true);
+  assert.equal(isEditableCanonFile("interaction-modes-reference.md"), true);
+  assert.equal(isEditableCanonFile("anti-patterns-reference.md"), true);
   assert.equal(isEditableCanonFile("continuity-facts.yaml"), true);
   assert.equal(isEditableCanonFile("README.md"), false);
   assert.equal(isEditableCanonFile("recovered-artifacts/foo.md"), false);
@@ -278,5 +282,13 @@ test("CanonProposalSchema rejects path traversal targets", () => {
 test("canonFileLabel returns human-readable labels", () => {
   assert.equal(canonFileLabel("continuity-facts.yaml"), "Continuity Facts");
   assert.equal(canonFileLabel("constitution.md"), "Constitution");
+  assert.equal(
+    canonFileLabel("interaction-modes-reference.md"),
+    "Interaction Modes Reference"
+  );
+  assert.equal(
+    canonFileLabel("anti-patterns-reference.md"),
+    "Anti-Patterns Reference"
+  );
   assert.equal(canonFileLabel("unknown.md"), "unknown.md");
 });

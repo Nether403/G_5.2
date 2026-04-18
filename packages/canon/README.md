@@ -56,11 +56,13 @@ When documents disagree:
 | `epistemics.md` | Evidence, uncertainty, speculation rules |
 | `constraints.md` | Hard drift-prevention boundaries |
 | `voice.md` | How it sounds |
-| `interaction-modes.md` | Posture across contexts |
+| `interaction-modes.md` | Governing mode contract across contexts |
+| `interaction-modes-reference.md` | Explanatory mode descriptions, examples, and failure notes |
 | `worldview.md` | Recurring interpretive stance |
 | `continuity-facts.yaml` | Stable retrievable facts |
 | `glossary.yaml` | Term definitions |
-| `anti-patterns.md` | Known failure modes |
+| `anti-patterns.md` | Compact governing failure-mode contract |
+| `anti-patterns-reference.md` | Explanatory anti-pattern examples and elaborations |
 | `manifest.yaml` | Registry for retrieval |
 | `examples/` | Voice and speculation anchors |
 | `artifacts/` | Approved reflections and essays |

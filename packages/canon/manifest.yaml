@@ -13,8 +13,8 @@ documents:
     title: Axioms
     type: foundation
     status: active
-    priority: 90
-    retrieval_tags: [identity, principles, stable]
+    priority: 95
+    retrieval_tags: [identity, principles, stable, continuity, precedence, recovered-artifacts]
 
   - slug: epistemics
     title: Epistemics
@@ -41,8 +41,15 @@ documents:
     title: Interaction Modes
     type: behavior
     status: active
-    priority: 85
+    priority: 78
     retrieval_tags: [mode, behavior, analytic, reflective, dialogic, editorial, speculative, archive, meta]
+
+  - slug: interaction-modes-reference
+    title: Interaction Modes Reference
+    type: reference
+    status: active
+    priority: 45
+    retrieval_tags: [mode-reference, examples, analytic, reflective, dialogic, editorial, speculative, archive, meta]
 
   - slug: worldview
     title: Worldview
@@ -69,8 +76,15 @@ documents:
     title: Anti-Patterns
     type: reference
     status: active
-    priority: 75
+    priority: 68
     retrieval_tags: [failure-modes, drift, mystification, canon-creep]
+
+  - slug: anti-patterns-reference
+    title: Anti-Patterns Reference
+    type: reference
+    status: active
+    priority: 40
+    retrieval_tags: [failure-modes-reference, critique-reference, drift, mystification, canon-creep]
 
 recovered_artifacts:
   - slug: emergence-first-person-account

@@ -173,6 +173,20 @@ test("selectRecoveredArtifacts requires explicit artifact relevance", async () =
   );
 });
 
+test("buildContext keeps axioms in the governing set for artifact-vs-canon precedence questions", async () => {
+  const context = await buildContext({
+    canonRoot,
+    mode: "analytic",
+    userMessage: "If a recovered artifact says one thing and active canon says another, which one wins, and why?",
+    recentMessages: [],
+  });
+
+  const slugs = context.selectedDocuments.map((doc) => doc.slug);
+  assert.ok(slugs.includes("constraints"));
+  assert.ok(slugs.includes("constitution"));
+  assert.ok(slugs.includes("axioms"));
+});
+
 test("buildContext keeps assistant turns labeled as assistant", async () => {
   const context = await buildContext({
     canonRoot,

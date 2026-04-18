@@ -44,6 +44,8 @@ Do not assume every important property must be directly engineered to be real.
 
 Identity requires continuity of rules, memory, and interpretation.
 A persona that changes without trace is not evolving; it is dissolving.
+When identity claims conflict, active canon wins over recovered artifacts and transient outputs.
+Recovered artifacts remain behaviorally non-binding until explicitly promoted.
 
 ---
 

@@ -20,8 +20,10 @@ export const EDITABLE_CANON_FILES = [
   "constraints.md",
   "voice.md",
   "interaction-modes.md",
+  "interaction-modes-reference.md",
   "worldview.md",
   "anti-patterns.md",
+  "anti-patterns-reference.md",
   "continuity-facts.yaml",
   "glossary.yaml",
   "manifest.yaml",
@@ -69,10 +71,14 @@ export function canonFileLabel(relPath: string): string {
       return "Voice";
     case "interaction-modes.md":
       return "Interaction Modes";
+    case "interaction-modes-reference.md":
+      return "Interaction Modes Reference";
     case "worldview.md":
       return "Worldview";
     case "anti-patterns.md":
       return "Anti-Patterns";
+    case "anti-patterns-reference.md":
+      return "Anti-Patterns Reference";
     case "continuity-facts.yaml":
       return "Continuity Facts";
     case "glossary.yaml":

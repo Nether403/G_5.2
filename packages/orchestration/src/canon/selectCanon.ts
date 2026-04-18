@@ -25,6 +25,7 @@ export function selectCanonDocuments(
       if (doc.slug === "constraints") score += 25;
       if (doc.slug === "epistemics") score += 20;
       if (doc.slug === "constitution") score += 15;
+      if (doc.slug === "axioms") score += 10;
       if (mode === "editorial" && doc.slug === "constraints") score += 15;
       if (mode === "reflective" && doc.slug === "voice") score += 10;
       if (mode === "meta" && doc.slug === "interaction-modes") score += 10;
