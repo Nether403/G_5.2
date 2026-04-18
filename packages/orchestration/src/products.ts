@@ -18,6 +18,7 @@ export interface ProductConfig {
   synthesisRoot?: string;
   annotationRoot?: string;
   archiveCandidateRoot?: string;
+  publicationBundleRoot?: string;
   capabilities: ProductCapabilities;
 }
 
@@ -51,6 +52,12 @@ export function createProductRegistry(repoRoot: string): ProductRegistry {
         "data",
         "witness",
         "archive-candidates"
+      ),
+      publicationBundleRoot: path.join(
+        repoRoot,
+        "data",
+        "witness",
+        "publication-bundles"
       ),
       capabilities: {
         editorial: false,

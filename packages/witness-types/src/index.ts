@@ -37,3 +37,8 @@ export type {
   ArchiveCandidateStatus,
   ArchiveCandidateStore,
 } from "./archiveCandidate";
+export type {
+  PublicationBundleRecord,
+  PublicationBundleStatus,
+  PublicationBundleStore,
+} from "./publicationBundle";

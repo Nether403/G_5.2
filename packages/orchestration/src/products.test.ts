@@ -8,6 +8,7 @@ import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
 import { loadCanon } from "./canon/loadCanon";
 import { validateCanonBoundary } from "./canon/validateCanon";
 import { createProductRegistry, getProductConfig } from "./products";
+import type { PublicationBundleRecord } from "@g52/witness-types";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -63,9 +64,29 @@ test("createProductRegistry maps pes and witness to separate policy and data roo
     registry.witness.archiveCandidateRoot,
     path.join(repoRoot, "data", "witness", "archive-candidates")
   );
+  assert.equal(
+    registry.witness.publicationBundleRoot,
+    path.join(repoRoot, "data", "witness", "publication-bundles")
+  );
   assert.equal(registry.witness.capabilities.editorial, false);
   assert.equal(registry.witness.capabilities.authoring, false);
 });
+
+const publicationBundleShape: PublicationBundleRecord = {
+  id: "pb-001",
+  witnessId: "witness-001",
+  testimonyId: "testimony-001",
+  archiveCandidateId: "candidate-001",
+  sourceTestimonyUpdatedAt: "2026-04-17T00:00:00.000Z",
+  sourceSynthesisId: "synthesis-001",
+  sourceAnnotationId: "annotation-001",
+  createdAt: "2026-04-17T00:00:00.000Z",
+  updatedAt: "2026-04-17T00:00:00.000Z",
+  status: "created",
+  bundleJsonPath: "/tmp/bundle.json",
+};
+
+assert.equal(publicationBundleShape.status, "created");
 
 test("getProductConfig defaults to pes when product is omitted", () => {
   const registry = createProductRegistry(repoRoot);
