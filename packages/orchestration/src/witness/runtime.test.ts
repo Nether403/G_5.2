@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { mkdtemp, rm } from "node:fs/promises";
 
 import { MockProvider } from "../providers/mock";
@@ -18,6 +19,11 @@ import {
   createWitnessSynthesisDraft,
   getWitnessConsentGate,
 } from "./runtime";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const repoRoot = path.resolve(__dirname, "../../../..");
+const witnessPolicyRoot = path.join(repoRoot, "packages", "inquisitor-witness");
 
 test("getWitnessConsentGate prefers testimony-scoped decisions over witness-wide fallback", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "g52-witness-runtime-gate-"));
@@ -115,14 +121,14 @@ test("approving a new synthesis supersedes the prior approved synthesis and mark
     });
 
     const firstDraft = await createWitnessSynthesisDraft(provider, {
-      policyRoot: path.resolve("F:/ProcessoErgoSum/G_5.2/packages/inquisitor-witness"),
+      policyRoot: witnessPolicyRoot,
       testimonyId: testimony.id,
       testimonyStore,
       synthesisStore,
       consentStore,
     });
     const secondDraft = await createWitnessSynthesisDraft(provider, {
-      policyRoot: path.resolve("F:/ProcessoErgoSum/G_5.2/packages/inquisitor-witness"),
+      policyRoot: witnessPolicyRoot,
       testimonyId: testimony.id,
       testimonyStore,
       synthesisStore,
@@ -136,6 +142,7 @@ test("approving a new synthesis supersedes the prior approved synthesis and mark
       reviewNote: "approve first",
     });
     assert.equal(firstApproved.status, "approved");
+    assert.equal(firstApproved.source, "model");
 
     const secondApproved = await approveWitnessSynthesis({
       synthesisStore,
@@ -211,7 +218,7 @@ test("annotation drafts reject inquisitor segments and mismatched spans without 
     await assert.rejects(
       () =>
         createWitnessAnnotationDraft(provider, {
-          policyRoot: path.resolve("F:/ProcessoErgoSum/G_5.2/packages/inquisitor-witness"),
+          policyRoot: witnessPolicyRoot,
           testimonyId: testimony.id,
           testimonyStore,
           annotationStore,

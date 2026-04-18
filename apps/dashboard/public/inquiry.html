@@ -321,7 +321,7 @@ const state={
   latestProvider:null,sessionSearch:"",memorySearch:"",
   sortKey:"updatedAt",sortDir:"desc",archiveFilter:"active",tagFilter:null,
   providerList:[],defaultProvider:null,hasApiKey:false,
-  product:"pes",witnessId:"",witnessConsent:[],witnessTestimony:[],witnessSynthesis:[],witnessAnnotations:[],memoryStateFilter:"accepted",
+  product:"pes",witnessId:"",witnessConsent:[],witnessTestimony:[],witnessSynthesis:[],witnessAnnotations:[],selectedWitnessTestimonyId:null,memoryStateFilter:"accepted",
   isSending:false,lastError:null,pendingRetry:null,
   previewSnapshot:null,previewMode:null,previewSessionId:null
 };
@@ -336,7 +336,7 @@ function visibleWitnessTestimony(){
   return state.witnessTestimony.filter(item=>!state.currentSessionId||item.sessionId===state.currentSessionId);
 }
 function activeWitnessTestimony(){
-  return visibleWitnessTestimony().slice().sort((a,b)=>(b.updatedAt||"").localeCompare(a.updatedAt||""))[0]||null;
+  return visibleWitnessTestimony().find(item=>item.id===state.selectedWitnessTestimonyId)||null;
 }
 function latestWitnessDecision(scope){
   return [...state.witnessConsent]
@@ -660,6 +660,7 @@ function renderWitnessCard(){
   $("#witnessConsentMeta").textContent=`Witness ${witnessId} · ${scopeSummary}`;
   const testimony=visibleWitnessTestimony();
   if(!testimony.length){
+    state.selectedWitnessTestimonyId=null;
     $("#witnessTestimonyList").innerHTML='<div class="meta">No testimony records yet for this witness.</div>';
     $("#witnessSynthesisMeta").textContent="No active testimony available for synthesis.";
     $("#witnessSynthesisList").innerHTML='<div class="meta">Create or open a testimony first.</div>';
@@ -667,17 +668,29 @@ function renderWitnessCard(){
     $("#witnessAnnotationList").innerHTML='<div class="meta">Create or open a testimony first.</div>';
     return;
   }
+  if(state.selectedWitnessTestimonyId&&!testimony.some(item=>item.id===state.selectedWitnessTestimonyId)){
+    state.selectedWitnessTestimonyId=null;
+  }
   $("#witnessTestimonyList").innerHTML=testimony.map(item=>`
     <div class="context">
-      <div class="label">${esc(item.id.slice(0,8))} · ${item.state}</div>
+      <div class="label">${esc(item.id.slice(0,8))} · ${item.state}${state.selectedWitnessTestimonyId===item.id?" · selected":""}</div>
       <div class="value">${esc(item.title||`Session ${item.sessionId.slice(0,8)}`)}</div>
       <div class="meta">${item.segments.length} segment${item.segments.length===1?"":"s"} · updated ${fmt(item.updatedAt)}</div>
       <div class="rerun-row" style="margin-top:8px">
-        <button class="btn quiet" data-open-witness-session="${esc(item.sessionId)}">Open Session</button>
+        <button class="btn quiet" data-select-witness-testimony="${esc(item.id)}">${state.selectedWitnessTestimonyId===item.id?"Selected":"Select"}</button>
+        <button class="btn quiet" data-open-witness-session="${esc(item.sessionId)}" data-open-testimony-id="${esc(item.id)}">Open Session</button>
       </div>
     </div>`).join("");
+  $$("[data-select-witness-testimony]").forEach(node=>node.addEventListener("click",()=>{
+    const id=node.getAttribute("data-select-witness-testimony");
+    if(!id)return;
+    state.selectedWitnessTestimonyId=id;
+    renderWitnessCard();
+  }));
   $$("[data-open-witness-session]").forEach(node=>node.addEventListener("click",async()=>{
     const id=node.getAttribute("data-open-witness-session");
+    const testimonyId=node.getAttribute("data-open-testimony-id");
+    if(testimonyId)state.selectedWitnessTestimonyId=testimonyId;
     if(id)await loadSession(id);
   }));
 
@@ -687,10 +700,10 @@ function renderWitnessCard(){
 
   $("#witnessSynthesisMeta").textContent=active
     ? `Synthesis drafts for testimony ${active.id.slice(0,8)}`
-    : "No active testimony available for synthesis.";
+    : "Select a testimony to inspect or draft synthesis.";
   $("#witnessSynthesisList").innerHTML=active?`
     <div class="context">
-      <div class="label">Active testimony</div>
+      <div class="label">Selected testimony</div>
       <div class="value">${esc(active.title||`Session ${active.sessionId.slice(0,8)}`)}</div>
       <div class="rerun-row" style="margin-top:8px">
         <button class="btn quiet" data-witness-synthesis-draft="${esc(active.id)}">Draft synthesis</button>
@@ -706,14 +719,14 @@ function renderWitnessCard(){
           <button class="btn quiet" data-witness-synthesis-reject="${esc(item.id)}">Reject</button>
         </div>`:""}
       </div>`).join(""):'<div class="meta">No synthesis records yet for this testimony.</div>'}
-  `:'<div class="meta">Create or open a testimony first.</div>';
+  `:'<div class="meta">Select a testimony before drafting or reviewing synthesis.</div>';
 
   $("#witnessAnnotationMeta").textContent=active
     ? `Annotation drafts for testimony ${active.id.slice(0,8)}`
-    : "No active testimony available for annotations.";
+    : "Select a testimony to inspect or draft annotations.";
   $("#witnessAnnotationList").innerHTML=active?`
     <div class="context">
-      <div class="label">Active testimony</div>
+      <div class="label">Selected testimony</div>
       <div class="value">${esc(active.title||`Session ${active.sessionId.slice(0,8)}`)}</div>
       <div class="rerun-row" style="margin-top:8px">
         <button class="btn quiet" data-witness-annotation-draft="${esc(active.id)}">Draft annotations</button>
@@ -729,7 +742,7 @@ function renderWitnessCard(){
           <button class="btn quiet" data-witness-annotation-reject="${esc(item.id)}">Reject</button>
         </div>`:""}
       </div>`).join(""):'<div class="meta">No annotation records yet for this testimony.</div>'}
-  `:'<div class="meta">Create or open a testimony first.</div>';
+  `:'<div class="meta">Select a testimony before drafting or reviewing annotations.</div>';
 
   $$("[data-witness-synthesis-draft]").forEach(node=>node.addEventListener("click",async()=>{
     const testimonyId=node.getAttribute("data-witness-synthesis-draft");
@@ -759,11 +772,11 @@ function renderWitnessCard(){
 
 async function loadWitnessData(){
   if(!isWitness()){
-    state.witnessConsent=[];state.witnessTestimony=[];state.witnessSynthesis=[];state.witnessAnnotations=[];renderWitnessCard();return;
+    state.witnessConsent=[];state.witnessTestimony=[];state.witnessSynthesis=[];state.witnessAnnotations=[];state.selectedWitnessTestimonyId=null;renderWitnessCard();return;
   }
   const witnessId=activeWitnessId();
   if(!witnessId){
-    state.witnessConsent=[];state.witnessTestimony=[];state.witnessSynthesis=[];state.witnessAnnotations=[];renderWitnessCard();return;
+    state.witnessConsent=[];state.witnessTestimony=[];state.witnessSynthesis=[];state.witnessAnnotations=[];state.selectedWitnessTestimonyId=null;renderWitnessCard();return;
   }
   try{
     const [consentRes,testimonyRes]=await Promise.all([
@@ -784,8 +797,11 @@ async function loadWitnessData(){
     ));
     state.witnessSynthesis=synthesisResponses.flat();
     state.witnessAnnotations=annotationResponses.flat();
+    if(state.selectedWitnessTestimonyId&&!state.witnessTestimony.some(item=>item.id===state.selectedWitnessTestimonyId)){
+      state.selectedWitnessTestimonyId=null;
+    }
   }catch{
-    state.witnessConsent=[];state.witnessTestimony=[];state.witnessSynthesis=[];state.witnessAnnotations=[];
+    state.witnessConsent=[];state.witnessTestimony=[];state.witnessSynthesis=[];state.witnessAnnotations=[];state.selectedWitnessTestimonyId=null;
   }
   renderWitnessCard();
 }
@@ -1107,6 +1123,7 @@ async function loadSession(id){
   state.currentSession=data;state.currentSessionId=data.id;state.selectedTurnId=data.turns?.at(-1)?.id??null;
   if(data.productId==="witness")state.product="witness";
   if(data.witnessId){state.witnessId=data.witnessId}
+  if(data.productId!=="witness")state.selectedWitnessTestimonyId=null;
   syncProductUi();
   renderSessionList();await Promise.all([loadMemory(),loadWitnessData()]);renderWorkspace();syncUrlState();
 }
@@ -1136,6 +1153,7 @@ async function sendTurn(retry){
     }
     state.currentSession=data.session;state.currentSessionId=data.session.id;
     if(data.session?.witnessId)state.witnessId=data.session.witnessId;
+    if(data.testimonyId)state.selectedWitnessTestimonyId=data.testimonyId;
     state.selectedTurnId=data.persistedTurn?.id??null;state.latestProvider=data.provider;
     if(!retry)$("#messageInput").value="";
     clearPreview();
@@ -1208,6 +1226,7 @@ $("#providerSelect").addEventListener("change",()=>{if(state.previewSnapshot)cle
 $("#productSelect").addEventListener("change",async e=>{
   state.product=e.target.value;
   if(!isWitness())state.witnessId="";
+  state.selectedWitnessTestimonyId=null;
   state.currentSession=null;state.currentSessionId=null;state.selectedTurnId=null;
   setError("");clearPreview();syncProductUi();
   await Promise.all([loadSessions(),loadMemory(),loadWitnessData()]);
@@ -1219,6 +1238,7 @@ $("#witnessIdInput").addEventListener("input",async e=>{
     state.currentSession=null;state.currentSessionId=null;state.selectedTurnId=null;
   }
   state.witnessId=next;
+  state.selectedWitnessTestimonyId=null;
   if(state.previewSnapshot)clearPreview();
   await loadWitnessData();
   renderWorkspace();syncUrlState();

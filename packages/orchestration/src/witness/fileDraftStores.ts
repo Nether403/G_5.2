@@ -99,6 +99,7 @@ export class FileWitnessSynthesisStore
       createdAt: input.createdAt,
       updatedAt: input.createdAt,
       status: "draft",
+      source: "model",
       text: input.text,
     });
   }
@@ -123,6 +124,7 @@ export class FileWitnessAnnotationStore
       createdAt: input.createdAt,
       updatedAt: input.createdAt,
       status: "draft",
+      source: "model",
       entries: input.entries,
     });
   }

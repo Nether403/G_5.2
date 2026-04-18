@@ -4,6 +4,8 @@ export type AnnotationStatus =
   | "rejected"
   | "superseded";
 
+export type WitnessRecordSource = "model" | "operator";
+
 export interface AnnotationEntry {
   id: string;
   labelId: string;
@@ -22,6 +24,7 @@ export interface AnnotationRecord {
   createdAt: string;
   updatedAt: string;
   status: AnnotationStatus;
+  source: WitnessRecordSource;
   reviewNote?: string;
   entries: AnnotationEntry[];
 }

@@ -4,6 +4,8 @@ export type SynthesisStatus =
   | "rejected"
   | "superseded";
 
+export type WitnessRecordSource = "model" | "operator";
+
 export interface SynthesisRecord {
   id: string;
   witnessId: string;
@@ -11,6 +13,7 @@ export interface SynthesisRecord {
   createdAt: string;
   updatedAt: string;
   status: SynthesisStatus;
+  source: WitnessRecordSource;
   text: string;
   reviewNote?: string;
 }

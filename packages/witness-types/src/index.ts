@@ -22,11 +22,13 @@ export type {
 export type {
   SynthesisRecord,
   SynthesisStatus,
+  WitnessRecordSource as SynthesisRecordSource,
   SynthesisStore,
 } from "./synthesis";
 export type {
   AnnotationEntry,
   AnnotationRecord,
   AnnotationStatus,
+  WitnessRecordSource as AnnotationRecordSource,
   AnnotationStore,
 } from "./annotation";
