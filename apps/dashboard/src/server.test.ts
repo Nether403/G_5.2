@@ -563,6 +563,7 @@ test("sealed testimony blocks further witness-turn appends and archive candidate
     });
     assert.equal(candidate.response.status, 201);
     assert.equal(candidate.json?.status, "draft");
+    assert.equal(candidate.json?.testimonyUpdatedAt, seal.json?.updatedAt);
   } finally {
     await cleanupWitnessArtifacts(witnessId, sessionId, turnId);
   }

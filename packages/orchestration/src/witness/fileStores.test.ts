@@ -129,9 +129,11 @@ test("FileWitnessArchiveCandidateStore round-trips current and non-current statu
       testimonyId: "testimony-archive",
       approvedSynthesisId: "synth-1",
       approvedAnnotationId: "annot-1",
+      testimonyUpdatedAt: "2026-04-18T20:01:30.000Z",
       createdAt: "2026-04-18T20:02:00.000Z",
     });
     assert.equal(created.status, "draft");
+    assert.equal(created.testimonyUpdatedAt, "2026-04-18T20:01:30.000Z");
 
     const updated = await store.save({
       ...created,

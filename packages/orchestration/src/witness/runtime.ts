@@ -669,11 +669,13 @@ export async function approveWitnessSynthesis(
     ...(input.reviewNote?.trim() ? { reviewNote: input.reviewNote.trim() } : {}),
   });
 
-  await input.testimonyStore.save({
-    ...testimony,
-    state: testimony.state === "sealed" ? "sealed" : "synthesized",
-    updatedAt: now,
-  });
+  if (testimony.state !== "sealed") {
+    await input.testimonyStore.save({
+      ...testimony,
+      state: "synthesized",
+      updatedAt: now,
+    });
+  }
 
   return approved;
 }
@@ -939,6 +941,7 @@ export async function createWitnessArchiveCandidate(
   return input.archiveCandidateStore.create({
     witnessId: testimony.witnessId,
     testimonyId: testimony.id,
+    testimonyUpdatedAt: testimony.updatedAt,
     approvedSynthesisId: approvedSynthesis.id,
     approvedAnnotationId: approvedAnnotation.id,
     createdAt: now,

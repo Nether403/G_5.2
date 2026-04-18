@@ -10,6 +10,7 @@ import type {
 export interface CreateArchiveCandidateInput {
   witnessId: string;
   testimonyId: string;
+  testimonyUpdatedAt: string;
   approvedSynthesisId: string;
   approvedAnnotationId: string;
   createdAt: string;
@@ -86,6 +87,7 @@ export class FileWitnessArchiveCandidateStore implements ArchiveCandidateStore {
       id: randomUUID(),
       witnessId: input.witnessId,
       testimonyId: input.testimonyId,
+      testimonyUpdatedAt: input.testimonyUpdatedAt,
       approvedSynthesisId: input.approvedSynthesisId,
       approvedAnnotationId: input.approvedAnnotationId,
       createdAt: input.createdAt,

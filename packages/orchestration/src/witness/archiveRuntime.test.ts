@@ -88,7 +88,7 @@ test("createWitnessArchiveCandidate fails until testimony is sealed and approved
       text: "Approved synthesis",
     });
 
-    await sealWitnessTestimony({
+    const sealed = await sealWitnessTestimony({
       testimonyStore,
       testimonyId: testimony.id,
       note: "sealed for archive review",
@@ -140,6 +140,7 @@ test("createWitnessArchiveCandidate fails until testimony is sealed and approved
     assert.equal(candidate.status, "draft");
     assert.equal(candidate.approvedSynthesisId, synthesis.id);
     assert.equal(candidate.approvedAnnotationId, annotation.id);
+    assert.equal(candidate.testimonyUpdatedAt, sealed.updatedAt);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

@@ -10,6 +10,7 @@ export interface ArchiveCandidateRecord {
   id: string;
   witnessId: string;
   testimonyId: string;
+  testimonyUpdatedAt: string;
   approvedSynthesisId: string;
   approvedAnnotationId: string;
   createdAt: string;
