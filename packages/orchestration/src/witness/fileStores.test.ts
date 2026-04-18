@@ -12,6 +12,7 @@ import {
   FileWitnessTestimonyStore,
   appendTurnToTestimony,
 } from "./fileTestimonyStore";
+import { FileWitnessPublicationBundleStore } from "./fileDraftStores";
 import { FileWitnessArchiveCandidateStore } from "./fileArchiveCandidateStore";
 
 test("FileWitnessConsentStore appends decisions and filters by witness", async () => {
@@ -145,6 +146,35 @@ test("FileWitnessArchiveCandidateStore round-trips current and non-current statu
 
     const loaded = await store.load(created.id);
     assert.equal(loaded?.publicationNote, "ready");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("FileWitnessPublicationBundleStore round-trips bundle records", async () => {
+  const root = await mkdtemp(
+    path.join(os.tmpdir(), "g52-witness-publication-bundle-")
+  );
+
+  try {
+    const store = new FileWitnessPublicationBundleStore(root);
+    const created = await store.create({
+      witnessId: "wit-pub",
+      testimonyId: "testimony-pub",
+      archiveCandidateId: "candidate-pub",
+      sourceTestimonyUpdatedAt: "2026-04-19T09:10:00.000Z",
+      sourceSynthesisId: "synth-pub",
+      sourceAnnotationId: "annotation-pub",
+      createdAt: "2026-04-19T09:11:00.000Z",
+      bundleJsonPath: "data/witness/publication-bundles/bundle-pub.json",
+      bundleMarkdownPath: "data/witness/publication-bundles/bundle-pub.md",
+    });
+
+    assert.equal(created.status, "created");
+
+    const loaded = await store.load(created.id);
+    assert.equal(loaded?.archiveCandidateId, "candidate-pub");
+    assert.equal(loaded?.sourceTestimonyUpdatedAt, "2026-04-19T09:10:00.000Z");
   } finally {
     await rm(root, { recursive: true, force: true });
   }

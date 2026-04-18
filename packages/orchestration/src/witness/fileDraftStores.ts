@@ -131,3 +131,4 @@ export class FileWitnessAnnotationStore
 }
 
 export { FileWitnessArchiveCandidateStore } from "./fileArchiveCandidateStore";
+export { FileWitnessPublicationBundleStore } from "./filePublicationBundleStore";
