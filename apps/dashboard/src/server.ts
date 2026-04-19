@@ -191,6 +191,9 @@ const HOST = process.env.DASHBOARD_HOST ?? "0.0.0.0";
 export interface DashboardServerOptions {
   witnessConfig?: ProductConfig;
   publicationObjectDeliveryBackendOverride?: ObjectDeliveryBackend;
+  readJsonBodyOverride?: (
+    req: http.IncomingMessage
+  ) => Promise<unknown>;
 }
 
 function loadLocalEnv() {
@@ -2228,46 +2231,40 @@ export async function handleRequest(
     url.pathname === "/api/witness/publication-deliveries" &&
     req.method === "POST"
   ) {
-    let body: { packageId?: unknown; backend?: unknown };
+    const readPublicationDeliveryBody =
+      options.readJsonBodyOverride ?? readJsonBody;
+
     try {
-      body = (await readJsonBody(req)) as {
+      const body = (await readPublicationDeliveryBody(req)) as {
         packageId?: unknown;
         backend?: unknown;
       };
-    } catch (error) {
-      if (isMalformedJsonBodyError(error)) {
+
+      if (body.packageId !== undefined && typeof body.packageId !== "string") {
         sendJson(res, 400, { error: "Malformed request body" });
         return;
       }
-      throw error;
-    }
+      if (body.backend !== undefined && typeof body.backend !== "string") {
+        sendJson(res, 400, { error: "Malformed request body" });
+        return;
+      }
 
-    if (body.packageId !== undefined && typeof body.packageId !== "string") {
-      sendJson(res, 400, { error: "Malformed request body" });
-      return;
-    }
-    if (body.backend !== undefined && typeof body.backend !== "string") {
-      sendJson(res, 400, { error: "Malformed request body" });
-      return;
-    }
+      const packageId = body.packageId?.trim() ?? "";
+      const backendName = body.backend?.trim() || "azure-blob";
 
-    const packageId = body.packageId?.trim() ?? "";
-    const backendName = body.backend?.trim() || "azure-blob";
+      if (!packageId) {
+        sendJson(res, 400, { error: "packageId is required" });
+        return;
+      }
+      if (!isValidUuid(packageId)) {
+        sendJson(res, 400, { error: "Malformed publication package id" });
+        return;
+      }
+      if (backendName !== "azure-blob") {
+        sendJson(res, 400, { error: "Unknown publication delivery backend" });
+        return;
+      }
 
-    if (!packageId) {
-      sendJson(res, 400, { error: "packageId is required" });
-      return;
-    }
-    if (!isValidUuid(packageId)) {
-      sendJson(res, 400, { error: "Malformed publication package id" });
-      return;
-    }
-    if (backendName !== "azure-blob") {
-      sendJson(res, 400, { error: "Unknown publication delivery backend" });
-      return;
-    }
-
-    try {
       const created = await deliverWitnessPublicationPackage({
         publicationBundleRoot: witnessConfig.publicationBundleRoot!,
         packageId,
@@ -2283,6 +2280,10 @@ export async function handleRequest(
         created
       );
     } catch (err) {
+      if (isMalformedJsonBodyError(err)) {
+        sendJson(res, 400, { error: "Malformed request body" });
+        return;
+      }
       const message = err instanceof Error ? err.message : String(err);
       const status = /Unknown publication package/.test(message) ? 404 : 500;
       sendJson(res, status, { error: message });

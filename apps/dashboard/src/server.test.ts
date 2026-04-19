@@ -396,6 +396,37 @@ async function seedPublicationPackageFixture(root: string) {
   };
 }
 
+async function seedBrokenPublicationPackageFixture(
+  root: string,
+  packagePath: string
+) {
+  const publicationBundleRoot = path.join(root, "publication-bundles");
+  await mkdir(path.join(publicationBundleRoot, "packages"), { recursive: true });
+  const packageStore = new FileWitnessPublicationPackageStore(
+    publicationBundleRoot
+  );
+  const packageRecord = await packageStore.create({
+    id: randomUUID(),
+    bundleId: randomUUID(),
+    witnessId: `wit-${randomUUID()}`,
+    testimonyId: `testimony-${randomUUID()}`,
+    archiveCandidateId: randomUUID(),
+    createdAt: "2026-04-19T22:10:00.000Z",
+    packagePath,
+    packageFilename: path.basename(packagePath),
+    packageSha256: "1".repeat(64),
+    packageByteSize: 13,
+    sourceBundleJsonPath: "bundle.json",
+    sourceBundleMarkdownPath: "bundle.md",
+    sourceBundleManifestPath: "manifest.json",
+  });
+
+  return {
+    publicationBundleRoot,
+    packageRecord,
+  };
+}
+
 test.before(async () => {
   server = createDashboardServer();
   await new Promise<void>((resolve) => {
@@ -1868,6 +1899,143 @@ test("publication delivery create returns 500 for backend config failures while 
         });
         assert.equal(persisted.length, 1);
         assert.equal(persisted[0]?.status, "failed");
+      }
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("publication delivery create returns 500 for broken local package state", async () => {
+  const root = await mkdtemp(
+    path.join(os.tmpdir(), "g52-dashboard-publication-deliveries-broken-local-")
+  );
+  const outsideRoot = await mkdtemp(
+    path.join(os.tmpdir(), "g52-dashboard-publication-deliveries-outside-")
+  );
+
+  try {
+    const outsidePackagePath = path.join(
+      outsideRoot,
+      `${randomUUID()}--2026-04-19T22-10-00-000Z.zip`
+    );
+    await writeFile(outsidePackagePath, Buffer.from("package-bytes"));
+    const fixture = await seedBrokenPublicationPackageFixture(
+      root,
+      outsidePackagePath
+    );
+
+    await withDashboardServer(
+      {
+        witnessConfig: {
+          ...registry.witness,
+          publicationBundleRoot: fixture.publicationBundleRoot,
+        },
+        publicationObjectDeliveryBackendOverride: {
+          name: "azure-blob",
+          async putObject() {
+            throw new Error("backend should not be called");
+          },
+        },
+      },
+      async (targetBaseUrl) => {
+        const createRes = await requestServerJson(
+          targetBaseUrl,
+          "/api/witness/publication-deliveries",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              packageId: fixture.packageRecord.id,
+              backend: "azure-blob",
+            }),
+          }
+        );
+        assert.equal(createRes.response.status, 500);
+        assert.match(
+          createRes.json?.error ?? "",
+          /Publication package path must resolve within/i
+        );
+      }
+    );
+  } finally {
+    await Promise.all([
+      rm(root, { recursive: true, force: true }),
+      rm(outsideRoot, { recursive: true, force: true }),
+    ]);
+  }
+});
+
+test("publication delivery create returns 400 for malformed JSON bodies", async () => {
+  const root = await mkdtemp(
+    path.join(os.tmpdir(), "g52-dashboard-publication-deliveries-bad-json-")
+  );
+
+  try {
+    const fixture = await seedPublicationPackageFixture(root);
+
+    await withDashboardServer(
+      {
+        witnessConfig: {
+          ...registry.witness,
+          publicationBundleRoot: fixture.publicationBundleRoot,
+        },
+      },
+      async (targetBaseUrl) => {
+        const response = await fetch(
+          `${targetBaseUrl}/api/witness/publication-deliveries`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: '{"packageId":',
+          }
+        );
+        const json = await response.json();
+        assert.equal(response.status, 400);
+        assert.equal(json?.error, "Malformed request body");
+      }
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("publication delivery create keeps non-SyntaxError body-read failures within controlled HTTP handling", async () => {
+  const root = await mkdtemp(
+    path.join(os.tmpdir(), "g52-dashboard-publication-deliveries-body-read-")
+  );
+
+  try {
+    const fixture = await seedPublicationPackageFixture(root);
+
+    await withDashboardServer(
+      {
+        witnessConfig: {
+          ...registry.witness,
+          publicationBundleRoot: fixture.publicationBundleRoot,
+        },
+        readJsonBodyOverride: async () => {
+          throw new Error("simulated body read failure");
+        },
+      } as Parameters<typeof createDashboardServer>[0],
+      async (targetBaseUrl) => {
+        const createRes = await requestServerJson(
+          targetBaseUrl,
+          "/api/witness/publication-deliveries",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              packageId: fixture.packageRecord.id,
+              backend: "azure-blob",
+            }),
+          }
+        );
+        assert.equal(createRes.response.status, 500);
+        assert.match(
+          createRes.json?.error ?? "",
+          /simulated body read failure/i
+        );
       }
     );
   } finally {
