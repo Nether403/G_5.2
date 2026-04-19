@@ -49,7 +49,7 @@ async function createDeliveryRecord(
     error?: string;
   }
 ): Promise<PublicationDeliveryRecord> {
-  return deliveryStore.create(input);
+  return await deliveryStore.create(input);
 }
 
 export async function deliverWitnessPublicationPackage(
@@ -64,9 +64,15 @@ export async function deliverWitnessPublicationPackage(
 
   const createdAt = new Date().toISOString();
   const remoteKey = buildRemoteKey(packageRecord);
+  let uploaded:
+    | {
+        remoteKey: string;
+        remoteUrl?: string;
+      }
+    | undefined;
 
   try {
-    const uploaded = await input.backend.putObject({
+    uploaded = await input.backend.putObject({
       key: remoteKey,
       filePath: packagePath,
       contentType: "application/zip",
@@ -75,20 +81,8 @@ export async function deliverWitnessPublicationPackage(
         bundleId: packageRecord.bundleId,
       },
     });
-
-    return createDeliveryRecord(input.deliveryStore, {
-      packageId: packageRecord.id,
-      bundleId: packageRecord.bundleId,
-      witnessId: packageRecord.witnessId,
-      testimonyId: packageRecord.testimonyId,
-      backend: input.backend.name,
-      status: "succeeded",
-      createdAt,
-      remoteKey: uploaded.remoteKey,
-      remoteUrl: uploaded.remoteUrl,
-    });
   } catch (error) {
-    return createDeliveryRecord(input.deliveryStore, {
+    return await createDeliveryRecord(input.deliveryStore, {
       packageId: packageRecord.id,
       bundleId: packageRecord.bundleId,
       witnessId: packageRecord.witnessId,
@@ -100,4 +94,16 @@ export async function deliverWitnessPublicationPackage(
       error: error instanceof Error ? error.message : String(error),
     });
   }
+
+  return await createDeliveryRecord(input.deliveryStore, {
+    packageId: packageRecord.id,
+    bundleId: packageRecord.bundleId,
+    witnessId: packageRecord.witnessId,
+    testimonyId: packageRecord.testimonyId,
+    backend: input.backend.name,
+    status: "succeeded",
+    createdAt,
+    remoteKey: uploaded.remoteKey,
+    remoteUrl: uploaded.remoteUrl,
+  });
 }

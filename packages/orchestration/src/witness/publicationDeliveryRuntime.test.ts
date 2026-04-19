@@ -50,6 +50,12 @@ class ThrowingObjectDeliveryBackend {
   }
 }
 
+class ThrowingCreatePublicationDeliveryStore extends FileWitnessPublicationDeliveryStore {
+  override async create(): Promise<never> {
+    throw new Error("simulated delivery store persistence failure");
+  }
+}
+
 async function seedPublicationPackageFixture(
   root: string,
   input: {
@@ -145,6 +151,10 @@ test("PublicationDelivery deliverWitnessPublicationPackage uploads the existing 
         bundleId: fixture.packageRecord.bundleId,
       },
     });
+    assert.deepEqual(
+      await fixture.packageStore.load(fixture.packageRecord.id),
+      fixture.packageRecord
+    );
 
     const uploadedBytes = await readFile(
       path.join(remoteRoot, result.remoteKey.replaceAll("/", path.sep))
@@ -158,6 +168,38 @@ test("PublicationDelivery deliverWitnessPublicationPackage uploads the existing 
     });
     assert.equal(persisted.length, 1);
     assert.deepEqual(persisted[0], result);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("PublicationDelivery deliverWitnessPublicationPackage rejects unknown packages without persisting a delivery record", async () => {
+  const root = await mkdtemp(
+    path.join(os.tmpdir(), "g52-witness-publication-delivery-unknown-package-")
+  );
+
+  try {
+    const publicationBundleRoot = path.join(root, "publication-bundles");
+    const packageStore = new FileWitnessPublicationPackageStore(
+      publicationBundleRoot
+    );
+    const deliveryStore = new FileWitnessPublicationDeliveryStore(
+      publicationBundleRoot
+    );
+
+    await assert.rejects(
+      () =>
+        deliverWitnessPublicationPackage({
+          publicationBundleRoot,
+          packageId: "missing-package",
+          packageStore,
+          deliveryStore,
+          backend: new ThrowingObjectDeliveryBackend(),
+        }),
+      /Unknown publication package: missing-package/i
+    );
+
+    assert.deepEqual(await deliveryStore.list(), []);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -244,5 +286,47 @@ test("PublicationDelivery deliverWitnessPublicationPackage rejects package paths
       rm(root, { recursive: true, force: true }),
       rm(outsideRoot, { recursive: true, force: true }),
     ]);
+  }
+});
+
+test("PublicationDelivery deliverWitnessPublicationPackage surfaces success-path delivery record persistence failures as local errors", async () => {
+  const root = await mkdtemp(
+    path.join(os.tmpdir(), "g52-witness-publication-delivery-persist-failure-")
+  );
+
+  try {
+    const remoteRoot = path.join(root, "remote");
+    const fixture = await seedPublicationPackageFixture(root, {
+      packageId: "bundle-3",
+      packageFilename: "bundle-3--2026-04-19T22-15-00-000Z.zip",
+      createdAt: "2026-04-19T22:15:00.000Z",
+    });
+    const failingDeliveryStore = new ThrowingCreatePublicationDeliveryStore(
+      fixture.publicationBundleRoot
+    );
+
+    await assert.rejects(
+      () =>
+        deliverWitnessPublicationPackage({
+          publicationBundleRoot: fixture.publicationBundleRoot,
+          packageId: fixture.packageRecord.id,
+          packageStore: fixture.packageStore,
+          deliveryStore: failingDeliveryStore,
+          backend: new FakeObjectDeliveryBackend(remoteRoot),
+        }),
+      /simulated delivery store persistence failure/i
+    );
+
+    assert.deepEqual(
+      await readFile(fixture.packageRecord.packagePath),
+      fixture.packageBytes
+    );
+    assert.deepEqual(
+      await fixture.packageStore.load(fixture.packageRecord.id),
+      fixture.packageRecord
+    );
+    assert.deepEqual(await fixture.deliveryStore.list(), []);
+  } finally {
+    await rm(root, { recursive: true, force: true });
   }
 });
