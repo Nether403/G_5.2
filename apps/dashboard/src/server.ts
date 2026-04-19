@@ -96,11 +96,17 @@ import {
   FileWitnessPublicationBundleStore,
   FileWitnessSynthesisStore,
 } from "../../../packages/orchestration/src/witness/fileDraftStores";
+import { FileWitnessPublicationDeliveryStore } from "../../../packages/orchestration/src/witness/filePublicationDeliveryStore";
 import { FileWitnessPublicationPackageStore } from "../../../packages/orchestration/src/witness/filePublicationPackageStore";
 import { FileWitnessTestimonyStore } from "../../../packages/orchestration/src/witness/fileTestimonyStore";
 import {
   createWitnessPublicationPackage,
 } from "../../../packages/orchestration/src/witness/publicationPackageRuntime";
+import { deliverWitnessPublicationPackage } from "../../../packages/orchestration/src/witness/publicationDeliveryRuntime";
+import {
+  getPublicationObjectDeliveryBackend,
+  type ObjectDeliveryBackend,
+} from "../../../packages/orchestration/src/witness/objectDelivery";
 import {
   publicationPackagesRoot,
   resolvePublicationPathWithinRoot,
@@ -181,6 +187,11 @@ const ARTIFACT_DIR = path.join(REPO_ROOT, "data", "authored-artifacts");
 const STATIC_DIR = path.resolve(__dirname, "../public");
 const PORT = parseInt(process.env.DASHBOARD_PORT ?? "5000", 10);
 const HOST = process.env.DASHBOARD_HOST ?? "0.0.0.0";
+
+export interface DashboardServerOptions {
+  witnessConfig?: ProductConfig;
+  publicationObjectDeliveryBackendOverride?: ObjectDeliveryBackend;
+}
 
 function loadLocalEnv() {
   const envPath = path.join(REPO_ROOT, ".env");
@@ -340,6 +351,18 @@ function publicationPackageStoreFor(
   return new FileWitnessPublicationPackageStore(product.publicationBundleRoot);
 }
 
+function publicationDeliveryStoreFor(
+  product: ProductConfig
+): FileWitnessPublicationDeliveryStore {
+  if (!product.publicationBundleRoot) {
+    throw new Error(
+      `Product ${product.id} does not define a publication bundle root.`
+    );
+  }
+
+  return new FileWitnessPublicationDeliveryStore(product.publicationBundleRoot);
+}
+
 function isResolvedPathWithinRoot(rootPath: string, targetPath: string): boolean {
   const relative = path.relative(rootPath, targetPath);
   return (
@@ -415,6 +438,24 @@ function parsePublicationPackageListIdParam(
   }
 
   return { value };
+}
+
+function isMalformedJsonBodyError(error: unknown): boolean {
+  return error instanceof SyntaxError;
+}
+
+function isPublicationDeliveryConfigError(message: string): boolean {
+  return /^Missing Azure Blob delivery config:/i.test(message);
+}
+
+function publicationDeliveryResponseStatus(
+  errorMessage?: string
+): 201 | 500 | 502 {
+  if (!errorMessage) {
+    return 201;
+  }
+
+  return isPublicationDeliveryConfigError(errorMessage) ? 500 : 502;
 }
 
 function witnessMissingScopes(error: unknown): string[] | null {
@@ -685,7 +726,8 @@ async function serveStaticHtml(res: http.ServerResponse, filename: string) {
 
 export async function handleRequest(
   req: http.IncomingMessage,
-  res: http.ServerResponse
+  res: http.ServerResponse,
+  options: DashboardServerOptions = {}
 ) {
   let url: URL;
   try {
@@ -695,6 +737,8 @@ export async function handleRequest(
     res.end("Bad request");
     return;
   }
+
+  const witnessConfig = options.witnessConfig ?? WITNESS_CONFIG;
 
   if (url.pathname === "/api/reports") {
     try {
@@ -2180,6 +2224,162 @@ export async function handleRequest(
     return;
   }
 
+  if (
+    url.pathname === "/api/witness/publication-deliveries" &&
+    req.method === "POST"
+  ) {
+    let body: { packageId?: unknown; backend?: unknown };
+    try {
+      body = (await readJsonBody(req)) as {
+        packageId?: unknown;
+        backend?: unknown;
+      };
+    } catch (error) {
+      if (isMalformedJsonBodyError(error)) {
+        sendJson(res, 400, { error: "Malformed request body" });
+        return;
+      }
+      throw error;
+    }
+
+    if (body.packageId !== undefined && typeof body.packageId !== "string") {
+      sendJson(res, 400, { error: "Malformed request body" });
+      return;
+    }
+    if (body.backend !== undefined && typeof body.backend !== "string") {
+      sendJson(res, 400, { error: "Malformed request body" });
+      return;
+    }
+
+    const packageId = body.packageId?.trim() ?? "";
+    const backendName = body.backend?.trim() || "azure-blob";
+
+    if (!packageId) {
+      sendJson(res, 400, { error: "packageId is required" });
+      return;
+    }
+    if (!isValidUuid(packageId)) {
+      sendJson(res, 400, { error: "Malformed publication package id" });
+      return;
+    }
+    if (backendName !== "azure-blob") {
+      sendJson(res, 400, { error: "Unknown publication delivery backend" });
+      return;
+    }
+
+    try {
+      const created = await deliverWitnessPublicationPackage({
+        publicationBundleRoot: witnessConfig.publicationBundleRoot!,
+        packageId,
+        packageStore: publicationPackageStoreFor(witnessConfig),
+        deliveryStore: publicationDeliveryStoreFor(witnessConfig),
+        backend:
+          options.publicationObjectDeliveryBackendOverride ??
+          getPublicationObjectDeliveryBackend(backendName),
+      });
+      sendJson(
+        res,
+        publicationDeliveryResponseStatus(created.error),
+        created
+      );
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      const status = /Unknown publication package/.test(message) ? 404 : 500;
+      sendJson(res, status, { error: message });
+    }
+    return;
+  }
+
+  if (
+    url.pathname === "/api/witness/publication-deliveries" &&
+    req.method === "GET"
+  ) {
+    try {
+      const packageParam = parsePublicationPackageListIdParam(
+        url.searchParams.get("packageId"),
+        "publication package id"
+      );
+      const bundleParam = parsePublicationPackageListIdParam(
+        url.searchParams.get("bundleId"),
+        "publication bundle id"
+      );
+      const witnessParam = parsePublicationPackageListIdParam(
+        url.searchParams.get("witnessId"),
+        "witness id"
+      );
+      const testimonyParam = parsePublicationPackageListIdParam(
+        url.searchParams.get("testimonyId"),
+        "testimony id"
+      );
+
+      if (packageParam.error) {
+        sendJson(res, 400, { error: packageParam.error });
+        return;
+      }
+      if (bundleParam.error) {
+        sendJson(res, 400, { error: bundleParam.error });
+        return;
+      }
+      if (witnessParam.error) {
+        sendJson(res, 400, { error: witnessParam.error });
+        return;
+      }
+      if (testimonyParam.error) {
+        sendJson(res, 400, { error: testimonyParam.error });
+        return;
+      }
+      if (packageParam.value && !isValidUuid(packageParam.value)) {
+        sendJson(res, 400, { error: "Malformed publication package id" });
+        return;
+      }
+      if (bundleParam.value && !isValidUuid(bundleParam.value)) {
+        sendJson(res, 400, { error: "Malformed publication bundle id" });
+        return;
+      }
+
+      const items = await publicationDeliveryStoreFor(witnessConfig).list({
+        packageId: packageParam.value,
+        bundleId: bundleParam.value,
+        witnessId: witnessParam.value,
+        testimonyId: testimonyParam.value,
+      });
+      sendJson(res, 200, items);
+    } catch (err) {
+      sendJson(res, 500, {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+    return;
+  }
+
+  const witnessPublicationDeliveryMatch = url.pathname.match(
+    /^\/api\/witness\/publication-deliveries\/([^/]+)$/
+  );
+  if (witnessPublicationDeliveryMatch && req.method === "GET") {
+    try {
+      const deliveryId = witnessPublicationDeliveryMatch[1];
+      if (!isValidUuid(deliveryId)) {
+        sendJson(res, 400, { error: "Malformed publication delivery id" });
+        return;
+      }
+
+      const item = await publicationDeliveryStoreFor(witnessConfig).load(
+        deliveryId
+      );
+      if (!item) {
+        sendJson(res, 404, { error: "Publication delivery not found" });
+        return;
+      }
+
+      sendJson(res, 200, item);
+    } catch (err) {
+      sendJson(res, 500, {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+    return;
+  }
+
   // ── Canon editorial API ─────────────────────────────────────────────────
 
   if (url.pathname === "/api/canon/files" && req.method === "GET") {
@@ -3412,8 +3612,8 @@ export async function handleRequest(
   res.end("Not found");
 }
 
-export function createDashboardServer() {
-  return http.createServer(handleRequest);
+export function createDashboardServer(options: DashboardServerOptions = {}) {
+  return http.createServer((req, res) => handleRequest(req, res, options));
 }
 
 const isEntrypoint =

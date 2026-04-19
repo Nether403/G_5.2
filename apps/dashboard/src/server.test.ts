@@ -1,10 +1,19 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import http from "node:http";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  rename,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 
 import { FileMemoryStore } from "../../../packages/orchestration/src/memory/fileMemoryStore";
 import { defaultContextSnapshotRoot } from "../../../packages/orchestration/src/persistence/fileContextSnapshotStore";
@@ -17,6 +26,7 @@ import {
   FileWitnessPublicationBundleStore,
   FileWitnessSynthesisStore,
 } from "../../../packages/orchestration/src/witness/fileDraftStores";
+import { FileWitnessPublicationDeliveryStore } from "../../../packages/orchestration/src/witness/filePublicationDeliveryStore";
 import { FileWitnessPublicationPackageStore } from "../../../packages/orchestration/src/witness/filePublicationPackageStore";
 import { FileWitnessTestimonyStore } from "../../../packages/orchestration/src/witness/fileTestimonyStore";
 import type { PublicationBundleRecord } from "../../../packages/witness-types/src/publicationBundle";
@@ -309,6 +319,80 @@ async function createPublicationBundleFixture(witnessId: string) {
   return {
     ...setup,
     bundleId: created.json.id as string,
+  };
+}
+
+async function requestServerJson(
+  targetBaseUrl: string,
+  pathname: string,
+  init?: RequestInit
+) {
+  const response = await fetch(`${targetBaseUrl}${pathname}`, init);
+  const json = await response.json().catch(() => null);
+  return { response, json };
+}
+
+async function withDashboardServer(
+  options: Parameters<typeof createDashboardServer>[0],
+  run: (targetBaseUrl: string) => Promise<void>
+) {
+  const localServer = createDashboardServer(options);
+  await new Promise<void>((resolve) => {
+    localServer.listen(0, "127.0.0.1", () => resolve());
+  });
+
+  const address = localServer.address();
+  if (!address || typeof address === "string") {
+    throw new Error("Failed to resolve dashboard server address");
+  }
+
+  const targetBaseUrl = `http://127.0.0.1:${address.port}`;
+
+  try {
+    await run(targetBaseUrl);
+  } finally {
+    await new Promise<void>((resolve, reject) => {
+      localServer.close((error) => (error ? reject(error) : resolve()));
+    });
+  }
+}
+
+async function seedPublicationPackageFixture(root: string) {
+  const publicationBundleRoot = path.join(root, "publication-bundles");
+  const packagesRoot = path.join(publicationBundleRoot, "packages");
+  await mkdir(packagesRoot, { recursive: true });
+
+  const packageRecord = {
+    id: randomUUID(),
+    bundleId: randomUUID(),
+    witnessId: `wit-${randomUUID()}`,
+    testimonyId: `testimony-${randomUUID()}`,
+    archiveCandidateId: randomUUID(),
+    createdAt: "2026-04-19T22:10:00.000Z",
+  };
+  const packageFilename = `${packageRecord.id}--2026-04-19T22-10-00-000Z.zip`;
+  const packagePath = path.join(packagesRoot, packageFilename);
+  const packageBytes = Buffer.from("package-bytes");
+  await writeFile(packagePath, packageBytes);
+
+  const packageStore = new FileWitnessPublicationPackageStore(
+    publicationBundleRoot
+  );
+  const savedRecord = await packageStore.create({
+    ...packageRecord,
+    packagePath,
+    packageFilename,
+    packageSha256: "1".repeat(64),
+    packageByteSize: packageBytes.byteLength,
+    sourceBundleJsonPath: "bundle.json",
+    sourceBundleMarkdownPath: "bundle.md",
+    sourceBundleManifestPath: "manifest.json",
+  });
+
+  return {
+    publicationBundleRoot,
+    packageBytes,
+    packageRecord: savedRecord,
   };
 }
 
@@ -1491,6 +1575,304 @@ test("publication package list endpoint returns 400 for blank and whitespace fil
     `/api/witness/publication-packages?testimonyId=${encodeURIComponent(" ")}`
   );
   assert.equal(whitespaceTestimony.response.status, 400);
+});
+
+test("publication delivery endpoints create, list, and fetch delivery records", async () => {
+  const root = await mkdtemp(
+    path.join(os.tmpdir(), "g52-dashboard-publication-deliveries-")
+  );
+
+  try {
+    const fixture = await seedPublicationPackageFixture(root);
+
+    await withDashboardServer(
+      {
+        witnessConfig: {
+          ...registry.witness,
+          publicationBundleRoot: fixture.publicationBundleRoot,
+        },
+        publicationObjectDeliveryBackendOverride: {
+          name: "azure-blob",
+          async putObject(input: { key: string }) {
+            return {
+              remoteKey: input.key,
+              remoteUrl: `https://example.invalid/${input.key}`,
+            };
+          },
+        },
+      },
+      async (targetBaseUrl) => {
+        const createRes = await requestServerJson(
+          targetBaseUrl,
+          "/api/witness/publication-deliveries",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              packageId: fixture.packageRecord.id,
+              backend: "azure-blob",
+            }),
+          }
+        );
+        assert.equal(createRes.response.status, 201);
+        assert.equal(createRes.json?.packageId, fixture.packageRecord.id);
+        assert.equal(createRes.json?.status, "succeeded");
+
+        const listRes = await requestServerJson(
+          targetBaseUrl,
+          `/api/witness/publication-deliveries?packageId=${encodeURIComponent(
+            fixture.packageRecord.id
+          )}&bundleId=${encodeURIComponent(
+            fixture.packageRecord.bundleId
+          )}&witnessId=${encodeURIComponent(
+            fixture.packageRecord.witnessId
+          )}&testimonyId=${encodeURIComponent(
+            fixture.packageRecord.testimonyId
+          )}`
+        );
+        assert.equal(listRes.response.status, 200);
+        assert.equal(listRes.json?.length, 1);
+        assert.equal(listRes.json?.[0]?.id, createRes.json?.id);
+
+        const detailRes = await requestServerJson(
+          targetBaseUrl,
+          `/api/witness/publication-deliveries/${encodeURIComponent(
+            createRes.json.id
+          )}`
+        );
+        assert.equal(detailRes.response.status, 200);
+        assert.equal(detailRes.json?.id, createRes.json?.id);
+      }
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("publication delivery endpoints return 400 for malformed ids or backend and 404 for unknown ids", async () => {
+  const root = await mkdtemp(
+    path.join(os.tmpdir(), "g52-dashboard-publication-deliveries-errors-")
+  );
+
+  try {
+    const fixture = await seedPublicationPackageFixture(root);
+    const unknownId = randomUUID();
+
+    await withDashboardServer(
+      {
+        witnessConfig: {
+          ...registry.witness,
+          publicationBundleRoot: fixture.publicationBundleRoot,
+        },
+      },
+      async (targetBaseUrl) => {
+        const missingPackageId = await requestServerJson(
+          targetBaseUrl,
+          "/api/witness/publication-deliveries",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ backend: "azure-blob" }),
+          }
+        );
+        assert.equal(missingPackageId.response.status, 400);
+
+        const malformedPackageId = await requestServerJson(
+          targetBaseUrl,
+          "/api/witness/publication-deliveries",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              packageId: "not-a-valid-package-id",
+              backend: "azure-blob",
+            }),
+          }
+        );
+        assert.equal(malformedPackageId.response.status, 400);
+
+        const unknownBackend = await requestServerJson(
+          targetBaseUrl,
+          "/api/witness/publication-deliveries",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              packageId: fixture.packageRecord.id,
+              backend: "not-real",
+            }),
+          }
+        );
+        assert.equal(unknownBackend.response.status, 400);
+
+        const unknownPackage = await requestServerJson(
+          targetBaseUrl,
+          "/api/witness/publication-deliveries",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              packageId: unknownId,
+              backend: "azure-blob",
+            }),
+          }
+        );
+        assert.equal(unknownPackage.response.status, 404);
+
+        const malformedPackageFilter = await requestServerJson(
+          targetBaseUrl,
+          "/api/witness/publication-deliveries?packageId=not-a-valid-package-id"
+        );
+        assert.equal(malformedPackageFilter.response.status, 400);
+
+        const malformedBundleFilter = await requestServerJson(
+          targetBaseUrl,
+          "/api/witness/publication-deliveries?bundleId=not-a-valid-bundle-id"
+        );
+        assert.equal(malformedBundleFilter.response.status, 400);
+
+        const malformedWitnessFilter = await requestServerJson(
+          targetBaseUrl,
+          `/api/witness/publication-deliveries?witnessId=${encodeURIComponent("wit bad")}`
+        );
+        assert.equal(malformedWitnessFilter.response.status, 400);
+
+        const malformedTestimonyFilter = await requestServerJson(
+          targetBaseUrl,
+          `/api/witness/publication-deliveries?testimonyId=${encodeURIComponent("testimony bad")}`
+        );
+        assert.equal(malformedTestimonyFilter.response.status, 400);
+
+        const malformedDetail = await requestServerJson(
+          targetBaseUrl,
+          "/api/witness/publication-deliveries/not-a-valid-delivery-id"
+        );
+        assert.equal(malformedDetail.response.status, 400);
+
+        const unknownDetail = await requestServerJson(
+          targetBaseUrl,
+          `/api/witness/publication-deliveries/${encodeURIComponent(unknownId)}`
+        );
+        assert.equal(unknownDetail.response.status, 404);
+      }
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("publication delivery create returns 502 for remote upload failures and persists the failed delivery record", async () => {
+  const root = await mkdtemp(
+    path.join(os.tmpdir(), "g52-dashboard-publication-deliveries-failure-")
+  );
+
+  try {
+    const fixture = await seedPublicationPackageFixture(root);
+
+    await withDashboardServer(
+      {
+        witnessConfig: {
+          ...registry.witness,
+          publicationBundleRoot: fixture.publicationBundleRoot,
+        },
+        publicationObjectDeliveryBackendOverride: {
+          name: "azure-blob",
+          async putObject(): Promise<never> {
+            throw new Error("simulated remote upload failure");
+          },
+        },
+      },
+      async (targetBaseUrl) => {
+        const createRes = await requestServerJson(
+          targetBaseUrl,
+          "/api/witness/publication-deliveries",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              packageId: fixture.packageRecord.id,
+              backend: "azure-blob",
+            }),
+          }
+        );
+        assert.equal(createRes.response.status, 502);
+        assert.equal(createRes.json?.status, "failed");
+        assert.match(
+          createRes.json?.error ?? "",
+          /simulated remote upload failure/i
+        );
+
+        const deliveryStore = new FileWitnessPublicationDeliveryStore(
+          fixture.publicationBundleRoot
+        );
+        const persisted = await deliveryStore.list({
+          packageId: fixture.packageRecord.id,
+        });
+        assert.equal(persisted.length, 1);
+        assert.equal(persisted[0]?.status, "failed");
+      }
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("publication delivery create returns 500 for backend config failures while still persisting the failed record", async () => {
+  const root = await mkdtemp(
+    path.join(os.tmpdir(), "g52-dashboard-publication-deliveries-config-")
+  );
+
+  try {
+    const fixture = await seedPublicationPackageFixture(root);
+
+    await withDashboardServer(
+      {
+        witnessConfig: {
+          ...registry.witness,
+          publicationBundleRoot: fixture.publicationBundleRoot,
+        },
+        publicationObjectDeliveryBackendOverride: {
+          name: "azure-blob",
+          async putObject(): Promise<never> {
+            throw new Error(
+              "Missing Azure Blob delivery config: AZURE_BLOB_CONNECTION_STRING"
+            );
+          },
+        },
+      },
+      async (targetBaseUrl) => {
+        const createRes = await requestServerJson(
+          targetBaseUrl,
+          "/api/witness/publication-deliveries",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              packageId: fixture.packageRecord.id,
+              backend: "azure-blob",
+            }),
+          }
+        );
+        assert.equal(createRes.response.status, 500);
+        assert.equal(createRes.json?.status, "failed");
+        assert.match(
+          createRes.json?.error ?? "",
+          /Missing Azure Blob delivery config/i
+        );
+
+        const deliveryStore = new FileWitnessPublicationDeliveryStore(
+          fixture.publicationBundleRoot
+        );
+        const persisted = await deliveryStore.list({
+          packageId: fixture.packageRecord.id,
+        });
+        assert.equal(persisted.length, 1);
+        assert.equal(persisted[0]?.status, "failed");
+      }
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });
 
 test("publication bundle json endpoint serves legacy 0.1.0 artifacts unchanged", async () => {
