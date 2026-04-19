@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import os from "node:os";
 import path from "node:path";
-import { mkdtemp, readdir, rm } from "node:fs/promises";
+import { mkdtemp, readdir, rm, symlink } from "node:fs/promises";
 
 import {
   FileWitnessConsentStore,
@@ -419,6 +419,126 @@ test("FileWitnessPublicationDeliveryJobStore finds the oldest queued job and sup
 
     assert.equal((await store.findOldestQueued())?.id, first.id);
     assert.equal((await store.list({ status: "failed" }))[0]?.id, second.id);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("FileWitnessPublicationDeliveryJobStore ignores missing files discovered during list scans", async () => {
+  const root = await mkdtemp(
+    path.join(os.tmpdir(), "g52-witness-publication-delivery-job-missing-file-")
+  );
+
+  try {
+    const store = new FileWitnessPublicationDeliveryJobStore(root);
+    const created = await store.create({
+      packageId: "bundle-1",
+      bundleId: "bundle-1",
+      witnessId: "wit-1",
+      testimonyId: "testimony-1",
+      backend: "azure-blob",
+      createdAt: "2026-04-20T08:10:00.000Z",
+    });
+
+    await symlink(
+      path.join(root, "delivery-jobs", "missing-target.json"),
+      path.join(root, "delivery-jobs", "vanished.json"),
+      "file"
+    );
+
+    assert.deepEqual(
+      (await store.list()).map((record) => record.id),
+      [created.id]
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("FileWitnessPublicationDeliveryJobStore rejects duplicate explicit ids without overwriting the existing job", async () => {
+  const root = await mkdtemp(
+    path.join(os.tmpdir(), "g52-witness-publication-delivery-job-duplicate-")
+  );
+
+  try {
+    const store = new FileWitnessPublicationDeliveryJobStore(root);
+    const created = await store.create({
+      id: "job-1",
+      packageId: "bundle-1",
+      bundleId: "bundle-1",
+      witnessId: "wit-1",
+      testimonyId: "testimony-1",
+      backend: "azure-blob",
+      createdAt: "2026-04-20T08:20:00.000Z",
+    });
+
+    await store.save({
+      ...created,
+      status: "failed",
+      updatedAt: "2026-04-20T08:21:00.000Z",
+      error: "already attempted",
+    });
+
+    await assert.rejects(
+      () =>
+        store.create({
+          id: "job-1",
+          packageId: "bundle-2",
+          bundleId: "bundle-2",
+          witnessId: "wit-2",
+          testimonyId: "testimony-2",
+          backend: "azure-blob",
+          createdAt: "2026-04-20T08:22:00.000Z",
+        }),
+      /already exists/i
+    );
+
+    const loaded = await store.load("job-1");
+    assert.equal(loaded?.packageId, "bundle-1");
+    assert.equal(loaded?.status, "failed");
+    assert.equal(loaded?.error, "already attempted");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("FileWitnessPublicationDeliveryJobStore keeps FIFO queue order when queued jobs share createdAt", async () => {
+  const root = await mkdtemp(
+    path.join(os.tmpdir(), "g52-witness-publication-delivery-job-fifo-")
+  );
+
+  try {
+    const store = new FileWitnessPublicationDeliveryJobStore(root);
+    const first = await store.create({
+      id: "job-a",
+      packageId: "bundle-1",
+      bundleId: "bundle-1",
+      witnessId: "wit-1",
+      testimonyId: "testimony-1",
+      backend: "azure-blob",
+      createdAt: "2026-04-20T08:30:00.000Z",
+    });
+    const second = await store.create({
+      id: "job-b",
+      packageId: "bundle-2",
+      bundleId: "bundle-2",
+      witnessId: "wit-2",
+      testimonyId: "testimony-2",
+      backend: "azure-blob",
+      createdAt: "2026-04-20T08:30:00.000Z",
+    });
+
+    await store.save({
+      ...first,
+      updatedAt: "2026-04-20T08:35:00.000Z",
+      recoveredFromRestartAt: "2026-04-20T08:35:00.000Z",
+    });
+
+    assert.deepEqual(
+      (await store.list({ status: "queued" })).map((record) => record.id),
+      [first.id, second.id]
+    );
+    assert.equal((await store.findOldestQueued())?.id, first.id);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

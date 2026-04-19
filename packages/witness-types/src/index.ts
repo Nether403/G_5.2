@@ -62,3 +62,4 @@ export type {
   PublicationDeliveryJobStatus,
   PublicationDeliveryJobStore,
 } from "./publicationDeliveryJob";
+export { PublicationDeliveryJobAlreadyExistsError } from "./publicationDeliveryJob";

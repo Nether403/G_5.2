@@ -16,9 +16,17 @@ export interface PublicationDeliveryJobRecord {
   status: PublicationDeliveryJobStatus;
   createdAt: string;
   updatedAt: string;
+  queueOrder?: string;
   lastAttemptId?: string;
   error?: string;
   recoveredFromRestartAt?: string;
+}
+
+export class PublicationDeliveryJobAlreadyExistsError extends Error {
+  constructor(jobId: string) {
+    super(`Publication delivery job "${jobId}" already exists.`);
+    this.name = "PublicationDeliveryJobAlreadyExistsError";
+  }
 }
 
 export interface PublicationDeliveryJobStore {

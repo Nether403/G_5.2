@@ -3,10 +3,11 @@ import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import type { PublicationDeliveryBackend } from "../../../witness-types/src/publicationDelivery";
-import type {
-  PublicationDeliveryJobRecord,
-  PublicationDeliveryJobStatus,
-  PublicationDeliveryJobStore,
+import {
+  PublicationDeliveryJobAlreadyExistsError,
+  type PublicationDeliveryJobRecord,
+  type PublicationDeliveryJobStatus,
+  type PublicationDeliveryJobStore,
 } from "../../../witness-types/src/publicationDeliveryJob";
 
 export interface CreatePublicationDeliveryJobInput {
@@ -22,6 +23,9 @@ export interface CreatePublicationDeliveryJobInput {
 export class FileWitnessPublicationDeliveryJobStore
   implements PublicationDeliveryJobStore
 {
+  private lastQueueOrderMs = 0;
+  private queueOrderSequence = 0;
+
   constructor(private readonly rootDir: string) {}
 
   private compareRecords(
@@ -30,9 +34,21 @@ export class FileWitnessPublicationDeliveryJobStore
   ): number {
     return (
       a.createdAt.localeCompare(b.createdAt) ||
+      this.compareQueueOrder(a, b) ||
       a.updatedAt.localeCompare(b.updatedAt) ||
       a.id.localeCompare(b.id)
     );
+  }
+
+  private compareQueueOrder(
+    a: PublicationDeliveryJobRecord,
+    b: PublicationDeliveryJobRecord
+  ): number {
+    if (a.queueOrder && b.queueOrder) {
+      return a.queueOrder.localeCompare(b.queueOrder);
+    }
+
+    return a.id.localeCompare(b.id);
   }
 
   private recordsDir(): string {
@@ -41,6 +57,34 @@ export class FileWitnessPublicationDeliveryJobStore
 
   private filePath(jobId: string): string {
     return path.join(this.recordsDir(), `${jobId}.json`);
+  }
+
+  private nextQueueOrder(): string {
+    const nowMs = Date.now();
+    if (nowMs === this.lastQueueOrderMs) {
+      this.queueOrderSequence += 1;
+    } else {
+      this.lastQueueOrderMs = nowMs;
+      this.queueOrderSequence = 0;
+    }
+
+    return `${nowMs.toString().padStart(13, "0")}:${this.queueOrderSequence
+      .toString()
+      .padStart(6, "0")}`;
+  }
+
+  private async loadFile(
+    fileName: string
+  ): Promise<PublicationDeliveryJobRecord | null> {
+    try {
+      const raw = await readFile(path.join(this.recordsDir(), fileName), "utf8");
+      return JSON.parse(raw) as PublicationDeliveryJobRecord;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+        return null;
+      }
+      throw error;
+    }
   }
 
   async load(jobId: string): Promise<PublicationDeliveryJobRecord | null> {
@@ -67,13 +111,13 @@ export class FileWitnessPublicationDeliveryJobStore
       const records = await Promise.all(
         files
           .filter((file) => file.endsWith(".json"))
-          .map(async (file) => {
-            const raw = await readFile(path.join(this.recordsDir(), file), "utf8");
-            return JSON.parse(raw) as PublicationDeliveryJobRecord;
-          })
+          .map((file) => this.loadFile(file))
       );
 
       return records
+        .filter(
+          (record): record is PublicationDeliveryJobRecord => record !== null
+        )
         .filter(
           (record) =>
             (!filters?.packageId || record.packageId === filters.packageId) &&
@@ -119,7 +163,7 @@ export class FileWitnessPublicationDeliveryJobStore
   async create(
     input: CreatePublicationDeliveryJobInput
   ): Promise<PublicationDeliveryJobRecord> {
-    return this.save({
+    const record: PublicationDeliveryJobRecord = {
       id: input.id ?? randomUUID(),
       packageId: input.packageId,
       bundleId: input.bundleId,
@@ -129,7 +173,23 @@ export class FileWitnessPublicationDeliveryJobStore
       status: "queued",
       createdAt: input.createdAt,
       updatedAt: input.createdAt,
-    });
+      queueOrder: this.nextQueueOrder(),
+    };
+
+    await mkdir(this.recordsDir(), { recursive: true });
+    try {
+      await writeFile(
+        this.filePath(record.id),
+        `${JSON.stringify(record, null, 2)}\n`,
+        { encoding: "utf8", flag: "wx" }
+      );
+      return record;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "EEXIST") {
+        throw new PublicationDeliveryJobAlreadyExistsError(record.id);
+      }
+      throw error;
+    }
   }
 
   async findOldestQueued(): Promise<PublicationDeliveryJobRecord | null> {
