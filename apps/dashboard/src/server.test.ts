@@ -1609,7 +1609,19 @@ test("inquiry publication preview uses raw artifact endpoints and textContent re
   );
   assert.match(
     html,
-    /fetch\(witnessPublicationPackagesUrl\(witnessId,activeTestimonyId\)\)/
+    /async function loadWitnessPublicationPackages\(\)/
+  );
+  assert.match(
+    html,
+    /const testimonyId=state\.selectedWitnessTestimonyId;/
+  );
+  assert.match(
+    html,
+    /fetch\(witnessPublicationPackagesUrl\(witnessId,testimonyId\)\)/
+  );
+  assert.match(
+    html,
+    /\$\$\("\[data-select-witness-testimony\]"\)\.forEach\(node=>node\.addEventListener\("click",async\(\)=>\{[\s\S]*await loadWitnessPublicationPackages\(\);[\s\S]*renderWitnessCard\(\);/
   );
   assert.doesNotMatch(
     html,
