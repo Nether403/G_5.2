@@ -141,11 +141,34 @@ test("PublicationBundle createWitnessPublicationBundle requires publication_read
       annotations: unknown;
       archiveCandidate: { testimonyUpdatedAt: string };
     };
-    assert.equal(bundlePayload.schemaVersion, "0.1.0");
+    assert.equal(bundlePayload.schemaVersion, "0.2.0");
     assert.equal(bundlePayload.witnessId, testimony.witnessId);
-    assert.deepEqual(bundlePayload.testimony, testimony);
-    assert.deepEqual(bundlePayload.synthesis, synthesis);
-    assert.deepEqual(bundlePayload.annotations, annotation.entries);
+    assert.deepEqual(bundlePayload.testimony, {
+      id: testimony.id,
+      sessionId: testimony.sessionId,
+      title: testimony.title,
+      state: testimony.state,
+      createdAt: testimony.createdAt,
+      updatedAt: testimony.updatedAt,
+      segments: testimony.segments.map((segment) => ({
+        id: segment.id,
+        role: segment.role,
+        text: segment.text,
+        createdAt: segment.createdAt,
+      })),
+    });
+    assert.deepEqual(bundlePayload.synthesis, {
+      id: synthesis.id,
+      createdAt: synthesis.createdAt,
+      updatedAt: synthesis.updatedAt,
+      text: synthesis.text,
+    });
+    assert.deepEqual(bundlePayload.annotations, {
+      id: annotation.id,
+      createdAt: annotation.createdAt,
+      updatedAt: annotation.updatedAt,
+      entries: annotation.entries,
+    });
     assert.equal(
       bundlePayload.archiveCandidate.testimonyUpdatedAt,
       archiveCandidate.testimonyUpdatedAt

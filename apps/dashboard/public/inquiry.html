@@ -329,7 +329,8 @@ const state={
   providerList:[],defaultProvider:null,hasApiKey:false,
   product:"pes",witnessId:"",witnessConsent:[],witnessTestimony:[],witnessSynthesis:[],witnessAnnotations:[],witnessArchiveCandidates:[],witnessPublicationBundles:[],selectedWitnessTestimonyId:null,memoryStateFilter:"accepted",
   isSending:false,lastError:null,pendingRetry:null,
-  previewSnapshot:null,previewMode:null,previewSessionId:null
+  previewSnapshot:null,previewMode:null,previewSessionId:null,
+  publicationPreview:null
 };
 
 const PRODUCT_LABELS={pes:"P-E-S",witness:"Witness"};
@@ -354,6 +355,9 @@ function activeWitnessPublicationBundles(){
 }
 function publicationBundlesForArchiveCandidate(archiveCandidateId){
   return activeWitnessPublicationBundles().filter(item=>item.archiveCandidateId===archiveCandidateId);
+}
+function clearWitnessPublicationPreview(){
+  state.publicationPreview=null;
 }
 function latestWitnessDecision(scope){
   return [...state.witnessConsent]
@@ -661,6 +665,7 @@ function renderWitnessCard(){
   card.classList.remove("hidden");
   const witnessId=activeWitnessId();
   if(!witnessId){
+    clearWitnessPublicationPreview();
     $("#witnessConsentMeta").textContent="Enter a witness ID to inspect consent and testimony state.";
     $("#witnessTestimonyList").innerHTML='<div class="meta">No witness selected.</div>';
     $("#witnessSynthesisMeta").textContent="No synthesis state loaded.";
@@ -681,6 +686,7 @@ function renderWitnessCard(){
   $("#witnessConsentMeta").textContent=`Witness ${witnessId} · ${scopeSummary}`;
   const testimony=visibleWitnessTestimony();
   if(!testimony.length){
+    clearWitnessPublicationPreview();
     state.selectedWitnessTestimonyId=null;
     $("#witnessTestimonyList").innerHTML='<div class="meta">No testimony records yet for this witness.</div>';
     $("#witnessSynthesisMeta").textContent="No active testimony available for synthesis.";
@@ -711,12 +717,16 @@ function renderWitnessCard(){
     const id=node.getAttribute("data-select-witness-testimony");
     if(!id)return;
     state.selectedWitnessTestimonyId=id;
+    clearWitnessPublicationPreview();
     renderWitnessCard();
   }));
   $$("[data-open-witness-session]").forEach(node=>node.addEventListener("click",async()=>{
     const id=node.getAttribute("data-open-witness-session");
     const testimonyId=node.getAttribute("data-open-testimony-id");
-    if(testimonyId)state.selectedWitnessTestimonyId=testimonyId;
+    if(testimonyId){
+      state.selectedWitnessTestimonyId=testimonyId;
+      clearWitnessPublicationPreview();
+    }
     if(id)await loadSession(id);
   }));
   $$("[data-witness-testimony-seal]").forEach(node=>node.addEventListener("click",async()=>{
@@ -730,6 +740,9 @@ function renderWitnessCard(){
   const archiveCandidates=activeWitnessArchiveCandidates();
   const publicationReadyCandidates=archiveCandidates.filter(item=>item.status==="publication_ready");
   const publicationBundles=activeWitnessPublicationBundles();
+  if(state.publicationPreview&&!publicationBundles.some(item=>item.id===state.publicationPreview.bundleId)){
+    clearWitnessPublicationPreview();
+  }
 
   $("#witnessSynthesisMeta").textContent=active
     ? `Synthesis drafts for testimony ${active.id.slice(0,8)}`
@@ -828,9 +841,21 @@ function renderWitnessCard(){
       <div class="context">
         <div class="label">${esc(item.status)} · ${esc(item.id.slice(0,8))}</div>
         <div class="value">Archive candidate: ${esc(item.archiveCandidateId)}</div>
-        <div class="value">JSON: ${esc(item.bundleJsonPath)}</div>
-        <div class="value">Markdown: ${esc(item.bundleMarkdownPath||"-")}</div>
+        <div class="meta">Created ${fmt(item.createdAt)}</div>
+        <div class="rerun-row" style="margin-top:8px">
+          <button class="btn quiet" data-witness-publication-view-json="${esc(item.id)}">View JSON</button>
+          <button class="btn quiet" data-witness-publication-view-markdown="${esc(item.id)}">View Markdown</button>
+        </div>
       </div>`).join(""):'<div class="meta">No publication bundles yet for this testimony.</div>'}
+    ${state.publicationPreview?`
+      <div class="context" id="witnessPublicationPreviewCard">
+        <div class="label">Preview · ${esc(state.publicationPreview.format.toUpperCase())} · ${esc(state.publicationPreview.bundleId.slice(0,8))}</div>
+        <div class="meta" id="witnessPublicationPreviewMeta"></div>
+        <pre id="witnessPublicationPreviewBody" class="code-block"></pre>
+        <div class="rerun-row" style="margin-top:8px">
+          <button class="btn quiet" id="witnessPublicationPreviewClear">Clear preview</button>
+        </div>
+      </div>`:""}
   `:'<div class="meta">Select a testimony before managing publication export.</div>';
 
   $$("[data-witness-synthesis-draft]").forEach(node=>node.addEventListener("click",async()=>{
@@ -885,15 +910,38 @@ function renderWitnessCard(){
     const id=node.getAttribute("data-witness-publication-bundle-create");
     if(id)await createWitnessPublicationBundleRecord(id);
   }));
+  $$("[data-witness-publication-view-json]").forEach(node=>node.addEventListener("click",async()=>{
+    const id=node.getAttribute("data-witness-publication-view-json");
+    if(id)await viewWitnessPublicationBundle(id,"json");
+  }));
+  $$("[data-witness-publication-view-markdown]").forEach(node=>node.addEventListener("click",async()=>{
+    const id=node.getAttribute("data-witness-publication-view-markdown");
+    if(id)await viewWitnessPublicationBundle(id,"markdown");
+  }));
+  const publicationPreviewBody=$("#witnessPublicationPreviewBody");
+  if(publicationPreviewBody&&state.publicationPreview){
+    publicationPreviewBody.textContent=state.publicationPreview.text;
+  }
+  const publicationPreviewMeta=$("#witnessPublicationPreviewMeta");
+  if(publicationPreviewMeta&&state.publicationPreview){
+    publicationPreviewMeta.textContent=`Bundle ${state.publicationPreview.bundleId} · ${state.publicationPreview.format.toUpperCase()} artifact`;
+  }
+  const publicationPreviewClear=$("#witnessPublicationPreviewClear");
+  if(publicationPreviewClear){
+    publicationPreviewClear.addEventListener("click",()=>{
+      clearWitnessPublicationPreview();
+      renderWitnessCard();
+    });
+  }
 }
 
 async function loadWitnessData(){
   if(!isWitness()){
-    state.witnessConsent=[];state.witnessTestimony=[];state.witnessSynthesis=[];state.witnessAnnotations=[];state.witnessArchiveCandidates=[];state.witnessPublicationBundles=[];state.selectedWitnessTestimonyId=null;renderWitnessCard();return;
+    state.witnessConsent=[];state.witnessTestimony=[];state.witnessSynthesis=[];state.witnessAnnotations=[];state.witnessArchiveCandidates=[];state.witnessPublicationBundles=[];state.selectedWitnessTestimonyId=null;clearWitnessPublicationPreview();renderWitnessCard();return;
   }
   const witnessId=activeWitnessId();
   if(!witnessId){
-    state.witnessConsent=[];state.witnessTestimony=[];state.witnessSynthesis=[];state.witnessAnnotations=[];state.witnessArchiveCandidates=[];state.witnessPublicationBundles=[];state.selectedWitnessTestimonyId=null;renderWitnessCard();return;
+    state.witnessConsent=[];state.witnessTestimony=[];state.witnessSynthesis=[];state.witnessAnnotations=[];state.witnessArchiveCandidates=[];state.witnessPublicationBundles=[];state.selectedWitnessTestimonyId=null;clearWitnessPublicationPreview();renderWitnessCard();return;
   }
   try{
     const [consentRes,testimonyRes]=await Promise.all([
@@ -931,7 +979,7 @@ async function loadWitnessData(){
       state.selectedWitnessTestimonyId=null;
     }
   }catch{
-    state.witnessConsent=[];state.witnessTestimony=[];state.witnessSynthesis=[];state.witnessAnnotations=[];state.witnessArchiveCandidates=[];state.witnessPublicationBundles=[];state.selectedWitnessTestimonyId=null;
+    state.witnessConsent=[];state.witnessTestimony=[];state.witnessSynthesis=[];state.witnessAnnotations=[];state.witnessArchiveCandidates=[];state.witnessPublicationBundles=[];state.selectedWitnessTestimonyId=null;clearWitnessPublicationPreview();
   }
   renderWitnessCard();
 }
@@ -1034,6 +1082,20 @@ async function createWitnessPublicationBundleRecord(archiveCandidateId){
   if(!res.ok){setError(data.error||"Failed to create publication bundle",data);return}
   setError("");
   await loadWitnessData();
+}
+
+async function viewWitnessPublicationBundle(id,format){
+  const endpoint=format==="json"
+    ? `/api/witness/publication-bundles/${encodeURIComponent(id)}/json`
+    : `/api/witness/publication-bundles/${encodeURIComponent(id)}/markdown`;
+  const res=await fetch(endpoint);
+  const text=await res.text();
+  let data=null;
+  try{data=JSON.parse(text)}catch{}
+  if(!res.ok){setError(data?.error||`Failed to load publication bundle ${format}.`);return}
+  state.publicationPreview={bundleId:id,format,text};
+  setError("");
+  renderWitnessCard();
 }
 
 async function memoryAction(id,action){
@@ -1403,6 +1465,7 @@ $("#productSelect").addEventListener("change",async e=>{
   state.product=e.target.value;
   if(!isWitness())state.witnessId="";
   state.selectedWitnessTestimonyId=null;
+  clearWitnessPublicationPreview();
   state.currentSession=null;state.currentSessionId=null;state.selectedTurnId=null;
   setError("");clearPreview();syncProductUi();
   await Promise.all([loadSessions(),loadMemory(),loadWitnessData()]);
@@ -1415,12 +1478,14 @@ $("#witnessIdInput").addEventListener("input",async e=>{
   }
   state.witnessId=next;
   state.selectedWitnessTestimonyId=null;
+  clearWitnessPublicationPreview();
   if(state.previewSnapshot)clearPreview();
   await loadWitnessData();
   renderWorkspace();syncUrlState();
 });
 $("#newSessionBtn").addEventListener("click",async()=>{
   state.currentSession=null;state.currentSessionId=null;state.selectedTurnId=null;setError("");clearPreview();
+  clearWitnessPublicationPreview();
   renderSessionList();await Promise.all([loadMemory(),loadWitnessData()]);renderWorkspace();syncUrlState({sessionId:null,turnId:null,memoryId:null,focus:null});$("#messageInput").focus();
 });
 $("#refreshSessionsBtn").addEventListener("click",()=>Promise.all([loadSessions(),loadMemory(),loadProviders(),loadWitnessData()]));

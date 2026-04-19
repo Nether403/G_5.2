@@ -20,11 +20,43 @@ export interface CreateWitnessPublicationBundleInput {
 }
 
 interface WitnessPublicationBundlePayload {
-  schemaVersion: "0.1.0";
+  schemaVersion: "0.2.0";
   witnessId: string;
-  testimony: TestimonyRecord;
-  synthesis: SynthesisRecord;
-  annotations: AnnotationRecord["entries"];
+  testimony: {
+    id: string;
+    sessionId: string;
+    title?: string;
+    state: TestimonyRecord["state"];
+    createdAt: string;
+    updatedAt: string;
+    segments: Array<{
+      id: string;
+      role: TestimonyRecord["segments"][number]["role"];
+      text: string;
+      createdAt: string;
+    }>;
+  };
+  synthesis: {
+    id: string;
+    createdAt: string;
+    updatedAt: string;
+    text: string;
+  };
+  annotations: {
+    id: string;
+    createdAt: string;
+    updatedAt: string;
+    entries: Array<{
+      id: string;
+      labelId: string;
+      labelName: string;
+      segmentId: string;
+      startOffset: number;
+      endOffset: number;
+      quote: string;
+      rationale?: string;
+    }>;
+  };
   archiveCandidate: {
     id: string;
     testimonyId: string;
@@ -110,11 +142,43 @@ function buildPublicationBundlePayload(
   archiveCandidate: ArchiveCandidateRecord
 ): WitnessPublicationBundlePayload {
   return {
-    schemaVersion: "0.1.0",
+    schemaVersion: "0.2.0",
     witnessId: testimony.witnessId,
-    testimony,
-    synthesis,
-    annotations: annotation.entries,
+    testimony: {
+      id: testimony.id,
+      sessionId: testimony.sessionId,
+      ...(testimony.title ? { title: testimony.title } : {}),
+      state: testimony.state,
+      createdAt: testimony.createdAt,
+      updatedAt: testimony.updatedAt,
+      segments: testimony.segments.map((segment) => ({
+        id: segment.id,
+        role: segment.role,
+        text: segment.text,
+        createdAt: segment.createdAt,
+      })),
+    },
+    synthesis: {
+      id: synthesis.id,
+      createdAt: synthesis.createdAt,
+      updatedAt: synthesis.updatedAt,
+      text: synthesis.text,
+    },
+    annotations: {
+      id: annotation.id,
+      createdAt: annotation.createdAt,
+      updatedAt: annotation.updatedAt,
+      entries: annotation.entries.map((entry) => ({
+        id: entry.id,
+        labelId: entry.labelId,
+        labelName: entry.labelName,
+        segmentId: entry.segmentId,
+        startOffset: entry.startOffset,
+        endOffset: entry.endOffset,
+        quote: entry.quote,
+        ...(entry.rationale ? { rationale: entry.rationale } : {}),
+      })),
+    },
     archiveCandidate: {
       id: archiveCandidate.id,
       testimonyId: archiveCandidate.testimonyId,
@@ -189,7 +253,7 @@ function buildPublicationBundleMarkdown(
     "",
     payload.synthesis.text,
     "",
-    `## Annotation Entries (${payload.annotations.length})`,
+    `## Annotation Entries (${payload.annotations.entries.length})`,
   ].join("\n");
 }
 

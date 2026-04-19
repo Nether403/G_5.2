@@ -147,8 +147,10 @@ Publication bundle APIs:
 - `POST /api/witness/publication-bundles`
 - `GET /api/witness/publication-bundles?witnessId=...&testimonyId=...`
 - `GET /api/witness/publication-bundles/:id`
+- `GET /api/witness/publication-bundles/:id/json`
+- `GET /api/witness/publication-bundles/:id/markdown`
 
-The create call accepts `{ archiveCandidateId }` and writes a new bundle record under `data/witness/publication-bundles/records/` plus emitted JSON / Markdown bundle files under `data/witness/publication-bundles/exports/`. It packages already-reviewed Witness material for downstream operator handling without mutating the source testimony or any review records.
+The create call accepts `{ archiveCandidateId }` and writes a new bundle record under `data/witness/publication-bundles/records/` plus emitted JSON / Markdown bundle files under `data/witness/publication-bundles/exports/`. New JSON artifacts use `schemaVersion: "0.2.0"` with an explicit export DTO rather than direct runtime-record serialization. The artifact read routes serve raw bytes for operator inspection, validate the resolved artifact path against the canonical exports root, and treat broken bundle state as `500`. In the inquiry UI, preview rendering is raw-text-only and uses a `<pre>` with `textContent`, not HTML rendering.
 
 ### 3.7 Manage durable memory
 

@@ -215,6 +215,16 @@ function sendJson(res: http.ServerResponse, status: number, body: unknown) {
   res.end(JSON.stringify(body));
 }
 
+function sendText(
+  res: http.ServerResponse,
+  status: number,
+  body: string,
+  contentType: string
+) {
+  res.writeHead(status, { "Content-Type": contentType });
+  res.end(body);
+}
+
 async function readJsonBody(req: http.IncomingMessage): Promise<unknown> {
   const chunks: Buffer[] = [];
 
@@ -306,6 +316,38 @@ function publicationBundleStoreFor(
   }
 
   return new FileWitnessPublicationBundleStore(product.publicationBundleRoot);
+}
+
+function isResolvedPathWithinRoot(rootPath: string, targetPath: string): boolean {
+  const relative = path.relative(rootPath, targetPath);
+  return (
+    relative === "" ||
+    (!relative.startsWith("..") && !path.isAbsolute(relative))
+  );
+}
+
+async function resolveWitnessPublicationArtifactPath(
+  bundleId: string,
+  storedPath: string | undefined,
+  kind: "json" | "markdown"
+): Promise<string> {
+  if (!storedPath?.trim()) {
+    throw new Error(
+      `Broken publication bundle state: missing ${kind} artifact path for ${bundleId}.`
+    );
+  }
+
+  const exportsRoot = path.join(WITNESS_CONFIG.publicationBundleRoot!, "exports");
+  const canonicalExportsRoot = await fs.realpath(exportsRoot);
+  const canonicalTargetPath = await fs.realpath(path.resolve(storedPath));
+
+  if (!isResolvedPathWithinRoot(canonicalExportsRoot, canonicalTargetPath)) {
+    throw new Error(
+      `Broken publication bundle state: ${kind} artifact path escapes the publication exports root.`
+    );
+  }
+
+  return canonicalTargetPath;
 }
 
 function witnessMissingScopes(error: unknown): string[] | null {
@@ -1784,6 +1826,41 @@ export async function handleRequest(
         )
         .sort((a, b) => (a.createdAt ?? "").localeCompare(b.createdAt ?? ""));
       sendJson(res, 200, items);
+    } catch (err) {
+      sendJson(res, 500, {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+    return;
+  }
+
+  const witnessPublicationBundleArtifactMatch = url.pathname.match(
+    /^\/api\/witness\/publication-bundles\/([^/]+)\/(json|markdown)$/
+  );
+  if (witnessPublicationBundleArtifactMatch && req.method === "GET") {
+    try {
+      const [, bundleId, rawFormat] = witnessPublicationBundleArtifactMatch;
+      const format = rawFormat as "json" | "markdown";
+      const item = await publicationBundleStoreFor(WITNESS_CONFIG).load(bundleId);
+      if (!item) {
+        sendJson(res, 404, { error: "Publication bundle not found" });
+        return;
+      }
+
+      const artifactPath = await resolveWitnessPublicationArtifactPath(
+        bundleId,
+        format === "json" ? item.bundleJsonPath : item.bundleMarkdownPath,
+        format
+      );
+      const body = await fs.readFile(artifactPath, "utf8");
+      sendText(
+        res,
+        200,
+        body,
+        format === "json"
+          ? "application/json; charset=utf-8"
+          : "text/markdown; charset=utf-8"
+      );
     } catch (err) {
       sendJson(res, 500, {
         error: err instanceof Error ? err.message : String(err),
