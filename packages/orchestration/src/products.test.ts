@@ -85,6 +85,7 @@ test("PublicationBundleRecord supports the created status and required bundle pa
     updatedAt: "2026-04-17T00:00:00.000Z",
     status: "created",
     bundleJsonPath: "/tmp/bundle.json",
+    bundleManifestPath: "/tmp/bundle-manifest.json",
   };
 
   assert.equal(publicationBundleShape.status, "created");

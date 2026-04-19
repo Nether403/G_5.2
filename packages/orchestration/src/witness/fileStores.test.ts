@@ -168,6 +168,8 @@ test("FileWitnessPublicationBundleStore round-trips bundle records", async () =>
       createdAt: "2026-04-19T09:11:00.000Z",
       bundleJsonPath: "data/witness/publication-bundles/bundle-pub.json",
       bundleMarkdownPath: "data/witness/publication-bundles/bundle-pub.md",
+      bundleManifestPath:
+        "data/witness/publication-bundles/bundle-pub-manifest.json",
     });
     const createdWithoutMarkdown = await store.create({
       witnessId: "wit-pub-2",
@@ -178,14 +180,24 @@ test("FileWitnessPublicationBundleStore round-trips bundle records", async () =>
       sourceAnnotationId: "annotation-pub-2",
       createdAt: "2026-04-19T09:13:00.000Z",
       bundleJsonPath: "data/witness/publication-bundles/bundle-pub-2.json",
+      bundleManifestPath:
+        "data/witness/publication-bundles/bundle-pub-2-manifest.json",
     });
 
     assert.equal(created.status, "created");
     assert.equal(createdWithoutMarkdown.bundleMarkdownPath, undefined);
+    assert.equal(
+      createdWithoutMarkdown.bundleManifestPath,
+      "data/witness/publication-bundles/bundle-pub-2-manifest.json"
+    );
 
     const loaded = await store.load(created.id);
     assert.equal(loaded?.archiveCandidateId, "candidate-pub");
     assert.equal(loaded?.sourceTestimonyUpdatedAt, "2026-04-19T09:10:00.000Z");
+    assert.equal(
+      loaded?.bundleManifestPath,
+      "data/witness/publication-bundles/bundle-pub-manifest.json"
+    );
 
     const listed = await store.list();
     assert.equal(listed.length, 2);

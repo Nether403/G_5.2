@@ -71,6 +71,7 @@ import type {
   InquirySession,
   SessionTurnRerun,
 } from "../../../packages/orchestration/src/types/session";
+import type { PublicationBundleRecord } from "../../../packages/witness-types/src/publicationBundle";
 import { providerFromEnv } from "../../../packages/orchestration/src/providers/fromEnv";
 import {
   isKnownProviderName,
@@ -219,9 +220,10 @@ function sendText(
   res: http.ServerResponse,
   status: number,
   body: string,
-  contentType: string
+  contentType: string,
+  headers: http.OutgoingHttpHeaders = {}
 ) {
-  res.writeHead(status, { "Content-Type": contentType });
+  res.writeHead(status, { "Content-Type": contentType, ...headers });
   res.end(body);
 }
 
@@ -329,7 +331,7 @@ function isResolvedPathWithinRoot(rootPath: string, targetPath: string): boolean
 async function resolveWitnessPublicationArtifactPath(
   bundleId: string,
   storedPath: string | undefined,
-  kind: "json" | "markdown"
+  kind: "json" | "markdown" | "manifest"
 ): Promise<string> {
   if (!storedPath?.trim()) {
     throw new Error(
@@ -348,6 +350,25 @@ async function resolveWitnessPublicationArtifactPath(
   }
 
   return canonicalTargetPath;
+}
+
+function witnessPublicationBundleContentType(
+  kind: "json" | "markdown" | "manifest"
+): string {
+  if (kind === "json") {
+    return "application/json; charset=utf-8";
+  }
+
+  if (kind === "markdown") {
+    return "text/markdown; charset=utf-8";
+  }
+
+  return "application/json; charset=utf-8";
+}
+
+function contentDispositionAttachment(filename: string): string {
+  const safeFilename = filename.replace(/["\\]/g, "\\$&");
+  return `attachment; filename="${safeFilename}"`;
 }
 
 function witnessMissingScopes(error: unknown): string[] | null {
@@ -1835,21 +1856,27 @@ export async function handleRequest(
   }
 
   const witnessPublicationBundleArtifactMatch = url.pathname.match(
-    /^\/api\/witness\/publication-bundles\/([^/]+)\/(json|markdown)$/
+    /^\/api\/witness\/publication-bundles\/([^/]+)\/(json|markdown|manifest)$/
   );
   if (witnessPublicationBundleArtifactMatch && req.method === "GET") {
     try {
       const [, bundleId, rawFormat] = witnessPublicationBundleArtifactMatch;
-      const format = rawFormat as "json" | "markdown";
+      const format = rawFormat as "json" | "markdown" | "manifest";
       const item = await publicationBundleStoreFor(WITNESS_CONFIG).load(bundleId);
       if (!item) {
         sendJson(res, 404, { error: "Publication bundle not found" });
         return;
       }
 
+      const storedPath =
+        format === "json"
+          ? item.bundleJsonPath
+          : format === "markdown"
+            ? item.bundleMarkdownPath
+            : item.bundleManifestPath;
       const artifactPath = await resolveWitnessPublicationArtifactPath(
         bundleId,
-        format === "json" ? item.bundleJsonPath : item.bundleMarkdownPath,
+        storedPath,
         format
       );
       const body = await fs.readFile(artifactPath, "utf8");
@@ -1857,9 +1884,14 @@ export async function handleRequest(
         res,
         200,
         body,
-        format === "json"
-          ? "application/json; charset=utf-8"
-          : "text/markdown; charset=utf-8"
+        witnessPublicationBundleContentType(format),
+        url.searchParams.get("download") === "1"
+          ? {
+              "Content-Disposition": contentDispositionAttachment(
+                path.basename(artifactPath)
+              ),
+            }
+          : {}
       );
     } catch (err) {
       sendJson(res, 500, {

@@ -128,7 +128,8 @@ Current roots include:
 - `data/witness/sessions/`, `data/witness/memory/`, `data/witness/testimony/`, `data/witness/consent/` for Witness runtime state
 - `data/witness/synthesis/`, `data/witness/annotations/`, `data/witness/archive-candidates/`, and `data/witness/publication-bundles/` for downstream Witness review and export state
   Publication bundles split metadata and emitted artifacts under `data/witness/publication-bundles/records/` and `data/witness/publication-bundles/exports/`.
-  The dashboard can inspect emitted bundle artifacts directly through raw JSON and Markdown delivery endpoints, and new JSON exports use an explicit `0.2.0` publication DTO.
+  The dashboard can inspect emitted bundle artifacts directly through raw JSON, Markdown, and manifest delivery endpoints, and append `?download=1` to any of those routes to force a download handoff with `Content-Disposition: attachment`.
+  Raw preview stays text-only, and new JSON exports use an explicit `0.2.0` publication DTO.
 
 In Witness mode, persisted turns require both conversational and retention consent. Witness sessions and testimony must write only into Witness roots; they must not read from or write into the P-E-S session/memory roots.
 

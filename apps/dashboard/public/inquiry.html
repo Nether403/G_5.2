@@ -32,6 +32,7 @@ body{margin:0;min-height:100vh;font-family:Inter,sans-serif;color:var(--text);ba
 .actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
 .btn{border:1px solid var(--border);background:rgba(255,255,255,.03);color:var(--text);font-size:12px;font-weight:600;padding:7px 12px;border-radius:999px;cursor:pointer;font-family:inherit}
 .btn:hover{background:rgba(255,255,255,.08)}
+.btn[href]{display:inline-flex;align-items:center;text-decoration:none}
 .btn.primary{background:linear-gradient(135deg,rgba(93,176,255,.32),rgba(93,176,255,.16));border-color:rgba(93,176,255,.4)}
 .btn.primary:hover{background:linear-gradient(135deg,rgba(93,176,255,.42),rgba(93,176,255,.22))}
 .btn.quiet{background:transparent;color:var(--dim);font-weight:500}
@@ -355,6 +356,11 @@ function activeWitnessPublicationBundles(){
 }
 function publicationBundlesForArchiveCandidate(archiveCandidateId){
   return activeWitnessPublicationBundles().filter(item=>item.archiveCandidateId===archiveCandidateId);
+}
+function publicationBundleArtifactUrl(id,format,download=false){
+  const url=new URL(`/api/witness/publication-bundles/${encodeURIComponent(id)}/${format}`,window.location.origin);
+  if(download)url.searchParams.set("download","1");
+  return url.pathname+url.search;
 }
 function clearWitnessPublicationPreview(){
   state.publicationPreview=null;
@@ -845,6 +851,10 @@ function renderWitnessCard(){
         <div class="rerun-row" style="margin-top:8px">
           <button class="btn quiet" data-witness-publication-view-json="${esc(item.id)}">View JSON</button>
           <button class="btn quiet" data-witness-publication-view-markdown="${esc(item.id)}">View Markdown</button>
+          ${item.bundleManifestPath?`<button class="btn quiet" data-witness-publication-view-manifest="${esc(item.id)}">View Manifest</button>`:""}
+          <a class="btn quiet" href="${esc(publicationBundleArtifactUrl(item.id,"json",true))}">Download JSON</a>
+          <a class="btn quiet" href="${esc(publicationBundleArtifactUrl(item.id,"markdown",true))}">Download Markdown</a>
+          ${item.bundleManifestPath?`<a class="btn quiet" href="${esc(publicationBundleArtifactUrl(item.id,"manifest",true))}">Download Manifest</a>`:""}
         </div>
       </div>`).join(""):'<div class="meta">No publication bundles yet for this testimony.</div>'}
     ${state.publicationPreview?`
@@ -917,6 +927,10 @@ function renderWitnessCard(){
   $$("[data-witness-publication-view-markdown]").forEach(node=>node.addEventListener("click",async()=>{
     const id=node.getAttribute("data-witness-publication-view-markdown");
     if(id)await viewWitnessPublicationBundle(id,"markdown");
+  }));
+  $$("[data-witness-publication-view-manifest]").forEach(node=>node.addEventListener("click",async()=>{
+    const id=node.getAttribute("data-witness-publication-view-manifest");
+    if(id)await viewWitnessPublicationBundle(id,"manifest");
   }));
   const publicationPreviewBody=$("#witnessPublicationPreviewBody");
   if(publicationPreviewBody&&state.publicationPreview){
@@ -1085,9 +1099,7 @@ async function createWitnessPublicationBundleRecord(archiveCandidateId){
 }
 
 async function viewWitnessPublicationBundle(id,format){
-  const endpoint=format==="json"
-    ? `/api/witness/publication-bundles/${encodeURIComponent(id)}/json`
-    : `/api/witness/publication-bundles/${encodeURIComponent(id)}/markdown`;
+  const endpoint=publicationBundleArtifactUrl(id,format);
   const res=await fetch(endpoint);
   const text=await res.text();
   let data=null;

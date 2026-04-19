@@ -42,3 +42,7 @@ export type {
   PublicationBundleStatus,
   PublicationBundleStore,
 } from "./publicationBundle";
+export type {
+  PublicationBundleExportEntry,
+  PublicationBundleManifest,
+} from "./publicationArtifact";

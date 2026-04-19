@@ -731,14 +731,33 @@ async function pathWitnessVerticalSlice(): Promise<void> {
     const storedBundle = await publicationBundleStore.load(bundle.id);
     assert.ok(storedBundle, "publication bundle record should persist");
     assert.equal(storedBundle?.id, bundle.id);
+    const manifestPath = bundle.bundleManifestPath;
     assert.match(
       bundle.bundleJsonPath,
       new RegExp(
         `${path.join(witnessPublicationBundleRoot, "exports").replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}.*\\.json$`
       )
     );
+    assert.match(
+      manifestPath,
+      new RegExp(
+        `${path.join(witnessPublicationBundleRoot, "exports").replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}.*-manifest\\.json$`
+      )
+    );
     const bundleJson = await readFile(bundle.bundleJsonPath, "utf8");
     assert.match(bundleJson, /"schemaVersion": "0\.2\.0"/);
+    const bundleManifest = JSON.parse(await readFile(manifestPath, "utf8")) as {
+      schemaVersion: string;
+      bundleId: string;
+      exports: {
+        json: { filename: string; sha256: string; contentType: string };
+        markdown: { filename: string; sha256: string; contentType: string };
+      };
+    };
+    assert.equal(bundleManifest.schemaVersion, "0.1.0");
+    assert.equal(bundleManifest.bundleId, bundle.id);
+    assert.ok(bundleManifest.exports.json.sha256);
+    assert.ok(bundleManifest.exports.markdown.sha256);
     const bundleMarkdown = await readFile(bundle.bundleMarkdownPath as string, "utf8");
     assert.match(bundleMarkdown, /Publication Bundle/);
     assert.match(bundleMarkdown, new RegExp(candidate.id));

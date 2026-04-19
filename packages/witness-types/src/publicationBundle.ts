@@ -13,6 +13,7 @@ export interface PublicationBundleRecord {
   status: PublicationBundleStatus;
   bundleJsonPath: string;
   bundleMarkdownPath?: string;
+  bundleManifestPath: string;
 }
 
 export interface PublicationBundleStore {

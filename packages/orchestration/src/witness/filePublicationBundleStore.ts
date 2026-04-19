@@ -8,6 +8,7 @@ import type {
 } from "../../../witness-types/src/publicationBundle";
 
 export interface CreatePublicationBundleInput {
+  id?: string;
   witnessId: string;
   testimonyId: string;
   archiveCandidateId: string;
@@ -17,6 +18,7 @@ export interface CreatePublicationBundleInput {
   createdAt: string;
   bundleJsonPath: string;
   bundleMarkdownPath?: string;
+  bundleManifestPath: string;
 }
 
 export class FileWitnessPublicationBundleStore
@@ -95,7 +97,7 @@ export class FileWitnessPublicationBundleStore
     input: CreatePublicationBundleInput
   ): Promise<PublicationBundleRecord> {
     return this.save({
-      id: randomUUID(),
+      id: input.id ?? randomUUID(),
       witnessId: input.witnessId,
       testimonyId: input.testimonyId,
       archiveCandidateId: input.archiveCandidateId,
@@ -109,6 +111,7 @@ export class FileWitnessPublicationBundleStore
       ...(input.bundleMarkdownPath
         ? { bundleMarkdownPath: input.bundleMarkdownPath }
         : {}),
+      bundleManifestPath: input.bundleManifestPath,
     });
   }
 }

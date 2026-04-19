@@ -149,8 +149,10 @@ Publication bundle APIs:
 - `GET /api/witness/publication-bundles/:id`
 - `GET /api/witness/publication-bundles/:id/json`
 - `GET /api/witness/publication-bundles/:id/markdown`
+- `GET /api/witness/publication-bundles/:id/manifest`
+- append `?download=1` to any artifact route to force `Content-Disposition: attachment`
 
-The create call accepts `{ archiveCandidateId }` and writes a new bundle record under `data/witness/publication-bundles/records/` plus emitted JSON / Markdown bundle files under `data/witness/publication-bundles/exports/`. New JSON artifacts use `schemaVersion: "0.2.0"` with an explicit export DTO rather than direct runtime-record serialization. The artifact read routes serve raw bytes for operator inspection, validate the resolved artifact path against the canonical exports root, and treat broken bundle state as `500`. In the inquiry UI, preview rendering is raw-text-only and uses a `<pre>` with `textContent`, not HTML rendering.
+The create call accepts `{ archiveCandidateId }` and writes a new bundle record under `data/witness/publication-bundles/records/` plus emitted JSON, Markdown, and manifest artifacts under `data/witness/publication-bundles/exports/`. New JSON artifacts use `schemaVersion: "0.2.0"` with an explicit export DTO rather than direct runtime-record serialization. The artifact read routes serve raw bytes for operator inspection, validate the resolved artifact path against the canonical exports root, and treat broken bundle state as `500`. The manifest route uses the same validation path as JSON and Markdown. In the inquiry UI, preview rendering is raw-text-only and uses a `<pre>` with `textContent`, not HTML rendering, while the download buttons hand off the artifact as an attachment.
 
 ### 3.7 Manage durable memory
 

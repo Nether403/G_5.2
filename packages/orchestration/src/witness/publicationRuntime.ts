@@ -1,9 +1,10 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import type { AnnotationRecord } from "../../../witness-types/src/annotation";
 import type { ArchiveCandidateRecord } from "../../../witness-types/src/archiveCandidate";
+import type { PublicationBundleManifest } from "../../../witness-types/src/publicationArtifact";
 import type { SynthesisRecord } from "../../../witness-types/src/synthesis";
 import type { TestimonyRecord } from "../../../witness-types/src/testimony";
 import type { FileWitnessAnnotationStore, FileWitnessArchiveCandidateStore, FileWitnessPublicationBundleStore, FileWitnessSynthesisStore } from "./fileDraftStores";
@@ -135,6 +136,10 @@ async function loadAnnotationOrThrow(
   return annotation;
 }
 
+function sha256(content: string): string {
+  return createHash("sha256").update(content).digest("hex");
+}
+
 function buildPublicationBundlePayload(
   testimony: TestimonyRecord,
   synthesis: SynthesisRecord,
@@ -257,6 +262,45 @@ function buildPublicationBundleMarkdown(
   ].join("\n");
 }
 
+function buildPublicationBundleManifest(input: {
+  bundleId: string;
+  witnessId: string;
+  archiveCandidateId: string;
+  testimonyId: string;
+  testimonyUpdatedAt: string;
+  synthesisId: string;
+  annotationId: string;
+  createdAt: string;
+  jsonFilename: string;
+  jsonBody: string;
+  markdownFilename: string;
+  markdownBody: string;
+}): PublicationBundleManifest {
+  return {
+    schemaVersion: "0.1.0",
+    bundleId: input.bundleId,
+    witnessId: input.witnessId,
+    archiveCandidateId: input.archiveCandidateId,
+    testimonyId: input.testimonyId,
+    testimonyUpdatedAt: input.testimonyUpdatedAt,
+    synthesisId: input.synthesisId,
+    annotationId: input.annotationId,
+    createdAt: input.createdAt,
+    exports: {
+      json: {
+        filename: input.jsonFilename,
+        sha256: sha256(input.jsonBody),
+        contentType: "application/json",
+      },
+      markdown: {
+        filename: input.markdownFilename,
+        sha256: sha256(input.markdownBody),
+        contentType: "text/markdown",
+      },
+    },
+  };
+}
+
 export async function createWitnessPublicationBundle(
   input: CreateWitnessPublicationBundleInput
 ) {
@@ -289,40 +333,65 @@ export async function createWitnessPublicationBundle(
     annotation,
     archiveCandidate
   );
-  const exportId = randomUUID();
+  const bundleId = randomUUID();
+  const createdAt = new Date().toISOString();
   const exportRoot = path.join(input.publicationBundleRoot, "exports");
   const bundleJsonPath = path.join(
     exportRoot,
-    `${archiveCandidate.id}-${exportId}.json`
+    `${archiveCandidate.id}-${bundleId}.json`
   );
   const bundleMarkdownPath = path.join(
     exportRoot,
-    `${archiveCandidate.id}-${exportId}.md`
+    `${archiveCandidate.id}-${bundleId}.md`
   );
+  const bundleManifestPath = path.join(
+    exportRoot,
+    `${archiveCandidate.id}-${bundleId}-manifest.json`
+  );
+  const jsonBody = `${JSON.stringify(payload, null, 2)}\n`;
+  const markdownBody = `${buildPublicationBundleMarkdown(payload)}\n`;
+  const manifest = buildPublicationBundleManifest({
+    bundleId,
+    witnessId: testimony.witnessId,
+    archiveCandidateId: archiveCandidate.id,
+    testimonyId: testimony.id,
+    testimonyUpdatedAt: archiveCandidate.testimonyUpdatedAt,
+    synthesisId: synthesis.id,
+    annotationId: annotation.id,
+    createdAt,
+    jsonFilename: path.basename(bundleJsonPath),
+    jsonBody,
+    markdownFilename: path.basename(bundleMarkdownPath),
+    markdownBody,
+  });
 
   await mkdir(exportRoot, { recursive: true });
-  await writeFile(bundleJsonPath, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
-  await writeFile(
-    bundleMarkdownPath,
-    `${buildPublicationBundleMarkdown(payload)}\n`,
-    "utf8"
-  );
   try {
+    await writeFile(bundleJsonPath, jsonBody, "utf8");
+    await writeFile(bundleMarkdownPath, markdownBody, "utf8");
+    await writeFile(
+      bundleManifestPath,
+      `${JSON.stringify(manifest, null, 2)}\n`,
+      "utf8"
+    );
     return await input.publicationBundleStore.create({
+      id: bundleId,
       witnessId: testimony.witnessId,
       testimonyId: testimony.id,
       archiveCandidateId: archiveCandidate.id,
       sourceTestimonyUpdatedAt: archiveCandidate.testimonyUpdatedAt,
       sourceSynthesisId: synthesis.id,
       sourceAnnotationId: annotation.id,
-      createdAt: new Date().toISOString(),
+      createdAt,
       bundleJsonPath,
       bundleMarkdownPath,
+      bundleManifestPath,
     });
   } catch (error) {
     await Promise.allSettled([
-      rm(bundleJsonPath),
-      rm(bundleMarkdownPath),
+      rm(bundleJsonPath, { force: true }),
+      rm(bundleMarkdownPath, { force: true }),
+      rm(bundleManifestPath, { force: true }),
     ]);
     throw error;
   }

@@ -18,6 +18,7 @@ import {
   FileWitnessSynthesisStore,
 } from "../../../packages/orchestration/src/witness/fileDraftStores";
 import { FileWitnessTestimonyStore } from "../../../packages/orchestration/src/witness/fileTestimonyStore";
+import type { PublicationBundleRecord } from "../../../packages/witness-types/src/publicationBundle";
 import { createDashboardServer } from "./server";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -99,6 +100,9 @@ async function cleanupWitnessArtifacts(
   await Promise.all(
     publicationBundles
       .flatMap((record) => {
+        const publicationBundleRecord = record as PublicationBundleRecord & {
+          bundleManifestPath?: string;
+        };
         const tasks: Array<Promise<unknown>> = [
           publicationBundleStore.delete(record!.id),
         ];
@@ -107,6 +111,11 @@ async function cleanupWitnessArtifacts(
         }
         if (record?.bundleMarkdownPath) {
           tasks.push(rm(record.bundleMarkdownPath, { force: true }));
+        }
+        if (publicationBundleRecord.bundleManifestPath) {
+          tasks.push(
+            rm(publicationBundleRecord.bundleManifestPath, { force: true })
+          );
         }
         return tasks;
       })
@@ -892,6 +901,14 @@ test("publication bundle endpoints create and list witness export bundles", asyn
     );
     assert.ok((created.json?.bundleJsonPath ?? "").endsWith(".json"));
     assert.ok((created.json?.bundleMarkdownPath ?? "").endsWith(".md"));
+    if (created.json?.bundleManifestPath) {
+      assert.match(
+        created.json.bundleManifestPath,
+        new RegExp(
+          `${path.join(registry.witness.publicationBundleRoot!, "exports").replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}.*-manifest\\.json$`
+        )
+      );
+    }
 
     const listed = await requestJson(
       `/api/witness/publication-bundles?witnessId=${encodeURIComponent(witnessId)}&testimonyId=${encodeURIComponent(testimonyId)}`
@@ -1029,6 +1046,106 @@ test("publication bundle endpoints return 400 and 404 for missing or unknown ide
   assert.equal(created.response.status, 404);
 });
 
+test("publication bundle artifact endpoints serve manifest output and download attachments", async () => {
+  const bundleId = `bundle-${randomUUID()}`;
+  const exportsRoot = path.join(registry.witness.publicationBundleRoot!, "exports");
+  await mkdir(exportsRoot, { recursive: true });
+
+  const jsonPath = path.join(exportsRoot, `${bundleId}.json`);
+  const markdownPath = path.join(exportsRoot, `${bundleId}.md`);
+  const manifestPath = path.join(exportsRoot, `${bundleId}-manifest.json`);
+
+  await writeFile(jsonPath, '{ "schemaVersion": "0.2.0" }\n', "utf8");
+  await writeFile(markdownPath, `# Publication Bundle\n\n${bundleId}\n`, "utf8");
+  await writeFile(
+    manifestPath,
+    `${JSON.stringify(
+      {
+        schemaVersion: "0.1.0",
+        bundleId,
+        exports: {
+          json: {
+            filename: path.basename(jsonPath),
+            sha256: randomUUID().replace(/-/g, ""),
+            contentType: "application/json",
+          },
+          markdown: {
+            filename: path.basename(markdownPath),
+            sha256: randomUUID().replace(/-/g, ""),
+            contentType: "text/markdown",
+          },
+        },
+      },
+      null,
+      2
+    )}\n`,
+    "utf8"
+  );
+
+  const publicationBundleStore = new FileWitnessPublicationBundleStore(
+    registry.witness.publicationBundleRoot!
+  );
+
+  try {
+    await publicationBundleStore.save({
+      id: bundleId,
+      witnessId: `wit-${randomUUID()}`,
+      testimonyId: `testimony-${randomUUID()}`,
+      archiveCandidateId: `candidate-${randomUUID()}`,
+      sourceTestimonyUpdatedAt: "2026-04-19T18:00:00.000Z",
+      sourceSynthesisId: `synthesis-${randomUUID()}`,
+      sourceAnnotationId: `annotation-${randomUUID()}`,
+      createdAt: "2026-04-19T18:01:00.000Z",
+      updatedAt: "2026-04-19T18:01:00.000Z",
+      status: "created",
+      bundleJsonPath: jsonPath,
+      bundleMarkdownPath: markdownPath,
+      bundleManifestPath: manifestPath,
+    });
+
+    const manifest = await requestText(
+      `/api/witness/publication-bundles/${encodeURIComponent(bundleId)}/manifest`
+    );
+    assert.equal(manifest.response.status, 200);
+    assert.match(
+      manifest.response.headers.get("content-type") ?? "",
+      /^application\/json\b/i
+    );
+    const manifestJson = JSON.parse(manifest.text) as {
+      schemaVersion: string;
+      bundleId: string;
+      exports: {
+        json: { filename: string; sha256: string; contentType: string };
+        markdown: { filename: string; sha256: string; contentType: string };
+      };
+    };
+    assert.equal(manifestJson.schemaVersion, "0.1.0");
+    assert.equal(manifestJson.bundleId, bundleId);
+    assert.ok(manifestJson.exports.json.sha256);
+    assert.ok(manifestJson.exports.markdown.sha256);
+
+    for (const format of ["json", "markdown", "manifest"] as const) {
+      const downloaded = await requestText(
+        `/api/witness/publication-bundles/${encodeURIComponent(bundleId)}/${format}?download=1`
+      );
+      assert.equal(downloaded.response.status, 200);
+      assert.match(
+        downloaded.response.headers.get("content-disposition") ?? "",
+        /^attachment;/i
+      );
+      assert.match(
+        downloaded.response.headers.get("content-type") ?? "",
+        /^(application\/json|text\/markdown)\b/i
+      );
+    }
+  } finally {
+    await publicationBundleStore.delete(bundleId);
+    await rm(jsonPath, { force: true });
+    await rm(markdownPath, { force: true });
+    await rm(manifestPath, { force: true });
+  }
+});
+
 test("publication bundle creation returns 400 for non-string archiveCandidateId bodies", async () => {
   const created = await requestJson("/api/witness/publication-bundles", {
     method: "POST",
@@ -1090,14 +1207,20 @@ test("publication bundle artifact endpoints return 404 for unknown bundle ids", 
     `/api/witness/publication-bundles/${encodeURIComponent(unknownId)}/markdown`
   );
   assert.equal(markdown.response.status, 404);
+
+  const manifest = await requestText(
+    `/api/witness/publication-bundles/${encodeURIComponent(unknownId)}/manifest`
+  );
+  assert.equal(manifest.response.status, 404);
 });
 
-test("publication bundle artifact endpoints return 500 for broken markdown state and escaped paths", async () => {
+test("publication bundle artifact endpoints return 500 for broken manifest or markdown state and escaped paths", async () => {
   const bundleId = `bundle-${randomUUID()}`;
   const exportsRoot = path.join(registry.witness.publicationBundleRoot!, "exports");
   await mkdir(exportsRoot, { recursive: true });
 
   const jsonPath = path.join(exportsRoot, `${bundleId}.json`);
+  const manifestPath = path.join(exportsRoot, `${bundleId}-manifest.json`);
   await writeFile(jsonPath, '{ "schemaVersion": "0.2.0" }\n', "utf8");
 
   const publicationBundleStore = new FileWitnessPublicationBundleStore(
@@ -1117,12 +1240,18 @@ test("publication bundle artifact endpoints return 500 for broken markdown state
       updatedAt: "2026-04-19T16:01:00.000Z",
       status: "created",
       bundleJsonPath: jsonPath,
-    });
+      bundleManifestPath: manifestPath,
+    } as PublicationBundleRecord);
 
     const markdownMissing = await requestText(
       `/api/witness/publication-bundles/${encodeURIComponent(bundleId)}/markdown`
     );
     assert.equal(markdownMissing.response.status, 500);
+
+    const manifestMissing = await requestText(
+      `/api/witness/publication-bundles/${encodeURIComponent(bundleId)}/manifest`
+    );
+    assert.equal(manifestMissing.response.status, 500);
 
     await publicationBundleStore.save({
       id: bundleId,
@@ -1137,7 +1266,8 @@ test("publication bundle artifact endpoints return 500 for broken markdown state
       status: "created",
       bundleJsonPath: path.join(repoRoot, "README.md"),
       bundleMarkdownPath: path.join(repoRoot, "README.md"),
-    });
+      bundleManifestPath: path.join(repoRoot, "README.md"),
+    } as PublicationBundleRecord & { bundleManifestPath: string });
 
     const escapedJson = await requestText(
       `/api/witness/publication-bundles/${encodeURIComponent(bundleId)}/json`
@@ -1148,9 +1278,15 @@ test("publication bundle artifact endpoints return 500 for broken markdown state
       `/api/witness/publication-bundles/${encodeURIComponent(bundleId)}/markdown`
     );
     assert.equal(escapedMarkdown.response.status, 500);
+
+    const escapedManifest = await requestText(
+      `/api/witness/publication-bundles/${encodeURIComponent(bundleId)}/manifest`
+    );
+    assert.equal(escapedManifest.response.status, 500);
   } finally {
     await publicationBundleStore.delete(bundleId);
     await rm(jsonPath, { force: true });
+    await rm(manifestPath, { force: true });
   }
 });
 
@@ -1159,6 +1295,7 @@ test("publication bundle json endpoint serves legacy 0.1.0 artifacts unchanged",
   const exportsRoot = path.join(registry.witness.publicationBundleRoot!, "exports");
   await mkdir(exportsRoot, { recursive: true });
   const jsonPath = path.join(exportsRoot, `${bundleId}.json`);
+  const manifestPath = path.join(exportsRoot, `${bundleId}-manifest.json`);
   const legacyPayload = {
     schemaVersion: "0.1.0",
     witnessId: `wit-${randomUUID()}`,
@@ -1177,6 +1314,30 @@ test("publication bundle json endpoint serves legacy 0.1.0 artifacts unchanged",
     },
   };
   await writeFile(jsonPath, `${JSON.stringify(legacyPayload, null, 2)}\n`, "utf8");
+  await writeFile(
+    manifestPath,
+    `${JSON.stringify(
+      {
+        schemaVersion: "0.1.0",
+        bundleId,
+        exports: {
+          json: {
+            filename: path.basename(jsonPath),
+            sha256: randomUUID().replace(/-/g, ""),
+            contentType: "application/json",
+          },
+          markdown: {
+            filename: `${bundleId}.md`,
+            sha256: randomUUID().replace(/-/g, ""),
+            contentType: "text/markdown",
+          },
+        },
+      },
+      null,
+      2
+    )}\n`,
+    "utf8"
+  );
 
   const publicationBundleStore = new FileWitnessPublicationBundleStore(
     registry.witness.publicationBundleRoot!
@@ -1195,6 +1356,7 @@ test("publication bundle json endpoint serves legacy 0.1.0 artifacts unchanged",
       updatedAt: "2026-04-19T17:01:00.000Z",
       status: "created",
       bundleJsonPath: jsonPath,
+      bundleManifestPath: manifestPath,
     });
 
     const response = await requestText(
@@ -1205,6 +1367,7 @@ test("publication bundle json endpoint serves legacy 0.1.0 artifacts unchanged",
   } finally {
     await publicationBundleStore.delete(bundleId);
     await rm(jsonPath, { force: true });
+    await rm(manifestPath, { force: true });
   }
 });
 
@@ -1216,11 +1379,19 @@ test("inquiry publication preview uses raw artifact endpoints and textContent re
 
   assert.match(
     html,
-    /\/api\/witness\/publication-bundles\/\$\{encodeURIComponent\(id\)\}\/json/
+    /publicationBundleArtifactUrl\(id,format\)/
   );
   assert.match(
     html,
-    /\/api\/witness\/publication-bundles\/\$\{encodeURIComponent\(id\)\}\/markdown/
+    /data-witness-publication-view-manifest/
+  );
+  assert.match(
+    html,
+    /item\.bundleManifestPath\?`<button class="btn quiet" data-witness-publication-view-manifest/
+  );
+  assert.match(
+    html,
+    /searchParams\.set\("download","1"\)/
   );
   assert.match(html, /textContent\s*=/);
 });
