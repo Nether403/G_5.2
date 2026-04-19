@@ -57,3 +57,8 @@ export type {
   PublicationDeliveryStatus,
   PublicationDeliveryStore,
 } from "./publicationDelivery";
+export type {
+  PublicationDeliveryJobRecord,
+  PublicationDeliveryJobStatus,
+  PublicationDeliveryJobStore,
+} from "./publicationDeliveryJob";

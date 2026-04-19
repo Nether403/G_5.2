@@ -15,6 +15,7 @@ import {
 import { FileWitnessPublicationBundleStore } from "./fileDraftStores";
 import { FileWitnessPublicationPackageStore } from "./filePublicationPackageStore";
 import { FileWitnessPublicationDeliveryStore } from "./filePublicationDeliveryStore";
+import { FileWitnessPublicationDeliveryJobStore } from "./filePublicationDeliveryJobStore";
 import { FileWitnessArchiveCandidateStore } from "./fileArchiveCandidateStore";
 
 test("FileWitnessConsentStore appends decisions and filters by witness", async () => {
@@ -353,6 +354,71 @@ test("FileWitnessPublicationDeliveryStore persists failed delivery records", asy
     assert.equal(loaded?.status, "failed");
     assert.equal(loaded?.error, "remote upload failed");
     assert.equal((await store.findLatestByPackageId("bundle-3"))?.id, failed.id);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("FileWitnessPublicationDeliveryJobStore round-trips queued delivery jobs and filters by package id", async () => {
+  const root = await mkdtemp(
+    path.join(os.tmpdir(), "g52-witness-publication-delivery-job-store-")
+  );
+
+  try {
+    const store = new FileWitnessPublicationDeliveryJobStore(root);
+    const created = await store.create({
+      packageId: "bundle-1",
+      bundleId: "bundle-1",
+      witnessId: "wit-1",
+      testimonyId: "testimony-1",
+      backend: "azure-blob",
+      createdAt: "2026-04-20T08:00:00.000Z",
+    });
+
+    assert.equal(created.status, "queued");
+    assert.equal((await store.load(created.id))?.packageId, "bundle-1");
+    assert.deepEqual(
+      (await store.list({ packageId: "bundle-1" })).map((record) => record.id),
+      [created.id]
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("FileWitnessPublicationDeliveryJobStore finds the oldest queued job and supports retryable failed jobs", async () => {
+  const root = await mkdtemp(
+    path.join(os.tmpdir(), "g52-witness-publication-delivery-job-ordering-")
+  );
+
+  try {
+    const store = new FileWitnessPublicationDeliveryJobStore(root);
+    const first = await store.create({
+      packageId: "bundle-1",
+      bundleId: "bundle-1",
+      witnessId: "wit-1",
+      testimonyId: "testimony-1",
+      backend: "azure-blob",
+      createdAt: "2026-04-20T08:00:00.000Z",
+    });
+    const second = await store.create({
+      packageId: "bundle-2",
+      bundleId: "bundle-2",
+      witnessId: "wit-2",
+      testimonyId: "testimony-2",
+      backend: "azure-blob",
+      createdAt: "2026-04-20T08:05:00.000Z",
+    });
+
+    await store.save({
+      ...second,
+      status: "failed",
+      updatedAt: "2026-04-20T08:06:00.000Z",
+      error: "simulated failure",
+    });
+
+    assert.equal((await store.findOldestQueued())?.id, first.id);
+    assert.equal((await store.list({ status: "failed" }))[0]?.id, second.id);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
