@@ -47,7 +47,7 @@
 
 import http from "node:http";
 import fs from "node:fs/promises";
-import { existsSync, readFileSync } from "node:fs";
+import { createReadStream, existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -397,8 +397,24 @@ function isValidUuid(value: string): boolean {
   );
 }
 
-function isValidWitnessScopedId(value: string): boolean {
-  return /^[A-Za-z0-9][A-Za-z0-9_-]*$/.test(value);
+function hasMalformedTransportChars(value: string): boolean {
+  return /[\s\\/\0-\x1F\x7F]/.test(value);
+}
+
+function parsePublicationPackageListIdParam(
+  rawValue: string | null,
+  label: string
+): { value?: string; error?: string } {
+  if (rawValue === null) {
+    return {};
+  }
+
+  const value = rawValue.trim();
+  if (!value || hasMalformedTransportChars(value)) {
+    return { error: `Malformed ${label}` };
+  }
+
+  return { value };
 }
 
 function witnessMissingScopes(error: unknown): string[] | null {
@@ -1997,35 +2013,36 @@ export async function handleRequest(
   ) {
     try {
       let items = await publicationPackageStoreFor(WITNESS_CONFIG).list();
-      const rawBundleId = url.searchParams.get("bundleId");
-      const rawWitnessId = url.searchParams.get("witnessId");
-      const rawTestimonyId = url.searchParams.get("testimonyId");
-      const bundleId = rawBundleId?.trim();
-      const witnessId = rawWitnessId?.trim();
-      const testimonyId = rawTestimonyId?.trim();
+      const bundleParam = parsePublicationPackageListIdParam(
+        url.searchParams.get("bundleId"),
+        "publication bundle id"
+      );
+      const witnessParam = parsePublicationPackageListIdParam(
+        url.searchParams.get("witnessId"),
+        "witness id"
+      );
+      const testimonyParam = parsePublicationPackageListIdParam(
+        url.searchParams.get("testimonyId"),
+        "testimony id"
+      );
+      const bundleId = bundleParam.value;
+      const witnessId = witnessParam.value;
+      const testimonyId = testimonyParam.value;
 
-      if (rawBundleId !== null && !bundleId) {
-        sendJson(res, 400, { error: "Malformed publication bundle id" });
+      if (bundleParam.error) {
+        sendJson(res, 400, { error: bundleParam.error });
         return;
       }
-      if (rawWitnessId !== null && !witnessId) {
-        sendJson(res, 400, { error: "Malformed witness id" });
+      if (witnessParam.error) {
+        sendJson(res, 400, { error: witnessParam.error });
         return;
       }
-      if (rawTestimonyId !== null && !testimonyId) {
-        sendJson(res, 400, { error: "Malformed testimony id" });
+      if (testimonyParam.error) {
+        sendJson(res, 400, { error: testimonyParam.error });
         return;
       }
       if (bundleId && !isValidUuid(bundleId)) {
         sendJson(res, 400, { error: "Malformed publication bundle id" });
-        return;
-      }
-      if (witnessId && !isValidWitnessScopedId(witnessId)) {
-        sendJson(res, 400, { error: "Malformed witness id" });
-        return;
-      }
-      if (testimonyId && !isValidWitnessScopedId(testimonyId)) {
-        sendJson(res, 400, { error: "Malformed testimony id" });
         return;
       }
 
@@ -2069,7 +2086,12 @@ export async function handleRequest(
         item.packagePath,
         "Publication package path"
       );
-      const body = await fs.readFile(packagePath);
+      const fileStream = createReadStream(packagePath);
+      await new Promise<void>((resolve, reject) => {
+        fileStream.once("open", () => resolve());
+        fileStream.once("error", reject);
+      });
+
       res.writeHead(200, {
         "Content-Type": "application/zip",
         ...(url.searchParams.get("download") === "1"
@@ -2080,8 +2102,17 @@ export async function handleRequest(
             }
           : {}),
       });
-      res.end(body);
+      await new Promise<void>((resolve, reject) => {
+        fileStream.once("error", reject);
+        res.once("finish", resolve);
+        res.once("close", resolve);
+        fileStream.pipe(res);
+      });
     } catch (err) {
+      if (res.headersSent) {
+        res.destroy(err instanceof Error ? err : undefined);
+        return;
+      }
       sendJson(res, 500, {
         error: err instanceof Error ? err.message : String(err),
       });

@@ -1359,6 +1359,13 @@ test("publication package endpoints create idempotently, list by bundleId, and s
     assert.equal(listed.json.length, 1);
     assert.equal(listed.json[0].id, firstCreate.json.id);
 
+    const fetched = await requestJson(
+      `/api/witness/publication-packages/${encodeURIComponent(firstCreate.json.id)}`
+    );
+    assert.equal(fetched.response.status, 200);
+    assert.equal(fetched.json?.id, firstCreate.json.id);
+    assert.equal(fetched.json?.bundleId, setup.bundleId);
+
     const downloaded = await fetch(
       `${baseUrl}/api/witness/publication-packages/${encodeURIComponent(firstCreate.json.id)}/file?download=1`
     );
