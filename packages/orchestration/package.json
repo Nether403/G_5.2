@@ -11,6 +11,7 @@
     "test": "tsx --test src/**/*.test.ts"
   },
   "dependencies": {
+    "@azure/storage-blob": "^12.28.0",
     "yauzl": "^3.2.0",
     "yazl": "^3.3.1",
     "yaml": "^2.5.0",
