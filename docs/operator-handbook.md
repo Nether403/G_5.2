@@ -6,15 +6,15 @@ This handbook is written for the project operator (you). It assumes the system o
 
 ## 1. Mental model
 
-G_5.2 is built around four never-cross-contaminate boundaries:
+G_5.2 is built around five never-cross-contaminate boundaries:
 
 1. **Policy roots** live in `packages/canon/` for P-E-S and `packages/inquisitor-witness/` for Witness. They are the only source of truth for their respective governance packs.
 2. **Product-scoped runtime data** lives in `data/`. P-E-S and Witness session/memory roots are separate. These are *not* canon and never silently become canon.
 3. **Witness testimony + consent** live only in the Witness roots under `data/witness/`. They are operational records, not editorial canon.
-4. **Witness downstream review and export state** lives only in `data/witness/synthesis/`, `data/witness/annotations/`, `data/witness/archive-candidates/`, and `data/witness/publication-bundles/`. Publication bundle metadata records live under `data/witness/publication-bundles/records/`, while emitted JSON/Markdown artifacts live under `data/witness/publication-bundles/exports/`. Archive-review, publication-ready, and publication-bundle records never imply canon promotion or public release by themselves.
+4. **Witness downstream review and export state** lives only in `data/witness/synthesis/`, `data/witness/annotations/`, `data/witness/archive-candidates/`, and `data/witness/publication-bundles/`. Publication bundle metadata records live under `data/witness/publication-bundles/records/`, emitted JSON/Markdown artifacts live under `data/witness/publication-bundles/exports/`, packaged exports live under `data/witness/publication-bundles/package-records/` and `data/witness/publication-bundles/packages/`, and remote-delivery audit records live under `data/witness/publication-bundles/delivery-records/`. Archive-review, publication-ready, publication-bundle, package, and delivery records never imply canon promotion or public release by themselves.
 5. **Eval reports** live in `packages/evals/reports/`. Promoted gold baselines live in `packages/evals/gold-baselines/`.
 
-The operator's job is to keep these four boundaries clean. Every operator action below is designed to preserve them.
+The operator's job is to keep these five boundaries clean. Every operator action below is designed to preserve them.
 
 ## 2. First-run setup
 
@@ -35,6 +35,7 @@ Optional:
 cp .env.example .env
 # Set OPENROUTER_API_KEY for real provider runs.
 # Set AZURE_OPENAI_* for direct Azure runs.
+# Set AZURE_BLOB_* when using remote Witness package delivery.
 # Set EVAL_PROVIDER=azure|openai|anthropic|gemini (Azure is preferred when configured).
 ```
 
@@ -170,7 +171,30 @@ Operational rules:
 - the package contains `bundle.json`, `bundle.md`, `manifest.json`, and `README.txt`
 - package delivery validates the canonical `packages/` root via realpath before reading bytes
 
-### 3.8 Manage durable memory
+### 3.8 Create Witness publication deliveries
+
+Publication deliveries are synchronous, operator-triggered upload attempts over an existing Witness publication package. The package remains the artifact of record; delivery uploads that exact `.zip` unchanged and records the attempt separately from package metadata.
+
+UI: inquiry surface in Witness mode → create or select a package → `Deliver Package`.
+
+APIs:
+- `POST /api/witness/publication-deliveries`
+- `GET /api/witness/publication-deliveries?packageId=...&bundleId=...&witnessId=...&testimonyId=...`
+- `GET /api/witness/publication-deliveries/:id`
+
+Operational rules:
+- delivery requires an existing package record and package file
+- the current backend is `azure-blob`, behind the generic object-delivery contract
+- each upload attempt writes a delivery record under `data/witness/publication-bundles/delivery-records/`
+- successful deliveries record backend, status, remote key, and remote URL when available
+- failed remote uploads still persist a `failed` delivery record and do not mutate package records or package bytes
+- local/config/runtime failures return `500`; remote target failures return `502`
+
+Current backend configuration:
+- `AZURE_BLOB_CONNECTION_STRING`
+- `AZURE_BLOB_CONTAINER_NAME`
+
+### 3.9 Manage durable memory
 
 UI: dashboard → memory.
 
@@ -186,7 +210,7 @@ Rule of thumb: only `accepted` items are retrievable into turn context. Everythi
 
 In Witness mode, memory reads and writes must stay inside `data/witness/memory/`. They must not touch `data/memory-items/`.
 
-### 3.9 Propose a canon change
+### 3.10 Propose a canon change
 
 UI: editorial surface → choose a file → edit → submit proposal → review the diff → accept / reject / needs-revision with a reviewer note.
 
@@ -196,7 +220,7 @@ For continuity facts, use the dedicated drafter — it auto-assigns the next `CF
 
 In Witness mode, editorial controls remain disabled. Witness testimony is not edited through the canon proposal workflow.
 
-### 3.10 Run a reflection
+### 3.11 Run a reflection
 
 UI: authoring surface → reflection topics → create topic → "run".
 
@@ -204,7 +228,7 @@ What happens: `runReflection` does `draft → critique → revise` against activ
 
 Witness mode does not expose editorial or authoring workflows. Those surfaces remain operator workflows for the shared runtime and P-E-S canon.
 
-### 3.11 Run evals
+### 3.12 Run evals
 
 ```bash
 # Single provider (Gemini default):

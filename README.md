@@ -40,7 +40,8 @@ Implemented now:
 - selective durable memory implemented in v1 form: global/session scope, dedupe, contradiction detection, operator transitions, with longer-lived policy refinement still ahead
 - Witness-first vertical slice: consent-gated inquiry turns, file-backed testimony + consent stores, structured compensation logging, and rollback on failed artifact persistence
 - downstream Witness governance slice: operator-sealed testimony, approved synthesis + annotation review, and archive-candidate / publication-bundle export state inside Witness roots only
-- Witness publication bundles can also be packaged into a deterministic `.zip` handoff artifact from the emitted bundle outputs; that package is the local artifact of record for future remote delivery adapters
+- Witness publication bundles can also be packaged into a deterministic `.zip` handoff artifact from the emitted bundle outputs; that package is the local artifact of record for remote delivery
+- Witness publication packages can be delivered synchronously through the first object-storage adapter layer; delivery uploads the existing `.zip` unchanged and records each attempt separately from package metadata
 - operator dashboard for reports, diffs, inquiry sessions, memory inspection, editorial workflow, and authored-artifact workflow
 - single inquiry surface with a `Witness / P-E-S` selector, Witness ID handling, consent controls, and testimony inspection
 - canon / continuity-fact editorial workflow with diffable proposals, apply-on-accept, and changelog scaffolding
@@ -102,6 +103,7 @@ Default environment variables:
 - `OPENROUTER_API_KEY` — required for live inquiry turns
 - `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_DEPLOYMENT_NAME`, `AZURE_OPENAI_API_VERSION` — direct Azure OpenAI configuration for the preferred `azure` provider path
 - `AZURE_OPENAI_DEFAULT_MODEL` — display/model label for the Azure deployment, typically `gpt-5.4`
+- `AZURE_BLOB_CONNECTION_STRING`, `AZURE_BLOB_CONTAINER_NAME` — required when using the Witness remote package delivery path backed by Azure Blob
 - `OPENROUTER_DEFAULT_MODEL` / `OPENROUTER_OPENAI_MODEL` — OpenRouter fallback model slug; pin an exact dated slug like `openai/gpt-5.4-20260305` when you want fallback runs to be reproducible
 - `OPENROUTER_SECONDARY_MODEL` — lighter OpenAI model slug, typically `openai/gpt-5.4-mini`
 - `OPENROUTER_OPENAI_PROVIDER_ORDER` — OpenRouter routing preference for OpenAI fallback requests; `azure,openai` keeps Azure first without making the fallback path redundant
@@ -129,6 +131,7 @@ Current roots include:
 - `data/witness/sessions/`, `data/witness/memory/`, `data/witness/testimony/`, `data/witness/consent/` for Witness runtime state
 - `data/witness/synthesis/`, `data/witness/annotations/`, `data/witness/archive-candidates/`, and `data/witness/publication-bundles/` for downstream Witness review and export state
   Publication bundles split metadata and emitted artifacts under `data/witness/publication-bundles/records/` and `data/witness/publication-bundles/exports/`.
+  Packaged exports and remote-delivery audit records live under `data/witness/publication-bundles/package-records/`, `data/witness/publication-bundles/packages/`, and `data/witness/publication-bundles/delivery-records/`.
   The dashboard can inspect emitted bundle artifacts directly through raw JSON, Markdown, and manifest delivery endpoints, and append `?download=1` to any of those routes to force a download handoff with `Content-Disposition: attachment`.
   Raw preview stays text-only, and new JSON exports use an explicit `0.2.0` publication DTO.
 

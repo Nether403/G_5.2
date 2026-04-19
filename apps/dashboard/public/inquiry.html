@@ -328,7 +328,7 @@ const state={
   latestProvider:null,sessionSearch:"",memorySearch:"",
   sortKey:"updatedAt",sortDir:"desc",archiveFilter:"active",tagFilter:null,
   providerList:[],defaultProvider:null,hasApiKey:false,
-  product:"pes",witnessId:"",witnessConsent:[],witnessTestimony:[],witnessSynthesis:[],witnessAnnotations:[],witnessArchiveCandidates:[],witnessPublicationBundles:[],witnessPublicationPackages:[],witnessPublicationPackagesLoading:false,witnessPublicationPackagesRequestToken:0,selectedWitnessTestimonyId:null,memoryStateFilter:"accepted",
+  product:"pes",witnessId:"",witnessConsent:[],witnessTestimony:[],witnessSynthesis:[],witnessAnnotations:[],witnessArchiveCandidates:[],witnessPublicationBundles:[],witnessPublicationPackages:[],witnessPublicationPackagesLoading:false,witnessPublicationPackagesRequestToken:0,deliveriesByPackageId:{},witnessPublicationDeliveryLoading:false,witnessPublicationDeliveryRequestToken:0,witnessPublicationDeliveryPendingPackageId:null,selectedWitnessTestimonyId:null,memoryStateFilter:"accepted",
   isSending:false,lastError:null,pendingRetry:null,
   previewSnapshot:null,previewMode:null,previewSessionId:null,
   publicationPreview:null
@@ -364,6 +364,9 @@ function publicationBundlesForArchiveCandidate(archiveCandidateId){
 function publicationPackageForBundle(bundleId){
   return activeWitnessPublicationPackages().find(item=>item.bundleId===bundleId)||null;
 }
+function publicationDeliveriesForPackage(packageId){
+  return state.deliveriesByPackageId[packageId]||[];
+}
 function publicationBundleArtifactUrl(id,format,download=false){
   const url=new URL(`/api/witness/publication-bundles/${encodeURIComponent(id)}/${format}`,window.location.origin);
   if(download)url.searchParams.set("download","1");
@@ -376,6 +379,9 @@ function publicationPackageDownloadUrl(id){
 }
 function witnessPublicationPackagesUrl(witnessId,testimonyId){
   return `/api/witness/publication-packages?witnessId=${encodeURIComponent(witnessId)}&testimonyId=${encodeURIComponent(testimonyId)}`;
+}
+function witnessPublicationDeliveriesUrl(witnessId,testimonyId){
+  return `/api/witness/publication-deliveries?witnessId=${encodeURIComponent(witnessId)}&testimonyId=${encodeURIComponent(testimonyId)}`;
 }
 async function loadWitnessPublicationPackages(){
   const witnessId=activeWitnessId();
@@ -399,6 +405,34 @@ async function loadWitnessPublicationPackages(){
   }finally{
     if(requestToken!==state.witnessPublicationPackagesRequestToken)return;
     state.witnessPublicationPackagesLoading=false;
+  }
+}
+async function loadWitnessPublicationDeliveries(){
+  const witnessId=activeWitnessId();
+  const testimonyId=state.selectedWitnessTestimonyId;
+  if(!isWitness()||!witnessId||!testimonyId){
+    state.deliveriesByPackageId={};state.witnessPublicationDeliveryLoading=false;
+    return;
+  }
+  const requestToken=++state.witnessPublicationDeliveryRequestToken;
+  state.witnessPublicationDeliveryLoading=true;
+  try{
+    const res=await fetch(witnessPublicationDeliveriesUrl(witnessId,testimonyId));
+    const deliveries=res.ok?await res.json():[];
+    if(requestToken!==state.witnessPublicationDeliveryRequestToken)return;
+    if(state.selectedWitnessTestimonyId!==testimonyId||activeWitnessId()!==witnessId)return;
+    const grouped={};
+    for(const item of deliveries){
+      (grouped[item.packageId] ||= []).push(item);
+    }
+    state.deliveriesByPackageId=grouped;
+  }catch{
+    if(requestToken!==state.witnessPublicationDeliveryRequestToken)return;
+    if(state.selectedWitnessTestimonyId!==testimonyId||activeWitnessId()!==witnessId)return;
+    state.deliveriesByPackageId={};
+  }finally{
+    if(requestToken!==state.witnessPublicationDeliveryRequestToken)return;
+    state.witnessPublicationDeliveryLoading=false;
   }
 }
 function clearWitnessPublicationPreview(){
@@ -765,8 +799,11 @@ function renderWitnessCard(){
     clearWitnessPublicationPreview();
     state.witnessPublicationPackages=[];
     state.witnessPublicationPackagesLoading=true;
+    state.deliveriesByPackageId={};
+    state.witnessPublicationDeliveryLoading=true;
     renderWitnessCard();
     await loadWitnessPublicationPackages();
+    await loadWitnessPublicationDeliveries();
     renderWitnessCard();
   }));
   $$("[data-open-witness-session]").forEach(node=>node.addEventListener("click",async()=>{
@@ -888,12 +925,16 @@ function renderWitnessCard(){
     </div>
     ${publicationBundles.length?publicationBundles.map(item=>{
       const publicationPackage=publicationPackageForBundle(item.id);
+      const deliveries=publicationPackage?publicationDeliveriesForPackage(publicationPackage.id):[];
+      const latestDelivery=deliveries.at(-1)||null;
+      const deliveryPending=publicationPackage&&state.witnessPublicationDeliveryPendingPackageId===publicationPackage.id;
       return `
       <div class="context">
         <div class="label">${esc(item.status)} · ${esc(item.id.slice(0,8))}</div>
         <div class="value">Archive candidate: ${esc(item.archiveCandidateId)}</div>
         <div class="meta">Created ${fmt(item.createdAt)}</div>
         ${state.witnessPublicationPackagesLoading?`<div class="meta">Loading package state...</div>`:publicationPackage?`<div class="meta">Package ${esc(publicationPackage.packageFilename)} · ${(publicationPackage.packageByteSize||0).toLocaleString()} bytes · updated ${fmt(publicationPackage.updatedAt)}</div>`:`<div class="meta">Package not created yet for this bundle.</div>`}
+        ${state.witnessPublicationPackagesLoading||!publicationPackage?"":state.witnessPublicationDeliveryLoading?`<div class="meta">Loading delivery status...</div>`:latestDelivery?`<div class="meta">Latest delivery: ${esc(latestDelivery.status)} via ${esc(latestDelivery.backend)} · ${fmt(latestDelivery.createdAt)}</div><div class="meta">${esc(latestDelivery.remoteKey)}${latestDelivery.remoteUrl?` · ${esc(latestDelivery.remoteUrl)}`:""}${latestDelivery.error?` · ${esc(latestDelivery.error)}`:""}</div>`:`<div class="meta">No remote deliveries recorded yet for this package.</div>`}
         <div class="rerun-row" style="margin-top:8px">
           <button class="btn quiet" data-witness-publication-view-json="${esc(item.id)}">View JSON</button>
           <button class="btn quiet" data-witness-publication-view-markdown="${esc(item.id)}">View Markdown</button>
@@ -901,8 +942,9 @@ function renderWitnessCard(){
           <a class="btn quiet" href="${esc(publicationBundleArtifactUrl(item.id,"json",true))}">Download JSON</a>
           <a class="btn quiet" href="${esc(publicationBundleArtifactUrl(item.id,"markdown",true))}">Download Markdown</a>
           ${item.bundleManifestPath?`<a class="btn quiet" href="${esc(publicationBundleArtifactUrl(item.id,"manifest",true))}">Download Manifest</a>`:""}
-          ${state.witnessPublicationPackagesLoading?`<span class="meta">Loading package state...</span>`:publicationPackage?`<a class="btn quiet" data-witness-publication-package-download="${esc(publicationPackage.id)}" href="${esc(publicationPackageDownloadUrl(publicationPackage.id))}">Download Package</a>`:`<button class="btn quiet" data-witness-publication-package-create="${esc(item.id)}">Create Package</button>`}
+          ${state.witnessPublicationPackagesLoading?`<span class="meta">Loading package state...</span>`:publicationPackage?`<a class="btn quiet" data-witness-publication-package-download="${esc(publicationPackage.id)}" href="${esc(publicationPackageDownloadUrl(publicationPackage.id))}">Download Package</a><button class="btn quiet" data-witness-publication-package-deliver="${esc(publicationPackage.id)}" ${deliveryPending?"disabled":""}>${deliveryPending?"Delivering...":"Deliver Package"}</button>`:`<button class="btn quiet" data-witness-publication-package-create="${esc(item.id)}">Create Package</button>`}
         </div>
+        ${state.witnessPublicationPackagesLoading||!publicationPackage||state.witnessPublicationDeliveryLoading||!deliveries.length?"":`<div class="drawer-list" style="margin-top:10px">${deliveries.slice().reverse().map(delivery=>`<div class="context"><div class="label">${esc(delivery.status)} · ${esc(delivery.backend)} · ${esc(delivery.id.slice(0,8))}</div><div class="value">${esc(delivery.remoteKey)}</div><div class="meta">${fmt(delivery.createdAt)}${delivery.remoteUrl?` · ${esc(delivery.remoteUrl)}`:""}${delivery.error?` · ${esc(delivery.error)}`:""}</div></div>`).join("")}</div>`:""}
       </div>`;
     }).join(""):'<div class="meta">No publication bundles yet for this testimony.</div>'}
     ${state.publicationPreview?`
@@ -984,6 +1026,10 @@ function renderWitnessCard(){
     const bundleId=node.getAttribute("data-witness-publication-package-create");
     if(bundleId)await createWitnessPublicationPackageRecord(bundleId);
   }));
+  $$("[data-witness-publication-package-deliver]").forEach(node=>node.addEventListener("click",async()=>{
+    const packageId=node.getAttribute("data-witness-publication-package-deliver");
+    if(packageId)await deliverWitnessPublicationPackageRecord(packageId);
+  }));
   const publicationPreviewBody=$("#witnessPublicationPreviewBody");
   if(publicationPreviewBody&&state.publicationPreview){
     publicationPreviewBody.textContent=state.publicationPreview.text;
@@ -1003,11 +1049,11 @@ function renderWitnessCard(){
 
 async function loadWitnessData(){
   if(!isWitness()){
-    state.witnessConsent=[];state.witnessTestimony=[];state.witnessSynthesis=[];state.witnessAnnotations=[];state.witnessArchiveCandidates=[];state.witnessPublicationBundles=[];state.witnessPublicationPackages=[];state.witnessPublicationPackagesLoading=false;state.selectedWitnessTestimonyId=null;clearWitnessPublicationPreview();renderWitnessCard();return;
+    state.witnessConsent=[];state.witnessTestimony=[];state.witnessSynthesis=[];state.witnessAnnotations=[];state.witnessArchiveCandidates=[];state.witnessPublicationBundles=[];state.witnessPublicationPackages=[];state.witnessPublicationPackagesLoading=false;state.deliveriesByPackageId={};state.witnessPublicationDeliveryLoading=false;state.witnessPublicationDeliveryPendingPackageId=null;state.selectedWitnessTestimonyId=null;clearWitnessPublicationPreview();renderWitnessCard();return;
   }
   const witnessId=activeWitnessId();
   if(!witnessId){
-    state.witnessConsent=[];state.witnessTestimony=[];state.witnessSynthesis=[];state.witnessAnnotations=[];state.witnessArchiveCandidates=[];state.witnessPublicationBundles=[];state.witnessPublicationPackages=[];state.witnessPublicationPackagesLoading=false;state.selectedWitnessTestimonyId=null;clearWitnessPublicationPreview();renderWitnessCard();return;
+    state.witnessConsent=[];state.witnessTestimony=[];state.witnessSynthesis=[];state.witnessAnnotations=[];state.witnessArchiveCandidates=[];state.witnessPublicationBundles=[];state.witnessPublicationPackages=[];state.witnessPublicationPackagesLoading=false;state.deliveriesByPackageId={};state.witnessPublicationDeliveryLoading=false;state.witnessPublicationDeliveryPendingPackageId=null;state.selectedWitnessTestimonyId=null;clearWitnessPublicationPreview();renderWitnessCard();return;
   }
   try{
     const [consentRes,testimonyRes]=await Promise.all([
@@ -1044,9 +1090,9 @@ async function loadWitnessData(){
     state.witnessAnnotations=annotationResponses.flat();
     state.witnessArchiveCandidates=archiveResponses.flat();
     state.witnessPublicationBundles=publicationBundleResponses.flat();
-    await loadWitnessPublicationPackages();
+    await Promise.all([loadWitnessPublicationPackages(),loadWitnessPublicationDeliveries()]);
   }catch{
-    state.witnessConsent=[];state.witnessTestimony=[];state.witnessSynthesis=[];state.witnessAnnotations=[];state.witnessArchiveCandidates=[];state.witnessPublicationBundles=[];state.witnessPublicationPackages=[];state.witnessPublicationPackagesLoading=false;state.selectedWitnessTestimonyId=null;clearWitnessPublicationPreview();
+    state.witnessConsent=[];state.witnessTestimony=[];state.witnessSynthesis=[];state.witnessAnnotations=[];state.witnessArchiveCandidates=[];state.witnessPublicationBundles=[];state.witnessPublicationPackages=[];state.witnessPublicationPackagesLoading=false;state.deliveriesByPackageId={};state.witnessPublicationDeliveryLoading=false;state.witnessPublicationDeliveryPendingPackageId=null;state.selectedWitnessTestimonyId=null;clearWitnessPublicationPreview();
   }
   renderWitnessCard();
 }
@@ -1160,6 +1206,32 @@ async function createWitnessPublicationPackageRecord(bundleId){
   if(!res.ok){setError(data.error||"Failed to create publication package",data);return}
   setError("");
   await loadWitnessData();
+}
+
+async function deliverWitnessPublicationPackageRecord(packageId){
+  state.witnessPublicationDeliveryPendingPackageId=packageId;
+  renderWitnessCard();
+  try{
+    const res=await fetch("/api/witness/publication-deliveries",{
+      method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({packageId,backend:"azure-blob"})
+    });
+    const data=await res.json();
+    await loadWitnessPublicationDeliveries();
+    if(!res.ok){
+      const message=(data&&typeof data.error==="string"&&data.error)||
+        (data&&data.status==="failed"&&typeof data.error==="string"&&data.error)||
+        "Failed to deliver publication package";
+      setError(message,data);
+      return;
+    }
+    setError("");
+  }catch(err){
+    setError(err instanceof Error?err.message:String(err));
+  }finally{
+    state.witnessPublicationDeliveryPendingPackageId=null;
+    renderWitnessCard();
+  }
 }
 
 async function viewWitnessPublicationBundle(id,format){

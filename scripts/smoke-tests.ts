@@ -47,6 +47,8 @@ import {
 } from "../packages/orchestration/src/witness/fileDraftStores";
 import { FileWitnessPublicationPackageStore } from "../packages/orchestration/src/witness/filePublicationPackageStore";
 import { createWitnessPublicationPackage } from "../packages/orchestration/src/witness/publicationPackageRuntime";
+import { FileWitnessPublicationDeliveryStore } from "../packages/orchestration/src/witness/filePublicationDeliveryStore";
+import { deliverWitnessPublicationPackage } from "../packages/orchestration/src/witness/publicationDeliveryRuntime";
 import { FileWitnessTestimonyStore } from "../packages/orchestration/src/witness/fileTestimonyStore";
 import {
   CanonProposalSchema,
@@ -560,6 +562,9 @@ async function pathWitnessVerticalSlice(): Promise<void> {
     const publicationPackageStore = new FileWitnessPublicationPackageStore(
       witnessPublicationBundleRoot
     );
+    const publicationDeliveryStore = new FileWitnessPublicationDeliveryStore(
+      witnessPublicationBundleRoot
+    );
 
     const blocked = await getWitnessConsentGate(consentStore, witnessId);
     assert.equal(blocked.allowed, false);
@@ -786,6 +791,49 @@ async function pathWitnessVerticalSlice(): Promise<void> {
     });
     assert.equal(packageAgain.id, packageRecord.id);
 
+    const fakeRemoteRoot = path.join(root, "remote");
+    const delivered = await deliverWitnessPublicationPackage({
+      publicationBundleRoot: witnessPublicationBundleRoot,
+      packageId: packageRecord.id,
+      packageStore: publicationPackageStore,
+      deliveryStore: publicationDeliveryStore,
+      backend: {
+        name: "azure-blob",
+        async putObject(input) {
+          const target = path.join(
+            fakeRemoteRoot,
+            input.key.replaceAll("/", path.sep)
+          );
+          await mkdir(path.dirname(target), { recursive: true });
+          await writeFile(target, await readFile(input.filePath));
+          return {
+            remoteKey: input.key,
+            remoteUrl: `file://${target.replaceAll("\\", "/")}`,
+          };
+        },
+      },
+    });
+    assert.equal(delivered.status, "succeeded");
+    assert.equal(delivered.backend, "azure-blob");
+    assert.equal(delivered.packageId, packageRecord.id);
+    assert.match(
+      delivered.remoteKey,
+      /^witness\/.+\/testimony\/.+\/packages\/.+\.zip$/
+    );
+    assert.deepEqual(
+      await readFile(
+        path.join(fakeRemoteRoot, delivered.remoteKey.replaceAll("/", path.sep))
+      ),
+      await readFile(packageRecord.packagePath)
+    );
+    const deliveryRecords = await publicationDeliveryStore.list({
+      packageId: packageRecord.id,
+    });
+    assert.equal(deliveryRecords.length, 1);
+    assert.equal(deliveryRecords[0]?.id, delivered.id);
+    assert.equal(deliveryRecords[0]?.status, "succeeded");
+    assert.equal(deliveryRecords[0]?.remoteKey, delivered.remoteKey);
+
     const pesSessionFiles = await readdir(pesSessionsRoot);
     const pesMemoryFiles = await readdir(pesMemoryRoot);
     assert.equal(pesSessionFiles.length, 0, "witness flow must not write P-E-S sessions");
@@ -794,6 +842,7 @@ async function pathWitnessVerticalSlice(): Promise<void> {
     assert.ok((await readdir(witnessAnnotationRoot)).length >= 1);
     assert.ok((await readdir(witnessArchiveCandidateRoot)).length >= 1);
     assert.ok((await readdir(witnessPublicationBundleRoot)).length >= 1);
+    assert.ok((await readdir(fakeRemoteRoot)).length >= 1);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
