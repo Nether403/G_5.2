@@ -1997,10 +1997,25 @@ export async function handleRequest(
   ) {
     try {
       let items = await publicationPackageStoreFor(WITNESS_CONFIG).list();
-      const bundleId = url.searchParams.get("bundleId")?.trim();
-      const witnessId = url.searchParams.get("witnessId")?.trim();
-      const testimonyId = url.searchParams.get("testimonyId")?.trim();
+      const rawBundleId = url.searchParams.get("bundleId");
+      const rawWitnessId = url.searchParams.get("witnessId");
+      const rawTestimonyId = url.searchParams.get("testimonyId");
+      const bundleId = rawBundleId?.trim();
+      const witnessId = rawWitnessId?.trim();
+      const testimonyId = rawTestimonyId?.trim();
 
+      if (rawBundleId !== null && !bundleId) {
+        sendJson(res, 400, { error: "Malformed publication bundle id" });
+        return;
+      }
+      if (rawWitnessId !== null && !witnessId) {
+        sendJson(res, 400, { error: "Malformed witness id" });
+        return;
+      }
+      if (rawTestimonyId !== null && !testimonyId) {
+        sendJson(res, 400, { error: "Malformed testimony id" });
+        return;
+      }
       if (bundleId && !isValidUuid(bundleId)) {
         sendJson(res, 400, { error: "Malformed publication bundle id" });
         return;

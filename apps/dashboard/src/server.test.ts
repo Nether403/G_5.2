@@ -1456,6 +1456,36 @@ test("publication package endpoints return 400 for malformed filter ids and crea
   assert.equal(malformedCreate.response.status, 400);
 });
 
+test("publication package list endpoint returns 400 for blank and whitespace filter ids", async () => {
+  const blankBundle = await requestJson("/api/witness/publication-packages?bundleId=");
+  assert.equal(blankBundle.response.status, 400);
+
+  const whitespaceBundle = await requestJson(
+    `/api/witness/publication-packages?bundleId=${encodeURIComponent(" ")}`
+  );
+  assert.equal(whitespaceBundle.response.status, 400);
+
+  const blankWitness = await requestJson(
+    "/api/witness/publication-packages?witnessId="
+  );
+  assert.equal(blankWitness.response.status, 400);
+
+  const whitespaceWitness = await requestJson(
+    `/api/witness/publication-packages?witnessId=${encodeURIComponent(" ")}`
+  );
+  assert.equal(whitespaceWitness.response.status, 400);
+
+  const blankTestimony = await requestJson(
+    "/api/witness/publication-packages?testimonyId="
+  );
+  assert.equal(blankTestimony.response.status, 400);
+
+  const whitespaceTestimony = await requestJson(
+    `/api/witness/publication-packages?testimonyId=${encodeURIComponent(" ")}`
+  );
+  assert.equal(whitespaceTestimony.response.status, 400);
+});
+
 test("publication bundle json endpoint serves legacy 0.1.0 artifacts unchanged", async () => {
   const bundleId = `bundle-${randomUUID()}`;
   const exportsRoot = path.join(registry.witness.publicationBundleRoot!, "exports");
