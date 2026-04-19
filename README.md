@@ -40,6 +40,7 @@ Implemented now:
 - selective durable memory implemented in v1 form: global/session scope, dedupe, contradiction detection, operator transitions, with longer-lived policy refinement still ahead
 - Witness-first vertical slice: consent-gated inquiry turns, file-backed testimony + consent stores, structured compensation logging, and rollback on failed artifact persistence
 - downstream Witness governance slice: operator-sealed testimony, approved synthesis + annotation review, and archive-candidate / publication-bundle export state inside Witness roots only
+- Witness publication bundles can also be packaged into a deterministic `.zip` handoff artifact from the emitted bundle outputs; that package is the local artifact of record for future remote delivery adapters
 - operator dashboard for reports, diffs, inquiry sessions, memory inspection, editorial workflow, and authored-artifact workflow
 - single inquiry surface with a `Witness / P-E-S` selector, Witness ID handling, consent controls, and testimony inspection
 - canon / continuity-fact editorial workflow with diffable proposals, apply-on-accept, and changelog scaffolding

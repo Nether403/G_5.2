@@ -45,6 +45,8 @@ import {
   FileWitnessPublicationBundleStore,
   FileWitnessSynthesisStore,
 } from "../packages/orchestration/src/witness/fileDraftStores";
+import { FileWitnessPublicationPackageStore } from "../packages/orchestration/src/witness/filePublicationPackageStore";
+import { createWitnessPublicationPackage } from "../packages/orchestration/src/witness/publicationPackageRuntime";
 import { FileWitnessTestimonyStore } from "../packages/orchestration/src/witness/fileTestimonyStore";
 import {
   CanonProposalSchema,
@@ -555,6 +557,9 @@ async function pathWitnessVerticalSlice(): Promise<void> {
     const publicationBundleStore = new FileWitnessPublicationBundleStore(
       witnessPublicationBundleRoot
     );
+    const publicationPackageStore = new FileWitnessPublicationPackageStore(
+      witnessPublicationBundleRoot
+    );
 
     const blocked = await getWitnessConsentGate(consentStore, witnessId);
     assert.equal(blocked.allowed, false);
@@ -761,6 +766,25 @@ async function pathWitnessVerticalSlice(): Promise<void> {
     const bundleMarkdown = await readFile(bundle.bundleMarkdownPath as string, "utf8");
     assert.match(bundleMarkdown, /Publication Bundle/);
     assert.match(bundleMarkdown, new RegExp(candidate.id));
+
+    const packageRecord = await createWitnessPublicationPackage({
+      publicationBundleRoot: witnessPublicationBundleRoot,
+      bundleId: bundle.id,
+      publicationBundleStore,
+      publicationPackageStore,
+    });
+    assert.equal(packageRecord.bundleId, bundle.id);
+    assert.match(packageRecord.packageFilename, /^.+--.+\.zip$/);
+    assert.ok(packageRecord.packageByteSize > 0);
+    assert.match(packageRecord.packageSha256, /^[a-f0-9]{64}$/);
+
+    const packageAgain = await createWitnessPublicationPackage({
+      publicationBundleRoot: witnessPublicationBundleRoot,
+      bundleId: bundle.id,
+      publicationBundleStore,
+      publicationPackageStore,
+    });
+    assert.equal(packageAgain.id, packageRecord.id);
 
     const pesSessionFiles = await readdir(pesSessionsRoot);
     const pesMemoryFiles = await readdir(pesMemoryRoot);

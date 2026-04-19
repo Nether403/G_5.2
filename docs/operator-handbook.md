@@ -154,7 +154,23 @@ Publication bundle APIs:
 
 The create call accepts `{ archiveCandidateId }` and writes a new bundle record under `data/witness/publication-bundles/records/` plus emitted JSON, Markdown, and manifest artifacts under `data/witness/publication-bundles/exports/`. New JSON artifacts use `schemaVersion: "0.2.0"` with an explicit export DTO rather than direct runtime-record serialization. The artifact read routes serve raw bytes for operator inspection, validate the resolved artifact path against the canonical exports root, and treat broken bundle state as `500`. The manifest route uses the same validation path as JSON and Markdown. In the inquiry UI, preview rendering is raw-text-only and uses a `<pre>` with `textContent`, not HTML rendering, while the download buttons hand off the artifact as an attachment.
 
-### 3.7 Manage durable memory
+### 3.7 Create Witness publication packages
+
+Publication packages are local `.zip` handoff artifacts created from an existing publication bundle.
+
+APIs:
+- `POST /api/witness/publication-packages`
+- `GET /api/witness/publication-packages?witnessId=...&testimonyId=...&bundleId=...`
+- `GET /api/witness/publication-packages/:id`
+- `GET /api/witness/publication-packages/:id/file`
+
+Operational rules:
+- one package per publication bundle
+- repeated create requests return the existing package record
+- the package contains `bundle.json`, `bundle.md`, `manifest.json`, and `README.txt`
+- package delivery validates the canonical `packages/` root via realpath before reading bytes
+
+### 3.8 Manage durable memory
 
 UI: dashboard → memory.
 
@@ -170,7 +186,7 @@ Rule of thumb: only `accepted` items are retrievable into turn context. Everythi
 
 In Witness mode, memory reads and writes must stay inside `data/witness/memory/`. They must not touch `data/memory-items/`.
 
-### 3.8 Propose a canon change
+### 3.9 Propose a canon change
 
 UI: editorial surface → choose a file → edit → submit proposal → review the diff → accept / reject / needs-revision with a reviewer note.
 
@@ -180,7 +196,7 @@ For continuity facts, use the dedicated drafter — it auto-assigns the next `CF
 
 In Witness mode, editorial controls remain disabled. Witness testimony is not edited through the canon proposal workflow.
 
-### 3.9 Run a reflection
+### 3.10 Run a reflection
 
 UI: authoring surface → reflection topics → create topic → "run".
 
@@ -188,7 +204,7 @@ What happens: `runReflection` does `draft → critique → revise` against activ
 
 Witness mode does not expose editorial or authoring workflows. Those surfaces remain operator workflows for the shared runtime and P-E-S canon.
 
-### 3.10 Run evals
+### 3.11 Run evals
 
 ```bash
 # Single provider (Gemini default):
@@ -211,7 +227,7 @@ Exit codes:
 
 Reports land in `packages/evals/reports/eval-report-<timestamp>.json`. Compare any two via the dashboard diff.
 
-### 3.11 Promote a gold baseline
+### 3.12 Promote a gold baseline
 
 After a clean RC report:
 
