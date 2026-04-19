@@ -49,9 +49,17 @@ Package creation must not:
 - rewrite the manifest
 - modify testimony, synthesis, annotations, archive candidates, or publication bundle records
 
-4. Witness-local containment
+4. One package per bundle
+
+Package creation is idempotent by bundle. A publication bundle should have one packaged export by default. If the operator requests packaging again for the same bundle, the system should return the existing `PublicationPackageRecord` rather than minting a second equally valid package.
+
+5. Witness-local containment
 
 Packaged exports and their metadata remain in Witness-local roots under `data/witness/publication-bundles/`. Nothing in this slice touches P-E-S roots or any external destination.
+
+6. Root-validated delivery
+
+Package file delivery must use the same realpath-based root validation discipline as the current raw bundle artifact endpoints. This is a hard invariant of the slice, not an implementation detail.
 
 ## Proposed Architecture
 
@@ -79,6 +87,8 @@ Recommended fields:
 - `createdAt`
 - `packagePath`
 - `packageFilename`
+- `packageSha256`
+- `packageByteSize`
 - `sourceBundleJsonPath`
 - `sourceBundleMarkdownPath`
 - `sourceBundleManifestPath`
@@ -117,6 +127,20 @@ Where `createdAt-safe` is an ISO timestamp normalized for filenames, for example
 
 This gives operators a stable and readable artifact name while preserving uniqueness and ordering.
 
+### Package identity and determinism
+
+Package identity is the identity of the created `.zip` artifact itself, not just the underlying bundle id. Because this slice treats the package as the artifact of record, the packaging process should be deterministic when repeated against the same bundle.
+
+That means packaging should normalize at least:
+
+- entry order
+- entry timestamps
+- archive layout/paths
+
+so that the same bundle produces the same zip bytes if packaging is re-run in a clean environment.
+
+In practice, because package creation is idempotent by bundle in this slice, operators should normally receive the existing package record rather than triggering a second archive build. But the underlying packaging algorithm should still be deterministic so the package hash is meaningful as the handoff identity.
+
 ### Package contents
 
 The zip should contain:
@@ -148,6 +172,11 @@ From the existing Witness publication section, the operator should be able to:
 
 Package creation is explicit and operator-triggered. It is not automatic when a publication bundle is created.
 
+Package creation is also idempotent:
+
+- if no package exists for the bundle, create one
+- if a package already exists for that bundle, return the existing package record
+
 ### Inspection
 
 The dashboard should show package metadata for the selected testimony or selected bundle, including:
@@ -175,7 +204,7 @@ Recommended endpoints:
 
 - `POST /api/witness/publication-packages`
   - body: `{ bundleId }`
-- `GET /api/witness/publication-packages?witnessId=...&testimonyId=...`
+- `GET /api/witness/publication-packages?bundleId=...&witnessId=...&testimonyId=...`
 - `GET /api/witness/publication-packages/:id`
 - `GET /api/witness/publication-packages/:id/file`
   - supports `?download=1`
@@ -185,7 +214,8 @@ Behavior:
 - unknown bundle/package ids return `404`
 - malformed ids or missing required body fields return `400`
 - broken source bundle state returns `500`
-- path validation for package file delivery should use the same realpath-based root validation discipline as the current bundle artifact endpoints
+- `POST /api/witness/publication-packages` returns the existing package record if one already exists for the requested bundle id
+- package file delivery must validate the resolved file path against the canonical packages root using realpath on both the root and target file before reading bytes
 
 ## Error Handling
 
@@ -195,6 +225,7 @@ Package creation should fail if:
 - any required bundle artifact path is missing
 - any required bundle artifact file is missing
 - any required artifact path resolves outside the canonical exports root
+- the package path resolves outside the canonical packages root at read time
 - package write fails
 
 On package write failure, cleanup should remove any partially written zip artifact and avoid leaving a half-created package record.
@@ -206,14 +237,18 @@ This slice should preserve the same compensation discipline already used in the 
 ### Runtime/store tests
 
 - package creation requires an existing publication bundle record
+- package creation is idempotent for the same bundle id
 - package creation is read-only over source bundle artifacts
 - package creation rolls back partial files on write failure
 - package record round-trips correctly
+- package record captures `packageSha256` and `packageByteSize`
 - package filename is deterministic from bundle id plus createdAt
+- package bytes are deterministic for the same bundle contents
 
 ### Server tests
 
 - create/list/detail/file routes behave as documented
+- package list supports `bundleId` as a first-class filter
 - package file delivery validates the canonical packages root via realpath
 - unknown ids return `404`
 - broken bundle/package state returns `500`
@@ -231,8 +266,9 @@ Extend the Witness smoke path:
 1. create publication bundle
 2. create packaged export from that bundle
 3. verify the zip exists under the package root
-4. verify package record points at the correct bundle
-5. verify only Witness-local roots changed
+4. verify package record points at the correct bundle and records `packageSha256` / `packageByteSize`
+5. verify repeated package creation for the same bundle returns the existing package
+6. verify only Witness-local roots changed
 
 ## Remote Delivery Follow-On
 
