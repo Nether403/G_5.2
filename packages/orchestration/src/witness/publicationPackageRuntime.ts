@@ -227,7 +227,7 @@ export async function createWitnessPublicationPackage(
       sourceBundleManifestPath: validatedPaths.bundleManifestPath,
     });
   } catch (error) {
-    await rm(packagePath, { force: true });
+    await Promise.allSettled([rm(packagePath, { force: true })]);
     throw error;
   }
 }
