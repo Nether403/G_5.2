@@ -96,7 +96,15 @@ import {
   FileWitnessPublicationBundleStore,
   FileWitnessSynthesisStore,
 } from "../../../packages/orchestration/src/witness/fileDraftStores";
+import { FileWitnessPublicationPackageStore } from "../../../packages/orchestration/src/witness/filePublicationPackageStore";
 import { FileWitnessTestimonyStore } from "../../../packages/orchestration/src/witness/fileTestimonyStore";
+import {
+  createWitnessPublicationPackage,
+} from "../../../packages/orchestration/src/witness/publicationPackageRuntime";
+import {
+  publicationPackagesRoot,
+  resolvePublicationPathWithinRoot,
+} from "../../../packages/orchestration/src/witness/publicationPaths";
 import {
   FileProposalStore,
   PROPOSAL_SCHEMA_VERSION,
@@ -318,6 +326,18 @@ function publicationBundleStoreFor(
   }
 
   return new FileWitnessPublicationBundleStore(product.publicationBundleRoot);
+}
+
+function publicationPackageStoreFor(
+  product: ProductConfig
+): FileWitnessPublicationPackageStore {
+  if (!product.publicationBundleRoot) {
+    throw new Error(
+      `Product ${product.id} does not define a publication bundle root.`
+    );
+  }
+
+  return new FileWitnessPublicationPackageStore(product.publicationBundleRoot);
 }
 
 function isResolvedPathWithinRoot(rootPath: string, targetPath: string): boolean {
@@ -1956,6 +1976,124 @@ export async function handleRequest(
               )
             ? 409
             : 500;
+      sendJson(res, status, { error: message });
+    }
+    return;
+  }
+
+  if (
+    url.pathname === "/api/witness/publication-packages" &&
+    req.method === "GET"
+  ) {
+    try {
+      let items = await publicationPackageStoreFor(WITNESS_CONFIG).list();
+      const bundleId = url.searchParams.get("bundleId")?.trim();
+      const witnessId = url.searchParams.get("witnessId")?.trim();
+      const testimonyId = url.searchParams.get("testimonyId")?.trim();
+
+      if (bundleId) {
+        items = items.filter((record) => record.bundleId === bundleId);
+      }
+      if (witnessId) {
+        items = items.filter((record) => record.witnessId === witnessId);
+      }
+      if (testimonyId) {
+        items = items.filter((record) => record.testimonyId === testimonyId);
+      }
+
+      sendJson(res, 200, items);
+    } catch (err) {
+      sendJson(res, 500, {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+    return;
+  }
+
+  const witnessPublicationPackageFileMatch = url.pathname.match(
+    /^\/api\/witness\/publication-packages\/([^/]+)\/file$/
+  );
+  if (witnessPublicationPackageFileMatch && req.method === "GET") {
+    try {
+      const [, packageId] = witnessPublicationPackageFileMatch;
+      const item = await publicationPackageStoreFor(WITNESS_CONFIG).load(packageId);
+      if (!item) {
+        sendJson(res, 404, { error: "Publication package not found" });
+        return;
+      }
+
+      const packagePath = await resolvePublicationPathWithinRoot(
+        publicationPackagesRoot(WITNESS_CONFIG.publicationBundleRoot!),
+        item.packagePath,
+        "Publication package path"
+      );
+      const body = await fs.readFile(packagePath);
+      res.writeHead(200, {
+        "Content-Type": "application/zip",
+        ...(url.searchParams.get("download") === "1"
+          ? {
+              "Content-Disposition": contentDispositionAttachment(
+                item.packageFilename || path.basename(packagePath)
+              ),
+            }
+          : {}),
+      });
+      res.end(body);
+    } catch (err) {
+      sendJson(res, 500, {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+    return;
+  }
+
+  const witnessPublicationPackageMatch = url.pathname.match(
+    /^\/api\/witness\/publication-packages\/([^/]+)$/
+  );
+  if (witnessPublicationPackageMatch && req.method === "GET") {
+    try {
+      const item = await publicationPackageStoreFor(WITNESS_CONFIG).load(
+        witnessPublicationPackageMatch[1]
+      );
+      if (!item) {
+        sendJson(res, 404, { error: "Publication package not found" });
+        return;
+      }
+      sendJson(res, 200, item);
+    } catch (err) {
+      sendJson(res, 500, {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+    return;
+  }
+
+  if (
+    url.pathname === "/api/witness/publication-packages" &&
+    req.method === "POST"
+  ) {
+    try {
+      const body = (await readJsonBody(req)) as { bundleId?: unknown };
+      const bundleId =
+        typeof body.bundleId === "string" ? body.bundleId.trim() : "";
+      if (!bundleId) {
+        sendJson(res, 400, { error: "bundleId is required" });
+        return;
+      }
+
+      const publicationPackageStore = publicationPackageStoreFor(WITNESS_CONFIG);
+      const existingPackage =
+        await publicationPackageStore.findByBundleId(bundleId);
+      const created = await createWitnessPublicationPackage({
+        publicationBundleRoot: WITNESS_CONFIG.publicationBundleRoot!,
+        bundleId,
+        publicationBundleStore: publicationBundleStoreFor(WITNESS_CONFIG),
+        publicationPackageStore,
+      });
+      sendJson(res, existingPackage ? 200 : 201, created);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      const status = /Unknown publication bundle/.test(message) ? 404 : 500;
       sendJson(res, status, { error: message });
     }
     return;

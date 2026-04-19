@@ -17,6 +17,7 @@ import {
   FileWitnessPublicationBundleStore,
   FileWitnessSynthesisStore,
 } from "../../../packages/orchestration/src/witness/fileDraftStores";
+import { FileWitnessPublicationPackageStore } from "../../../packages/orchestration/src/witness/filePublicationPackageStore";
 import { FileWitnessTestimonyStore } from "../../../packages/orchestration/src/witness/fileTestimonyStore";
 import type { PublicationBundleRecord } from "../../../packages/witness-types/src/publicationBundle";
 import { createDashboardServer } from "./server";
@@ -54,6 +55,9 @@ async function cleanupWitnessArtifacts(
     registry.witness.archiveCandidateRoot!
   );
   const publicationBundleStore = new FileWitnessPublicationBundleStore(
+    registry.witness.publicationBundleRoot!
+  );
+  const publicationPackageStore = new FileWitnessPublicationPackageStore(
     registry.witness.publicationBundleRoot!
   );
   const memoryStore = new FileMemoryStore(registry.witness.memoryRoot);
@@ -119,6 +123,16 @@ async function cleanupWitnessArtifacts(
         }
         return tasks;
       })
+  );
+
+  const publicationPackages = (await publicationPackageStore.list()).filter(
+    (record) => record.witnessId === witnessId
+  );
+  await Promise.all(
+    publicationPackages.flatMap((record) => [
+      publicationPackageStore.delete(record.id),
+      rm(record.packagePath, { force: true }),
+    ])
   );
 
   const memoryItems = await memoryStore.list();
@@ -278,6 +292,23 @@ async function createPublicationReadyArchiveCandidate(witnessId: string) {
     sessionId,
     turnId,
     archiveCandidateId: candidate.json.id as string,
+  };
+}
+
+async function createPublicationBundleFixture(witnessId: string) {
+  const setup = await createPublicationReadyArchiveCandidate(witnessId);
+  const created = await requestJson("/api/witness/publication-bundles", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      archiveCandidateId: setup.archiveCandidateId,
+    }),
+  });
+  assert.equal(created.response.status, 201);
+
+  return {
+    ...setup,
+    bundleId: created.json.id as string,
   };
 }
 
@@ -1287,6 +1318,97 @@ test("publication bundle artifact endpoints return 500 for broken manifest or ma
     await publicationBundleStore.delete(bundleId);
     await rm(jsonPath, { force: true });
     await rm(manifestPath, { force: true });
+  }
+});
+
+test("publication package endpoints create idempotently, list by bundleId, and serve downloadable zip files", async () => {
+  const witnessId = `wit-${randomUUID()}`;
+  let sessionId: string | undefined;
+  let turnId: string | undefined;
+
+  try {
+    const setup = await createPublicationBundleFixture(witnessId);
+    sessionId = setup.sessionId;
+    turnId = setup.turnId;
+
+    const firstCreate = await requestJson("/api/witness/publication-packages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        bundleId: setup.bundleId,
+      }),
+    });
+    assert.equal(firstCreate.response.status, 201);
+    assert.equal(firstCreate.json?.bundleId, setup.bundleId);
+    assert.ok((firstCreate.json?.packagePath ?? "").endsWith(".zip"));
+
+    const secondCreate = await requestJson("/api/witness/publication-packages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        bundleId: setup.bundleId,
+      }),
+    });
+    assert.equal(secondCreate.response.status, 200);
+    assert.equal(secondCreate.json?.id, firstCreate.json?.id);
+
+    const listed = await requestJson(
+      `/api/witness/publication-packages?bundleId=${encodeURIComponent(setup.bundleId)}`
+    );
+    assert.equal(listed.response.status, 200);
+    assert.equal(listed.json.length, 1);
+    assert.equal(listed.json[0].id, firstCreate.json.id);
+
+    const downloaded = await fetch(
+      `${baseUrl}/api/witness/publication-packages/${encodeURIComponent(firstCreate.json.id)}/file?download=1`
+    );
+    assert.equal(downloaded.status, 200);
+    assert.match(
+      downloaded.headers.get("content-type") ?? "",
+      /^application\/zip\b/i
+    );
+    assert.match(
+      downloaded.headers.get("content-disposition") ?? "",
+      /^attachment;/i
+    );
+    const bytes = new Uint8Array(await downloaded.arrayBuffer());
+    assert.ok(bytes.byteLength > 0);
+  } finally {
+    await cleanupWitnessArtifacts(witnessId, sessionId, turnId);
+  }
+});
+
+test("publication package endpoints return 500 for escaped package paths", async () => {
+  const packageId = `package-${randomUUID()}`;
+  const publicationPackageStore = new FileWitnessPublicationPackageStore(
+    registry.witness.publicationBundleRoot!
+  );
+
+  try {
+    await publicationPackageStore.save({
+      id: packageId,
+      bundleId: `bundle-${randomUUID()}`,
+      witnessId: `wit-${randomUUID()}`,
+      testimonyId: `testimony-${randomUUID()}`,
+      archiveCandidateId: `candidate-${randomUUID()}`,
+      createdAt: "2026-04-19T19:00:00.000Z",
+      updatedAt: "2026-04-19T19:00:00.000Z",
+      status: "created",
+      packagePath: path.join(repoRoot, "README.md"),
+      packageFilename: "README.md",
+      packageSha256: randomUUID().replace(/-/g, ""),
+      packageByteSize: 123,
+      sourceBundleJsonPath: "bundle.json",
+      sourceBundleMarkdownPath: "bundle.md",
+      sourceBundleManifestPath: "manifest.json",
+    });
+
+    const response = await fetch(
+      `${baseUrl}/api/witness/publication-packages/${encodeURIComponent(packageId)}/file`
+    );
+    assert.equal(response.status, 500);
+  } finally {
+    await publicationPackageStore.delete(packageId);
   }
 });
 
