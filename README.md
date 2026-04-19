@@ -39,7 +39,7 @@ Implemented now:
 - session persistence, context snapshots, replay, export/import, and migration-guarded schema versioning
 - selective durable memory implemented in v1 form: global/session scope, dedupe, contradiction detection, operator transitions, with longer-lived policy refinement still ahead
 - Witness-first vertical slice: consent-gated inquiry turns, file-backed testimony + consent stores, structured compensation logging, and rollback on failed artifact persistence
-- downstream Witness governance slice: operator-sealed testimony, approved synthesis + annotation review, and archive-candidate / publication-ready state inside Witness roots only
+- downstream Witness governance slice: operator-sealed testimony, approved synthesis + annotation review, and archive-candidate / publication-bundle export state inside Witness roots only
 - operator dashboard for reports, diffs, inquiry sessions, memory inspection, editorial workflow, and authored-artifact workflow
 - single inquiry surface with a `Witness / P-E-S` selector, Witness ID handling, consent controls, and testimony inspection
 - canon / continuity-fact editorial workflow with diffable proposals, apply-on-accept, and changelog scaffolding
@@ -126,7 +126,7 @@ Current roots include:
 
 - `data/inquiry-sessions/`, `data/memory-items/`, `data/canon-proposals/`, `data/reflection/`, `data/authored-artifacts/` for P-E-S and shared operator workflows
 - `data/witness/sessions/`, `data/witness/memory/`, `data/witness/testimony/`, `data/witness/consent/` for Witness runtime state
-- `data/witness/synthesis/`, `data/witness/annotations/`, `data/witness/archive-candidates/` for downstream Witness review state
+- `data/witness/synthesis/`, `data/witness/annotations/`, `data/witness/archive-candidates/`, `data/witness/publication-bundles/` for downstream Witness review and export state
 
 In Witness mode, persisted turns require both conversational and retention consent. Witness sessions and testimony must write only into Witness roots; they must not read from or write into the P-E-S session/memory roots.
 

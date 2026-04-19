@@ -42,6 +42,7 @@ import { FileWitnessConsentStore } from "../packages/orchestration/src/witness/f
 import {
   FileWitnessAnnotationStore,
   FileWitnessArchiveCandidateStore,
+  FileWitnessPublicationBundleStore,
   FileWitnessSynthesisStore,
 } from "../packages/orchestration/src/witness/fileDraftStores";
 import { FileWitnessTestimonyStore } from "../packages/orchestration/src/witness/fileTestimonyStore";
@@ -63,6 +64,7 @@ import {
   approveWitnessSynthesis,
   createWitnessAnnotationDraft,
   createWitnessArchiveCandidate,
+  createWitnessPublicationBundle,
   createWitnessSynthesisDraft,
   getWitnessConsentGate,
   markWitnessPublicationReady,
@@ -530,6 +532,11 @@ async function pathWitnessVerticalSlice(): Promise<void> {
       "witness",
       "archive-candidates"
     );
+    const witnessPublicationBundleRoot = path.join(
+      root,
+      "witness",
+      "publication-bundles"
+    );
     const pesSessionsRoot = path.join(root, "pes", "sessions");
     const pesMemoryRoot = path.join(root, "pes", "memory");
     const witnessId = `smoke-witness-${randomUUID()}`;
@@ -544,6 +551,9 @@ async function pathWitnessVerticalSlice(): Promise<void> {
     const annotationStore = new FileWitnessAnnotationStore(witnessAnnotationRoot);
     const archiveCandidateStore = new FileWitnessArchiveCandidateStore(
       witnessArchiveCandidateRoot
+    );
+    const publicationBundleStore = new FileWitnessPublicationBundleStore(
+      witnessPublicationBundleRoot
     );
 
     const blocked = await getWitnessConsentGate(consentStore, witnessId);
@@ -708,6 +718,19 @@ async function pathWitnessVerticalSlice(): Promise<void> {
     });
     assert.equal(publicationReady.status, "publication_ready");
 
+    const bundle = await createWitnessPublicationBundle({
+      publicationBundleRoot: witnessPublicationBundleRoot,
+      archiveCandidateId: candidate.id,
+      testimonyStore,
+      synthesisStore,
+      annotationStore,
+      archiveCandidateStore,
+      publicationBundleStore,
+    });
+    assert.equal(bundle.status, "created");
+    const bundleJson = await readFile(bundle.bundleJsonPath, "utf8");
+    assert.match(bundleJson, /"schemaVersion": "0\.1\.0"/);
+
     const pesSessionFiles = await readdir(pesSessionsRoot);
     const pesMemoryFiles = await readdir(pesMemoryRoot);
     assert.equal(pesSessionFiles.length, 0, "witness flow must not write P-E-S sessions");
@@ -715,6 +738,7 @@ async function pathWitnessVerticalSlice(): Promise<void> {
     assert.ok((await readdir(witnessSynthesisRoot)).length >= 1);
     assert.ok((await readdir(witnessAnnotationRoot)).length >= 1);
     assert.ok((await readdir(witnessArchiveCandidateRoot)).length >= 1);
+    assert.ok((await readdir(witnessPublicationBundleRoot)).length >= 1);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

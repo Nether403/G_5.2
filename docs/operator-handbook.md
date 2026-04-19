@@ -11,7 +11,7 @@ G_5.2 is built around four never-cross-contaminate boundaries:
 1. **Policy roots** live in `packages/canon/` for P-E-S and `packages/inquisitor-witness/` for Witness. They are the only source of truth for their respective governance packs.
 2. **Product-scoped runtime data** lives in `data/`. P-E-S and Witness session/memory roots are separate. These are *not* canon and never silently become canon.
 3. **Witness testimony + consent** live only in the Witness roots under `data/witness/`. They are operational records, not editorial canon.
-4. **Witness downstream review state** lives only in `data/witness/synthesis/`, `data/witness/annotations/`, and `data/witness/archive-candidates/`. Archive-review and publication status never imply canon promotion or public release by themselves.
+4. **Witness downstream review and export state** lives only in `data/witness/synthesis/`, `data/witness/annotations/`, `data/witness/archive-candidates/`, and `data/witness/publication-bundles/`. Archive-review, publication-ready, and publication-bundle records never imply canon promotion or public release by themselves.
 5. **Eval reports** live in `packages/evals/reports/`. Promoted gold baselines live in `packages/evals/gold-baselines/`.
 
 The operator's job is to keep these four boundaries clean. Every operator action below is designed to preserve them.
@@ -132,9 +132,25 @@ Status semantics:
 - current candidate statuses: `draft | archive_review_approved | publication_ready`
 - non-current statuses: `archive_review_rejected | publication_rejected | superseded`
 
-Publication remains an internal gated state only in this slice. It does not export or publish anything externally.
+### 3.6 Create Witness publication bundles
 
-### 3.6 Manage durable memory
+UI: inquiry surface in Witness mode → select a testimony explicitly → use the publication export controls below archive candidates.
+
+Operational rules:
+- publication bundle creation requires an archive candidate with status `publication_ready`
+- bundle creation is operator-triggered and read-only with respect to testimony, synthesis, annotations, and archive candidates
+- missing required body/query fields return `400`
+- unknown archive candidate ids or unknown publication bundle ids return `404`
+- missing source artifacts surface as `500` runtime/store failures in this slice rather than `404`
+
+Publication bundle APIs:
+- `POST /api/witness/publication-bundles`
+- `GET /api/witness/publication-bundles?witnessId=...&testimonyId=...`
+- `GET /api/witness/publication-bundles/:id`
+
+The create call accepts `{ archiveCandidateId }` and writes a new bundle record plus emitted JSON / Markdown bundle files under `data/witness/publication-bundles/`. It packages already-reviewed Witness material for downstream operator handling without mutating the source testimony or any review records.
+
+### 3.7 Manage durable memory
 
 UI: dashboard → memory.
 
@@ -150,7 +166,7 @@ Rule of thumb: only `accepted` items are retrievable into turn context. Everythi
 
 In Witness mode, memory reads and writes must stay inside `data/witness/memory/`. They must not touch `data/memory-items/`.
 
-### 3.7 Propose a canon change
+### 3.8 Propose a canon change
 
 UI: editorial surface → choose a file → edit → submit proposal → review the diff → accept / reject / needs-revision with a reviewer note.
 
@@ -160,7 +176,7 @@ For continuity facts, use the dedicated drafter — it auto-assigns the next `CF
 
 In Witness mode, editorial controls remain disabled. Witness testimony is not edited through the canon proposal workflow.
 
-### 3.8 Run a reflection
+### 3.9 Run a reflection
 
 UI: authoring surface → reflection topics → create topic → "run".
 
@@ -168,7 +184,7 @@ What happens: `runReflection` does `draft → critique → revise` against activ
 
 Witness mode does not expose editorial or authoring workflows. Those surfaces remain operator workflows for the shared runtime and P-E-S canon.
 
-### 3.9 Run evals
+### 3.10 Run evals
 
 ```bash
 # Single provider (Gemini default):
@@ -191,7 +207,7 @@ Exit codes:
 
 Reports land in `packages/evals/reports/eval-report-<timestamp>.json`. Compare any two via the dashboard diff.
 
-### 3.10 Promote a gold baseline
+### 3.11 Promote a gold baseline
 
 After a clean RC report:
 
