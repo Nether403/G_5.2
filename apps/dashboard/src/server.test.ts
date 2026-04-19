@@ -1379,7 +1379,7 @@ test("publication package endpoints create idempotently, list by bundleId, and s
 });
 
 test("publication package endpoints return 500 for escaped package paths", async () => {
-  const packageId = `package-${randomUUID()}`;
+  const packageId = randomUUID();
   const publicationPackageStore = new FileWitnessPublicationPackageStore(
     registry.witness.publicationBundleRoot!
   );
@@ -1410,6 +1410,20 @@ test("publication package endpoints return 500 for escaped package paths", async
   } finally {
     await publicationPackageStore.delete(packageId);
   }
+});
+
+test("publication package endpoints return 400 for malformed package ids", async () => {
+  const malformedId = "not-a-valid-package-id";
+
+  const detailResponse = await fetch(
+    `${baseUrl}/api/witness/publication-packages/${encodeURIComponent(malformedId)}`
+  );
+  assert.equal(detailResponse.status, 400);
+
+  const fileResponse = await fetch(
+    `${baseUrl}/api/witness/publication-packages/${encodeURIComponent(malformedId)}/file`
+  );
+  assert.equal(fileResponse.status, 400);
 });
 
 test("publication bundle json endpoint serves legacy 0.1.0 artifacts unchanged", async () => {

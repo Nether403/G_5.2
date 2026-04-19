@@ -391,6 +391,12 @@ function contentDispositionAttachment(filename: string): string {
   return `attachment; filename="${safeFilename}"`;
 }
 
+function isValidUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value
+  );
+}
+
 function witnessMissingScopes(error: unknown): string[] | null {
   const maybe = error as Error & { missingScopes?: string[] };
   return Array.isArray(maybe.missingScopes) ? maybe.missingScopes : null;
@@ -2016,6 +2022,10 @@ export async function handleRequest(
   if (witnessPublicationPackageFileMatch && req.method === "GET") {
     try {
       const [, packageId] = witnessPublicationPackageFileMatch;
+      if (!isValidUuid(packageId)) {
+        sendJson(res, 400, { error: "Malformed publication package id" });
+        return;
+      }
       const item = await publicationPackageStoreFor(WITNESS_CONFIG).load(packageId);
       if (!item) {
         sendJson(res, 404, { error: "Publication package not found" });
@@ -2052,6 +2062,10 @@ export async function handleRequest(
   );
   if (witnessPublicationPackageMatch && req.method === "GET") {
     try {
+      if (!isValidUuid(witnessPublicationPackageMatch[1])) {
+        sendJson(res, 400, { error: "Malformed publication package id" });
+        return;
+      }
       const item = await publicationPackageStoreFor(WITNESS_CONFIG).load(
         witnessPublicationPackageMatch[1]
       );
