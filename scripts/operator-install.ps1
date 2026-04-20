@@ -71,18 +71,20 @@ if (-not (Get-Command pnpm -ErrorAction SilentlyContinue)) {
 Push-Location $repoRoot
 try {
   $releaseIdentityScript = @"
-import { gitSha, readDeclaredV1ReleaseSha, summarizeReleaseIdentity } from "./scripts/operator-support.mjs";
+import { gitSha, readDeclaredV1ReleaseSha, shortSha, summarizeReleaseIdentity } from './scripts/operator-support.mjs';
 
 const repoRoot = process.cwd();
-const headSha = gitSha(repoRoot, "HEAD");
+const headSha = gitSha(repoRoot, 'HEAD');
 
 if (!headSha) {
-  throw new Error("Unable to resolve HEAD SHA. Confirm this checkout has git metadata available.");
+  throw new Error('Unable to resolve HEAD SHA. Confirm this checkout has git metadata available.');
 }
 
 const declaredV1Sha = await readDeclaredV1ReleaseSha(repoRoot);
-const localTagSha = gitSha(repoRoot, "refs/tags/v1");
+const localTagSha = gitSha(repoRoot, 'refs/tags/v1');
 const summary = summarizeReleaseIdentity({ headSha, declaredV1Sha, localTagSha });
+summary.headShortSha = shortSha(headSha);
+summary.declaredV1ShortSha = shortSha(declaredV1Sha);
 
 process.stdout.write(JSON.stringify(summary));
 "@
@@ -110,9 +112,9 @@ process.stdout.write(JSON.stringify(summary));
 
   Write-Host ""
   Write-Host "Operator install succeeded."
-  Write-Host "Current SHA: $($identity.headSha)"
-  if ($identity.declaredV1Sha) {
-    Write-Host "Declared v1 SHA: $($identity.declaredV1Sha)"
+  Write-Host "Current SHA: $($identity.headShortSha)"
+  if ($identity.declaredV1ShortSha) {
+    Write-Host "Declared v1 SHA: $($identity.declaredV1ShortSha)"
   }
   Write-Host "Release identity: $($identity.message)"
 }
