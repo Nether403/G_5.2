@@ -112,6 +112,21 @@ test("summarizeReleaseIdentity returns install display data with SHAs and a plai
   );
 });
 
+test("summarizeReleaseIdentity does not claim a declared release comparison when no declared SHA exists", () => {
+  const summary = summarizeReleaseIdentity({
+    headSha: "b044c7b512ae61154c8b840ba4740fd68db137f4",
+    declaredV1Sha: null,
+    localTagSha: null,
+  });
+
+  assert.equal(summary.headSha, "b044c7b512ae61154c8b840ba4740fd68db137f4");
+  assert.equal(summary.declaredV1Sha, null);
+  assert.equal(
+    summary.message,
+    "Local v1 tag is not present, and no declared v1 release commit is available for comparison."
+  );
+});
+
 test("readDeclaredV1ReleaseSha surfaces malformed gate files instead of falling back", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "g52-operator-support-"));
 

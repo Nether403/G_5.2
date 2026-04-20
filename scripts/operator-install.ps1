@@ -60,13 +60,17 @@ if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
   throw "Missing prerequisite: node"
 }
 
+if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
+  throw "Missing prerequisite: git"
+}
+
 if (-not (Get-Command pnpm -ErrorAction SilentlyContinue)) {
   throw "Missing prerequisite: pnpm"
 }
 
-Set-Location $repoRoot
-
-$releaseIdentityScript = @"
+Push-Location $repoRoot
+try {
+  $releaseIdentityScript = @"
 import { gitSha, readDeclaredV1ReleaseSha, summarizeReleaseIdentity } from "./scripts/operator-support.mjs";
 
 const repoRoot = process.cwd();
@@ -83,31 +87,35 @@ const summary = summarizeReleaseIdentity({ headSha, declaredV1Sha, localTagSha }
 process.stdout.write(JSON.stringify(summary));
 "@
 
-$identityJson = Invoke-NativeCapture `
-  -Description "Release identity lookup" `
-  -FilePath "node" `
-  -ArgumentList @("--input-type=module", "-e", $releaseIdentityScript)
+  $identityJson = Invoke-NativeCapture `
+    -Description "Release identity lookup" `
+    -FilePath "node" `
+    -ArgumentList @("--input-type=module", "-e", $releaseIdentityScript)
 
-$identity = $identityJson | ConvertFrom-Json
+  $identity = $identityJson | ConvertFrom-Json
 
-$steps = @(
-  @{ Label = "pnpm install"; Arguments = @("install") },
-  @{ Label = "pnpm validate:canon"; Arguments = @("validate:canon") },
-  @{ Label = "pnpm validate:witness"; Arguments = @("validate:witness") },
-  @{ Label = "pnpm typecheck"; Arguments = @("typecheck") },
-  @{ Label = "pnpm test"; Arguments = @("test") },
-  @{ Label = "pnpm smoke"; Arguments = @("smoke") }
-)
+  $steps = @(
+    @{ Label = "pnpm install"; Arguments = @("install") },
+    @{ Label = "pnpm validate:canon"; Arguments = @("validate:canon") },
+    @{ Label = "pnpm validate:witness"; Arguments = @("validate:witness") },
+    @{ Label = "pnpm typecheck"; Arguments = @("typecheck") },
+    @{ Label = "pnpm test"; Arguments = @("test") },
+    @{ Label = "pnpm smoke"; Arguments = @("smoke") }
+  )
 
-foreach ($step in $steps) {
-  Write-Host "==> $($step.Label)"
-  Invoke-NativeCommand -Description $step.Label -FilePath "pnpm" -ArgumentList $step.Arguments
+  foreach ($step in $steps) {
+    Write-Host "==> $($step.Label)"
+    Invoke-NativeCommand -Description $step.Label -FilePath "pnpm" -ArgumentList $step.Arguments
+  }
+
+  Write-Host ""
+  Write-Host "Operator install succeeded."
+  Write-Host "Current SHA: $($identity.headSha)"
+  if ($identity.declaredV1Sha) {
+    Write-Host "Declared v1 SHA: $($identity.declaredV1Sha)"
+  }
+  Write-Host "Release identity: $($identity.message)"
 }
-
-Write-Host ""
-Write-Host "Operator install succeeded."
-Write-Host "Current SHA: $($identity.headSha)"
-if ($identity.declaredV1Sha) {
-  Write-Host "Declared v1 SHA: $($identity.declaredV1Sha)"
+finally {
+  Pop-Location
 }
-Write-Host "Release identity: $($identity.message)"

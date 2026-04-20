@@ -108,6 +108,15 @@ export function summarizeReleaseIdentity({ headSha, declaredV1Sha, localTagSha }
     };
   }
 
+  if (!declaredV1Sha) {
+    return {
+      ...base,
+      state: "no_local_tag_no_declared_release",
+      message:
+        "Local v1 tag is not present, and no declared v1 release commit is available for comparison.",
+    };
+  }
+
   return {
     ...base,
     state: "no_local_tag_declared_mismatch",
