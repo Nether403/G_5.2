@@ -26,6 +26,7 @@ import {
   FileWitnessPublicationBundleStore,
   FileWitnessSynthesisStore,
 } from "../../../packages/orchestration/src/witness/fileDraftStores";
+import { FileWitnessPublicationDeliveryJobStore } from "../../../packages/orchestration/src/witness/filePublicationDeliveryJobStore";
 import { FileWitnessPublicationDeliveryStore } from "../../../packages/orchestration/src/witness/filePublicationDeliveryStore";
 import { FileWitnessPublicationPackageStore } from "../../../packages/orchestration/src/witness/filePublicationPackageStore";
 import { FileWitnessTestimonyStore } from "../../../packages/orchestration/src/witness/fileTestimonyStore";
@@ -2043,6 +2044,149 @@ test("publication delivery create keeps non-SyntaxError body-read failures withi
   }
 });
 
+test("publication delivery job endpoints enqueue, list, fetch, and reject retry for non-failed jobs", async () => {
+  const root = await mkdtemp(
+    path.join(os.tmpdir(), "g52-dashboard-publication-delivery-jobs-")
+  );
+
+  try {
+    const fixture = await seedPublicationPackageFixture(root);
+
+    await withDashboardServer(
+      {
+        witnessConfig: {
+          ...registry.witness,
+          publicationBundleRoot: fixture.publicationBundleRoot,
+        },
+      },
+      async (targetBaseUrl) => {
+        const enqueued = await requestServerJson(
+          targetBaseUrl,
+          "/api/witness/publication-delivery-jobs",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              packageId: fixture.packageRecord.id,
+              backend: "azure-blob",
+            }),
+          }
+        );
+        assert.equal(enqueued.response.status, 201);
+        assert.equal(enqueued.json?.status, "queued");
+
+        const listed = await requestServerJson(
+          targetBaseUrl,
+          `/api/witness/publication-delivery-jobs?packageId=${encodeURIComponent(
+            fixture.packageRecord.id
+          )}&bundleId=${encodeURIComponent(
+            fixture.packageRecord.bundleId
+          )}&witnessId=${encodeURIComponent(
+            fixture.packageRecord.witnessId
+          )}&testimonyId=${encodeURIComponent(
+            fixture.packageRecord.testimonyId
+          )}&status=queued`
+        );
+        assert.equal(listed.response.status, 200);
+        assert.equal(listed.json?.length, 1);
+        assert.equal(listed.json?.[0]?.id, enqueued.json?.id);
+
+        const fetched = await requestServerJson(
+          targetBaseUrl,
+          `/api/witness/publication-delivery-jobs/${encodeURIComponent(
+            enqueued.json.id
+          )}`
+        );
+        assert.equal(fetched.response.status, 200);
+        assert.equal(fetched.json?.id, enqueued.json?.id);
+
+        const retry = await requestServerJson(
+          targetBaseUrl,
+          `/api/witness/publication-delivery-jobs/${encodeURIComponent(
+            enqueued.json.id
+          )}/retry`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({}),
+          }
+        );
+        assert.equal(retry.response.status, 409);
+      }
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("publication delivery job retry returns 201 for failed jobs and enqueues a fresh job", async () => {
+  const root = await mkdtemp(
+    path.join(os.tmpdir(), "g52-dashboard-publication-delivery-job-retry-")
+  );
+
+  try {
+    const fixture = await seedPublicationPackageFixture(root);
+    const jobStore = new FileWitnessPublicationDeliveryJobStore(
+      fixture.publicationBundleRoot
+    );
+
+    const failed = await jobStore.create({
+      packageId: fixture.packageRecord.id,
+      bundleId: fixture.packageRecord.bundleId,
+      witnessId: fixture.packageRecord.witnessId,
+      testimonyId: fixture.packageRecord.testimonyId,
+      backend: "azure-blob",
+      createdAt: "2026-04-20T10:01:00.000Z",
+    });
+    await jobStore.save({
+      ...failed,
+      status: "failed",
+      updatedAt: "2026-04-20T10:02:00.000Z",
+      error: "simulated queue failure",
+    });
+
+    await withDashboardServer(
+      {
+        witnessConfig: {
+          ...registry.witness,
+          publicationBundleRoot: fixture.publicationBundleRoot,
+        },
+      },
+      async (targetBaseUrl) => {
+        const retried = await requestServerJson(
+          targetBaseUrl,
+          `/api/witness/publication-delivery-jobs/${encodeURIComponent(
+            failed.id
+          )}/retry`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({}),
+          }
+        );
+        assert.equal(retried.response.status, 201);
+        assert.equal(retried.json?.status, "queued");
+        assert.notEqual(retried.json?.id, failed.id);
+
+        const jobs = await jobStore.list({
+          packageId: fixture.packageRecord.id,
+        });
+        assert.equal(jobs.length, 2);
+        assert.equal(
+          jobs.filter((record) => record.status === "failed").length,
+          1
+        );
+        assert.equal(
+          jobs.filter((record) => record.status === "queued").length,
+          1
+        );
+      }
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("publication bundle json endpoint serves legacy 0.1.0 artifacts unchanged", async () => {
   const bundleId = `bundle-${randomUUID()}`;
   const exportsRoot = path.join(registry.witness.publicationBundleRoot!, "exports");
@@ -2160,6 +2304,22 @@ test("inquiry publication preview uses raw artifact endpoints and textContent re
   assert.match(
     html,
     /async function loadWitnessPublicationPackages\(\)/
+  );
+  assert.match(
+    html,
+    /function witnessPublicationDeliveryJobsUrl\(witnessId,testimonyId\)/
+  );
+  assert.match(
+    html,
+    /async function loadWitnessPublicationDeliveryJobs\(\)/
+  );
+  assert.match(
+    html,
+    /data-witness-publication-package-queue/
+  );
+  assert.match(
+    html,
+    /data-witness-publication-job-retry/
   );
   assert.match(
     html,

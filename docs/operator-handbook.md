@@ -194,6 +194,26 @@ Current backend configuration:
 - `AZURE_BLOB_CONNECTION_STRING`
 - `AZURE_BLOB_CONTAINER_NAME`
 
+### 3.9 Queue Witness publication deliveries
+
+Queued Witness delivery jobs allow operators to enqueue package uploads without running them in the request path.
+
+UI: inquiry surface in Witness mode → create or select a package → `Queue Delivery`; failed queued jobs expose `Retry Delivery`.
+
+APIs:
+- `POST /api/witness/publication-delivery-jobs`
+- `GET /api/witness/publication-delivery-jobs?packageId=...&bundleId=...&witnessId=...&testimonyId=...&status=...`
+- `GET /api/witness/publication-delivery-jobs/:id`
+- `POST /api/witness/publication-delivery-jobs/:id/retry`
+
+Operational rules:
+- queued jobs are separate from concrete delivery attempts
+- only one queued job is processed at a time by the in-process dashboard worker
+- failed jobs remain failed until an operator explicitly retries them
+- retry creates a new queued job and leaves the failed job unchanged for audit history
+- restart reconciliation converts stale `in_progress` jobs into `failed` jobs with a recovery note
+- queued processing still uploads the existing package unchanged
+
 ### 3.9 Manage durable memory
 
 UI: dashboard → memory.

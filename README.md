@@ -42,6 +42,7 @@ Implemented now:
 - downstream Witness governance slice: operator-sealed testimony, approved synthesis + annotation review, and archive-candidate / publication-bundle export state inside Witness roots only
 - Witness publication bundles can also be packaged into a deterministic `.zip` handoff artifact from the emitted bundle outputs; that package is the local artifact of record for remote delivery
 - Witness publication packages can be delivered synchronously through the first object-storage adapter layer; delivery uploads the existing `.zip` unchanged and records each attempt separately from package metadata
+- Witness remote package delivery now also supports explicit queued/background processing; queued jobs are tracked separately from concrete delivery attempts, retries are operator-triggered, and the worker still uploads the existing `.zip` unchanged
 - operator dashboard for reports, diffs, inquiry sessions, memory inspection, editorial workflow, and authored-artifact workflow
 - single inquiry surface with a `Witness / P-E-S` selector, Witness ID handling, consent controls, and testimony inspection
 - canon / continuity-fact editorial workflow with diffable proposals, apply-on-accept, and changelog scaffolding

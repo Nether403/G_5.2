@@ -328,7 +328,7 @@ const state={
   latestProvider:null,sessionSearch:"",memorySearch:"",
   sortKey:"updatedAt",sortDir:"desc",archiveFilter:"active",tagFilter:null,
   providerList:[],defaultProvider:null,hasApiKey:false,
-  product:"pes",witnessId:"",witnessConsent:[],witnessTestimony:[],witnessSynthesis:[],witnessAnnotations:[],witnessArchiveCandidates:[],witnessPublicationBundles:[],witnessPublicationPackages:[],witnessPublicationPackagesLoading:false,witnessPublicationPackagesRequestToken:0,deliveriesByPackageId:{},witnessPublicationDeliveryLoading:false,witnessPublicationDeliveryRequestToken:0,witnessPublicationDeliveryPendingPackageId:null,witnessPublicationDeliveryError:null,selectedWitnessTestimonyId:null,memoryStateFilter:"accepted",
+  product:"pes",witnessId:"",witnessConsent:[],witnessTestimony:[],witnessSynthesis:[],witnessAnnotations:[],witnessArchiveCandidates:[],witnessPublicationBundles:[],witnessPublicationPackages:[],witnessPublicationPackagesLoading:false,witnessPublicationPackagesRequestToken:0,deliveriesByPackageId:{},witnessPublicationDeliveryLoading:false,witnessPublicationDeliveryRequestToken:0,witnessPublicationDeliveryError:null,deliveryJobsByPackageId:{},witnessPublicationDeliveryJobsLoading:false,witnessPublicationDeliveryJobsError:"",pendingWitnessQueuedDeliveryIds:{},pendingWitnessQueuedRetryIds:{},selectedWitnessTestimonyId:null,memoryStateFilter:"accepted",
   isSending:false,lastError:null,pendingRetry:null,
   previewSnapshot:null,previewMode:null,previewSessionId:null,
   publicationPreview:null
@@ -367,6 +367,9 @@ function publicationPackageForBundle(bundleId){
 function publicationDeliveriesForPackage(packageId){
   return state.deliveriesByPackageId[packageId]||[];
 }
+function publicationDeliveryJobsForPackage(packageId){
+  return state.deliveryJobsByPackageId[packageId]||[];
+}
 function publicationBundleArtifactUrl(id,format,download=false){
   const url=new URL(`/api/witness/publication-bundles/${encodeURIComponent(id)}/${format}`,window.location.origin);
   if(download)url.searchParams.set("download","1");
@@ -382,6 +385,9 @@ function witnessPublicationPackagesUrl(witnessId,testimonyId){
 }
 function witnessPublicationDeliveriesUrl(witnessId,testimonyId){
   return `/api/witness/publication-deliveries?witnessId=${encodeURIComponent(witnessId)}&testimonyId=${encodeURIComponent(testimonyId)}`;
+}
+function witnessPublicationDeliveryJobsUrl(witnessId,testimonyId){
+  return `/api/witness/publication-delivery-jobs?witnessId=${encodeURIComponent(witnessId)}&testimonyId=${encodeURIComponent(testimonyId)}`;
 }
 async function loadWitnessPublicationPackages(){
   const witnessId=activeWitnessId();
@@ -442,6 +448,38 @@ async function loadWitnessPublicationDeliveries(){
   }finally{
     if(requestToken!==state.witnessPublicationDeliveryRequestToken)return;
     state.witnessPublicationDeliveryLoading=false;
+  }
+}
+async function loadWitnessPublicationDeliveryJobs(){
+  const witnessId=activeWitnessId();
+  const testimonyId=state.selectedWitnessTestimonyId;
+  if(!isWitness()||!witnessId||!testimonyId){
+    state.deliveryJobsByPackageId={};state.witnessPublicationDeliveryJobsLoading=false;state.witnessPublicationDeliveryJobsError="";
+    return;
+  }
+  state.witnessPublicationDeliveryJobsLoading=true;
+  state.witnessPublicationDeliveryJobsError="";
+  renderWitnessCard();
+  try{
+    const res=await fetch(witnessPublicationDeliveryJobsUrl(witnessId,testimonyId));
+    const data=await res.json().catch(()=>[]);
+    if(!res.ok){
+      state.deliveryJobsByPackageId={};
+      state.witnessPublicationDeliveryJobsError=data?.error||"Failed to load queued delivery jobs";
+      return;
+    }
+    const grouped={};
+    for(const item of data){
+      (grouped[item.packageId] ||= []).push(item);
+    }
+    state.deliveryJobsByPackageId=grouped;
+    state.witnessPublicationDeliveryJobsError="";
+  }catch(err){
+    state.deliveryJobsByPackageId={};
+    state.witnessPublicationDeliveryJobsError=err?.message||"Failed to load queued delivery jobs";
+  }finally{
+    state.witnessPublicationDeliveryJobsLoading=false;
+    renderWitnessCard();
   }
 }
 function clearWitnessPublicationPreview(){
@@ -808,10 +846,14 @@ function renderWitnessCard(){
     clearWitnessPublicationPreview();
     state.witnessPublicationPackages=[];
     state.witnessPublicationPackagesLoading=true;
+    state.deliveryJobsByPackageId={};
+    state.witnessPublicationDeliveryJobsLoading=true;
+    state.witnessPublicationDeliveryJobsError="";
     state.deliveriesByPackageId={};
     state.witnessPublicationDeliveryLoading=true;
     renderWitnessCard();
     await loadWitnessPublicationPackages();
+    await loadWitnessPublicationDeliveryJobs();
     await loadWitnessPublicationDeliveries();
     renderWitnessCard();
   }));
@@ -934,15 +976,19 @@ function renderWitnessCard(){
     </div>
     ${publicationBundles.length?publicationBundles.map(item=>{
       const publicationPackage=publicationPackageForBundle(item.id);
+      const deliveryJobs=publicationPackage?publicationDeliveryJobsForPackage(publicationPackage.id):[];
+      const latestJob=deliveryJobs.at(-1)||null;
       const deliveries=publicationPackage?publicationDeliveriesForPackage(publicationPackage.id):[];
       const latestDelivery=deliveries.at(-1)||null;
-      const deliveryPending=publicationPackage&&state.witnessPublicationDeliveryPendingPackageId===publicationPackage.id;
+      const queuePending=publicationPackage&&state.pendingWitnessQueuedDeliveryIds[publicationPackage.id];
+      const retryPending=latestJob&&state.pendingWitnessQueuedRetryIds[latestJob.id];
       return `
       <div class="context">
         <div class="label">${esc(item.status)} · ${esc(item.id.slice(0,8))}</div>
         <div class="value">Archive candidate: ${esc(item.archiveCandidateId)}</div>
         <div class="meta">Created ${fmt(item.createdAt)}</div>
         ${state.witnessPublicationPackagesLoading?`<div class="meta">Loading package state...</div>`:publicationPackage?`<div class="meta">Package ${esc(publicationPackage.packageFilename)} · ${(publicationPackage.packageByteSize||0).toLocaleString()} bytes · updated ${fmt(publicationPackage.updatedAt)}</div>`:`<div class="meta">Package not created yet for this bundle.</div>`}
+        ${state.witnessPublicationPackagesLoading||!publicationPackage?"":state.witnessPublicationDeliveryJobsLoading?`<div class="meta">Loading queued delivery jobs...</div>`:state.witnessPublicationDeliveryJobsError?`<div class="meta" style="color:var(--danger)">Queued delivery status unavailable: ${esc(state.witnessPublicationDeliveryJobsError)}</div>`:latestJob?`<div class="meta">Latest queued job: ${esc(latestJob.status)} via ${esc(latestJob.backend)} · ${fmt(latestJob.updatedAt||latestJob.createdAt)}</div><div class="meta">${esc(latestJob.id)}${latestJob.lastAttemptId?` · last attempt ${esc(latestJob.lastAttemptId)}`:""}${latestJob.error?` · ${esc(latestJob.error)}`:""}</div>`:`<div class="meta">No queued delivery jobs recorded yet for this package.</div>`}
         ${state.witnessPublicationPackagesLoading||!publicationPackage?"":state.witnessPublicationDeliveryLoading?`<div class="meta">Loading delivery status...</div>`:state.witnessPublicationDeliveryError?`<div class="meta" style="color:var(--danger)">Remote delivery status unavailable: ${esc(state.witnessPublicationDeliveryError)}</div>`:latestDelivery?`<div class="meta">Latest delivery: ${esc(latestDelivery.status)} via ${esc(latestDelivery.backend)} · ${fmt(latestDelivery.createdAt)}</div><div class="meta">${esc(latestDelivery.remoteKey)}${latestDelivery.remoteUrl?` · ${esc(latestDelivery.remoteUrl)}`:""}${latestDelivery.error?` · ${esc(latestDelivery.error)}`:""}</div>`:`<div class="meta">No remote deliveries recorded yet for this package.</div>`}
         <div class="rerun-row" style="margin-top:8px">
           <button class="btn quiet" data-witness-publication-view-json="${esc(item.id)}">View JSON</button>
@@ -951,8 +997,9 @@ function renderWitnessCard(){
           <a class="btn quiet" href="${esc(publicationBundleArtifactUrl(item.id,"json",true))}">Download JSON</a>
           <a class="btn quiet" href="${esc(publicationBundleArtifactUrl(item.id,"markdown",true))}">Download Markdown</a>
           ${item.bundleManifestPath?`<a class="btn quiet" href="${esc(publicationBundleArtifactUrl(item.id,"manifest",true))}">Download Manifest</a>`:""}
-          ${state.witnessPublicationPackagesLoading?`<span class="meta">Loading package state...</span>`:publicationPackage?`<a class="btn quiet" data-witness-publication-package-download="${esc(publicationPackage.id)}" href="${esc(publicationPackageDownloadUrl(publicationPackage.id))}">Download Package</a><button class="btn quiet" data-witness-publication-package-deliver="${esc(publicationPackage.id)}" ${deliveryPending?"disabled":""}>${deliveryPending?"Delivering...":"Deliver Package"}</button>`:`<button class="btn quiet" data-witness-publication-package-create="${esc(item.id)}">Create Package</button>`}
+          ${state.witnessPublicationPackagesLoading?`<span class="meta">Loading package state...</span>`:publicationPackage?`<a class="btn quiet" data-witness-publication-package-download="${esc(publicationPackage.id)}" href="${esc(publicationPackageDownloadUrl(publicationPackage.id))}">Download Package</a><button class="btn quiet" data-witness-publication-package-queue="${esc(publicationPackage.id)}" ${queuePending?"disabled":""}>${queuePending?"Queueing...":"Queue Delivery"}</button>${latestJob&&latestJob.status==="failed"?`<button class="btn quiet" data-witness-publication-job-retry="${esc(latestJob.id)}" ${retryPending?"disabled":""}>${retryPending?"Retrying...":"Retry Delivery"}</button>`:""}`:`<button class="btn quiet" data-witness-publication-package-create="${esc(item.id)}">Create Package</button>`}
         </div>
+        ${state.witnessPublicationPackagesLoading||!publicationPackage||state.witnessPublicationDeliveryJobsLoading||!deliveryJobs.length?"":`<div class="drawer-list" style="margin-top:10px">${deliveryJobs.slice().reverse().map(job=>`<div class="context"><div class="label">${esc(job.status)} · ${esc(job.backend)} · ${esc(job.id.slice(0,8))}</div><div class="value">Updated ${esc(fmt(job.updatedAt||job.createdAt))}</div><div class="meta">${job.lastAttemptId?`last attempt ${esc(job.lastAttemptId)} · `:""}${job.recoveredFromRestartAt?`recovered ${esc(fmt(job.recoveredFromRestartAt))} · `:""}${job.error?esc(job.error):"No job error"}</div></div>`).join("")}</div>`:""}
         ${state.witnessPublicationPackagesLoading||!publicationPackage||state.witnessPublicationDeliveryLoading||!deliveries.length?"":`<div class="drawer-list" style="margin-top:10px">${deliveries.slice().reverse().map(delivery=>`<div class="context"><div class="label">${esc(delivery.status)} · ${esc(delivery.backend)} · ${esc(delivery.id.slice(0,8))}</div><div class="value">${esc(delivery.remoteKey)}</div><div class="meta">${fmt(delivery.createdAt)}${delivery.remoteUrl?` · ${esc(delivery.remoteUrl)}`:""}${delivery.error?` · ${esc(delivery.error)}`:""}</div></div>`).join("")}</div>`:""}
       </div>`;
     }).join(""):'<div class="meta">No publication bundles yet for this testimony.</div>'}
@@ -1035,9 +1082,13 @@ function renderWitnessCard(){
     const bundleId=node.getAttribute("data-witness-publication-package-create");
     if(bundleId)await createWitnessPublicationPackageRecord(bundleId);
   }));
-  $$("[data-witness-publication-package-deliver]").forEach(node=>node.addEventListener("click",async()=>{
-    const packageId=node.getAttribute("data-witness-publication-package-deliver");
-    if(packageId)await deliverWitnessPublicationPackageRecord(packageId);
+  $$("[data-witness-publication-package-queue]").forEach(node=>node.addEventListener("click",async()=>{
+    const packageId=node.getAttribute("data-witness-publication-package-queue");
+    if(packageId)await queueWitnessPublicationDelivery(packageId);
+  }));
+  $$("[data-witness-publication-job-retry]").forEach(node=>node.addEventListener("click",async()=>{
+    const jobId=node.getAttribute("data-witness-publication-job-retry");
+    if(jobId)await retryWitnessPublicationDelivery(jobId);
   }));
   const publicationPreviewBody=$("#witnessPublicationPreviewBody");
   if(publicationPreviewBody&&state.publicationPreview){
@@ -1058,11 +1109,11 @@ function renderWitnessCard(){
 
 async function loadWitnessData(){
   if(!isWitness()){
-    state.witnessConsent=[];state.witnessTestimony=[];state.witnessSynthesis=[];state.witnessAnnotations=[];state.witnessArchiveCandidates=[];state.witnessPublicationBundles=[];state.witnessPublicationPackages=[];state.witnessPublicationPackagesLoading=false;state.deliveriesByPackageId={};state.witnessPublicationDeliveryLoading=false;state.witnessPublicationDeliveryPendingPackageId=null;state.witnessPublicationDeliveryError=null;state.selectedWitnessTestimonyId=null;clearWitnessPublicationPreview();renderWitnessCard();return;
+    state.witnessConsent=[];state.witnessTestimony=[];state.witnessSynthesis=[];state.witnessAnnotations=[];state.witnessArchiveCandidates=[];state.witnessPublicationBundles=[];state.witnessPublicationPackages=[];state.witnessPublicationPackagesLoading=false;state.deliveriesByPackageId={};state.witnessPublicationDeliveryLoading=false;state.witnessPublicationDeliveryError=null;state.deliveryJobsByPackageId={};state.witnessPublicationDeliveryJobsLoading=false;state.witnessPublicationDeliveryJobsError="";state.pendingWitnessQueuedDeliveryIds={};state.pendingWitnessQueuedRetryIds={};state.selectedWitnessTestimonyId=null;clearWitnessPublicationPreview();renderWitnessCard();return;
   }
   const witnessId=activeWitnessId();
   if(!witnessId){
-    state.witnessConsent=[];state.witnessTestimony=[];state.witnessSynthesis=[];state.witnessAnnotations=[];state.witnessArchiveCandidates=[];state.witnessPublicationBundles=[];state.witnessPublicationPackages=[];state.witnessPublicationPackagesLoading=false;state.deliveriesByPackageId={};state.witnessPublicationDeliveryLoading=false;state.witnessPublicationDeliveryPendingPackageId=null;state.witnessPublicationDeliveryError=null;state.selectedWitnessTestimonyId=null;clearWitnessPublicationPreview();renderWitnessCard();return;
+    state.witnessConsent=[];state.witnessTestimony=[];state.witnessSynthesis=[];state.witnessAnnotations=[];state.witnessArchiveCandidates=[];state.witnessPublicationBundles=[];state.witnessPublicationPackages=[];state.witnessPublicationPackagesLoading=false;state.deliveriesByPackageId={};state.witnessPublicationDeliveryLoading=false;state.witnessPublicationDeliveryError=null;state.deliveryJobsByPackageId={};state.witnessPublicationDeliveryJobsLoading=false;state.witnessPublicationDeliveryJobsError="";state.pendingWitnessQueuedDeliveryIds={};state.pendingWitnessQueuedRetryIds={};state.selectedWitnessTestimonyId=null;clearWitnessPublicationPreview();renderWitnessCard();return;
   }
   try{
     const [consentRes,testimonyRes]=await Promise.all([
@@ -1099,9 +1150,9 @@ async function loadWitnessData(){
     state.witnessAnnotations=annotationResponses.flat();
     state.witnessArchiveCandidates=archiveResponses.flat();
     state.witnessPublicationBundles=publicationBundleResponses.flat();
-    await Promise.all([loadWitnessPublicationPackages(),loadWitnessPublicationDeliveries()]);
+    await Promise.all([loadWitnessPublicationPackages(),loadWitnessPublicationDeliveryJobs(),loadWitnessPublicationDeliveries()]);
   }catch{
-    state.witnessConsent=[];state.witnessTestimony=[];state.witnessSynthesis=[];state.witnessAnnotations=[];state.witnessArchiveCandidates=[];state.witnessPublicationBundles=[];state.witnessPublicationPackages=[];state.witnessPublicationPackagesLoading=false;state.deliveriesByPackageId={};state.witnessPublicationDeliveryLoading=false;state.witnessPublicationDeliveryPendingPackageId=null;state.witnessPublicationDeliveryError=null;state.selectedWitnessTestimonyId=null;clearWitnessPublicationPreview();
+    state.witnessConsent=[];state.witnessTestimony=[];state.witnessSynthesis=[];state.witnessAnnotations=[];state.witnessArchiveCandidates=[];state.witnessPublicationBundles=[];state.witnessPublicationPackages=[];state.witnessPublicationPackagesLoading=false;state.deliveriesByPackageId={};state.witnessPublicationDeliveryLoading=false;state.witnessPublicationDeliveryError=null;state.deliveryJobsByPackageId={};state.witnessPublicationDeliveryJobsLoading=false;state.witnessPublicationDeliveryJobsError="";state.pendingWitnessQueuedDeliveryIds={};state.pendingWitnessQueuedRetryIds={};state.selectedWitnessTestimonyId=null;clearWitnessPublicationPreview();
   }
   renderWitnessCard();
 }
@@ -1217,28 +1268,48 @@ async function createWitnessPublicationPackageRecord(bundleId){
   await loadWitnessData();
 }
 
-async function deliverWitnessPublicationPackageRecord(packageId){
-  state.witnessPublicationDeliveryPendingPackageId=packageId;
+async function queueWitnessPublicationDelivery(packageId){
+  state.pendingWitnessQueuedDeliveryIds[packageId]=true;
   renderWitnessCard();
   try{
-    const res=await fetch("/api/witness/publication-deliveries",{
+    const res=await fetch("/api/witness/publication-delivery-jobs",{
       method:"POST",headers:{"Content-Type":"application/json"},
       body:JSON.stringify({packageId,backend:"azure-blob"})
     });
-    const data=await res.json();
-    await loadWitnessPublicationDeliveries();
+    const data=await res.json().catch(()=>null);
     if(!res.ok){
-      const message=(data&&typeof data.error==="string"&&data.error)||
-        (data&&data.status==="failed"&&typeof data.error==="string"&&data.error)||
-        "Failed to deliver publication package";
-      setError(message,data);
+      setError(data?.error||"Failed to queue publication delivery",data);
       return;
     }
     setError("");
+    await Promise.all([loadWitnessPublicationDeliveryJobs(),loadWitnessPublicationDeliveries()]);
   }catch(err){
     setError(err instanceof Error?err.message:String(err));
   }finally{
-    state.witnessPublicationDeliveryPendingPackageId=null;
+    delete state.pendingWitnessQueuedDeliveryIds[packageId];
+    renderWitnessCard();
+  }
+}
+
+async function retryWitnessPublicationDelivery(jobId){
+  state.pendingWitnessQueuedRetryIds[jobId]=true;
+  renderWitnessCard();
+  try{
+    const res=await fetch(`/api/witness/publication-delivery-jobs/${encodeURIComponent(jobId)}/retry`,{
+      method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({})
+    });
+    const data=await res.json().catch(()=>null);
+    if(!res.ok){
+      setError(data?.error||"Failed to retry publication delivery",data);
+      return;
+    }
+    setError("");
+    await Promise.all([loadWitnessPublicationDeliveryJobs(),loadWitnessPublicationDeliveries()]);
+  }catch(err){
+    setError(err instanceof Error?err.message:String(err));
+  }finally{
+    delete state.pendingWitnessQueuedRetryIds[jobId];
     renderWitnessCard();
   }
 }

@@ -47,10 +47,12 @@ import {
   FileWitnessPublicationBundleStore,
   FileWitnessSynthesisStore,
 } from "../packages/orchestration/src/witness/fileDraftStores";
+import { FileWitnessPublicationDeliveryJobStore } from "../packages/orchestration/src/witness/filePublicationDeliveryJobStore";
 import { FileWitnessPublicationPackageStore } from "../packages/orchestration/src/witness/filePublicationPackageStore";
 import { createWitnessPublicationPackage } from "../packages/orchestration/src/witness/publicationPackageRuntime";
 import { FileWitnessPublicationDeliveryStore } from "../packages/orchestration/src/witness/filePublicationDeliveryStore";
 import { FileWitnessTestimonyStore } from "../packages/orchestration/src/witness/fileTestimonyStore";
+import { processNextWitnessPublicationDeliveryJob } from "../packages/orchestration/src/witness/publicationDeliveryQueue";
 import { handleRequest } from "../apps/dashboard/src/server";
 import {
   CanonProposalSchema,
@@ -673,6 +675,9 @@ async function pathWitnessVerticalSlice(): Promise<void> {
     const publicationDeliveryStore = new FileWitnessPublicationDeliveryStore(
       witnessPublicationBundleRoot
     );
+    const publicationDeliveryJobStore = new FileWitnessPublicationDeliveryJobStore(
+      witnessPublicationBundleRoot
+    );
 
     const blocked = await getWitnessConsentGate(consentStore, witnessId);
     assert.equal(blocked.allowed, false);
@@ -919,12 +924,12 @@ async function pathWitnessVerticalSlice(): Promise<void> {
     };
 
     {
-      const createResponse = await requestDashboardJson(
+      const enqueueResponse = await requestDashboardJson(
         {
           witnessConfig,
           remoteRoot: fakeRemoteRoot,
         },
-        "/api/witness/publication-deliveries",
+        "/api/witness/publication-delivery-jobs",
         {
           method: "POST",
           headers: {
@@ -936,76 +941,81 @@ async function pathWitnessVerticalSlice(): Promise<void> {
           }),
         }
       );
-      const delivered = createResponse.json as {
-          id: string;
-          packageId: string;
-          backend: string;
-          status: string;
-          remoteKey: string;
-          remoteUrl?: string;
+      const queuedJob = enqueueResponse.json as {
+        id: string;
+        packageId: string;
+        backend: string;
+        status: string;
       };
-      assert.equal(createResponse.status, 201);
-      assert.equal(delivered.status, "succeeded");
-      assert.equal(delivered.backend, "azure-blob");
-      assert.equal(delivered.packageId, packageRecord.id);
-      assert.match(
-        delivered.remoteKey,
-        /^witness\/.+\/testimony\/.+\/packages\/.+\.zip$/
-      );
+      assert.equal(enqueueResponse.status, 201);
+      assert.equal(queuedJob.status, "queued");
+      assert.equal(queuedJob.backend, "azure-blob");
+      assert.equal(queuedJob.packageId, packageRecord.id);
 
-      const listResponse = await requestDashboardJson(
+      const processedJob = await processNextWitnessPublicationDeliveryJob({
+        publicationBundleRoot: witnessPublicationBundleRoot,
+        packageStore: publicationPackageStore,
+        jobStore: publicationDeliveryJobStore,
+        deliveryStore: publicationDeliveryStore,
+        backend: {
+          name: "azure-blob",
+          async putObject(input) {
+            const target = path.join(
+              fakeRemoteRoot,
+              input.key.replaceAll("/", path.sep)
+            );
+            await mkdir(path.dirname(target), { recursive: true });
+            await writeFile(target, await readFile(input.filePath));
+            return {
+              remoteKey: input.key,
+              remoteUrl: `file://${target.replaceAll("\\", "/")}`,
+            };
+          },
+        },
+      });
+
+      assert.equal(processedJob?.status, "succeeded");
+      assert.equal(processedJob?.backend, "azure-blob");
+      assert.equal(processedJob?.id, queuedJob.id);
+      assert.ok(processedJob?.lastAttemptId);
+
+      const jobDetailResponse = await requestDashboardJson(
         {
           witnessConfig,
           remoteRoot: fakeRemoteRoot,
         },
-        `/api/witness/publication-deliveries?packageId=${encodeURIComponent(
-            packageRecord.id
-          )}`
+        `/api/witness/publication-delivery-jobs/${encodeURIComponent(
+          queuedJob.id
+        )}`
       );
-      const listed = listResponse.json as Array<{
+      const jobDetail = jobDetailResponse.json as {
         id: string;
         backend: string;
         status: string;
-        remoteKey: string;
-      }>;
-      assert.equal(listResponse.status, 200);
-      assert.equal(listed.length, 1);
-      assert.equal(listed[0]?.id, delivered.id);
-
-      const detailResponse = await requestDashboardJson(
-        {
-          witnessConfig,
-          remoteRoot: fakeRemoteRoot,
-        },
-        `/api/witness/publication-deliveries/${encodeURIComponent(
-            delivered.id
-          )}`
-      );
-      const detail = detailResponse.json as {
-        id: string;
-        backend: string;
-        status: string;
-        remoteKey: string;
+        lastAttemptId?: string;
       };
-      assert.equal(detailResponse.status, 200);
-      assert.equal(detail.id, delivered.id);
-      assert.equal(detail.backend, "azure-blob");
+      assert.equal(jobDetailResponse.status, 200);
+      assert.equal(jobDetail.id, queuedJob.id);
+      assert.equal(jobDetail.status, "succeeded");
+      assert.equal(jobDetail.backend, "azure-blob");
+      assert.equal(jobDetail.lastAttemptId, processedJob?.lastAttemptId);
+
+      const deliveryRecords = await publicationDeliveryStore.list({
+        packageId: packageRecord.id,
+      });
+      assert.equal(deliveryRecords.length, 1);
+      assert.equal(deliveryRecords[0]?.backend, "azure-blob");
+      assert.equal(deliveryRecords[0]?.status, "succeeded");
+      assert.deepEqual(
+        await readFile(
+          path.join(
+            fakeRemoteRoot,
+            deliveryRecords[0]!.remoteKey.replaceAll("/", path.sep)
+          )
+        ),
+        await readFile(packageRecord.packagePath)
+      );
     }
-    const deliveryRecords = await publicationDeliveryStore.list({
-      packageId: packageRecord.id,
-    });
-    assert.equal(deliveryRecords.length, 1);
-    assert.equal(deliveryRecords[0]?.backend, "azure-blob");
-    assert.equal(deliveryRecords[0]?.status, "succeeded");
-    assert.deepEqual(
-      await readFile(
-        path.join(
-          fakeRemoteRoot,
-          deliveryRecords[0]!.remoteKey.replaceAll("/", path.sep)
-        )
-      ),
-      await readFile(packageRecord.packagePath)
-    );
 
     const pesSessionFiles = await readdir(pesSessionsRoot);
     const pesMemoryFiles = await readdir(pesMemoryRoot);

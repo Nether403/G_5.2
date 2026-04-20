@@ -96,6 +96,7 @@ import {
   FileWitnessPublicationBundleStore,
   FileWitnessSynthesisStore,
 } from "../../../packages/orchestration/src/witness/fileDraftStores";
+import { FileWitnessPublicationDeliveryJobStore } from "../../../packages/orchestration/src/witness/filePublicationDeliveryJobStore";
 import { FileWitnessPublicationDeliveryStore } from "../../../packages/orchestration/src/witness/filePublicationDeliveryStore";
 import { FileWitnessPublicationPackageStore } from "../../../packages/orchestration/src/witness/filePublicationPackageStore";
 import { FileWitnessTestimonyStore } from "../../../packages/orchestration/src/witness/fileTestimonyStore";
@@ -103,6 +104,12 @@ import {
   createWitnessPublicationPackage,
 } from "../../../packages/orchestration/src/witness/publicationPackageRuntime";
 import { deliverWitnessPublicationPackage } from "../../../packages/orchestration/src/witness/publicationDeliveryRuntime";
+import {
+  enqueueWitnessPublicationDeliveryJob,
+  processNextWitnessPublicationDeliveryJob,
+  reconcileInProgressWitnessDeliveryJobs,
+  retryWitnessPublicationDeliveryJob,
+} from "../../../packages/orchestration/src/witness/publicationDeliveryQueue";
 import {
   getPublicationObjectDeliveryBackend,
   type ObjectDeliveryBackend,
@@ -147,6 +154,7 @@ import { promoteArtifactToProposal } from "../../../packages/orchestration/src/r
 import type { AuthoredArtifactStatus } from "../../../packages/orchestration/src/schemas/reflection";
 import { validateReport } from "../../../packages/evals/src/reporters/reportSchema";
 import { isConsentScope } from "../../../packages/witness-types/src/consent";
+import type { PublicationDeliveryJobStatus } from "../../../packages/witness-types/src/publicationDeliveryJob";
 import {
   approveWitnessAnnotation,
   approveWitnessArchiveReview,
@@ -366,6 +374,18 @@ function publicationDeliveryStoreFor(
   return new FileWitnessPublicationDeliveryStore(product.publicationBundleRoot);
 }
 
+function publicationDeliveryJobStoreFor(
+  product: ProductConfig
+): FileWitnessPublicationDeliveryJobStore {
+  if (!product.publicationBundleRoot) {
+    throw new Error(
+      `Product ${product.id} does not define a publication bundle root.`
+    );
+  }
+
+  return new FileWitnessPublicationDeliveryJobStore(product.publicationBundleRoot);
+}
+
 function isResolvedPathWithinRoot(rootPath: string, targetPath: string): boolean {
   const relative = path.relative(rootPath, targetPath);
   return (
@@ -459,6 +479,87 @@ function publicationDeliveryResponseStatus(
   }
 
   return isPublicationDeliveryConfigError(errorMessage) ? 500 : 502;
+}
+
+function isPublicationDeliveryJobStatus(
+  value: string
+): value is PublicationDeliveryJobStatus {
+  return (
+    value === "queued" ||
+    value === "in_progress" ||
+    value === "succeeded" ||
+    value === "failed"
+  );
+}
+
+function createWitnessDeliveryQueueWorker(
+  options: DashboardServerOptions
+): {
+  start: () => Promise<void>;
+  stop: () => void;
+} {
+  const witnessConfig = options.witnessConfig ?? WITNESS_CONFIG;
+  let stopped = false;
+  let timer: NodeJS.Timeout | undefined;
+  let active = false;
+
+  const stop = () => {
+    stopped = true;
+    if (timer) {
+      clearTimeout(timer);
+      timer = undefined;
+    }
+  };
+
+  const schedule = (delayMs = 250) => {
+    if (stopped) {
+      return;
+    }
+
+    timer = setTimeout(() => {
+      void tick();
+    }, delayMs);
+    timer.unref?.();
+  };
+
+  const tick = async () => {
+    if (stopped || active || !witnessConfig.publicationBundleRoot) {
+      schedule();
+      return;
+    }
+
+    active = true;
+    try {
+      await processNextWitnessPublicationDeliveryJob({
+        publicationBundleRoot: witnessConfig.publicationBundleRoot,
+        packageStore: publicationPackageStoreFor(witnessConfig),
+        jobStore: publicationDeliveryJobStoreFor(witnessConfig),
+        deliveryStore: publicationDeliveryStoreFor(witnessConfig),
+        backend:
+          options.publicationObjectDeliveryBackendOverride ??
+          getPublicationObjectDeliveryBackend("azure-blob"),
+      });
+    } catch {
+      // Keep the worker loop alive; queue and delivery records capture failures.
+    } finally {
+      active = false;
+      schedule();
+    }
+  };
+
+  return {
+    async start() {
+      if (!witnessConfig.publicationBundleRoot || stopped) {
+        return;
+      }
+
+      await reconcileInProgressWitnessDeliveryJobs(
+        publicationDeliveryJobStoreFor(witnessConfig)
+      );
+      schedule();
+    },
+    stop,
+  };
 }
 
 function witnessMissingScopes(error: unknown): string[] | null {
@@ -2381,6 +2482,186 @@ export async function handleRequest(
     return;
   }
 
+  if (
+    url.pathname === "/api/witness/publication-delivery-jobs" &&
+    req.method === "POST"
+  ) {
+    const readPublicationDeliveryJobBody =
+      options.readJsonBodyOverride ?? readJsonBody;
+
+    try {
+      const body = (await readPublicationDeliveryJobBody(req)) as {
+        packageId?: unknown;
+        backend?: unknown;
+      };
+
+      if (body.packageId !== undefined && typeof body.packageId !== "string") {
+        sendJson(res, 400, { error: "Malformed request body" });
+        return;
+      }
+      if (body.backend !== undefined && typeof body.backend !== "string") {
+        sendJson(res, 400, { error: "Malformed request body" });
+        return;
+      }
+
+      const packageId = body.packageId?.trim() ?? "";
+      const backendName = body.backend?.trim() || "azure-blob";
+
+      if (!packageId) {
+        sendJson(res, 400, { error: "packageId is required" });
+        return;
+      }
+      if (!isValidUuid(packageId)) {
+        sendJson(res, 400, { error: "Malformed publication package id" });
+        return;
+      }
+      if (backendName !== "azure-blob") {
+        sendJson(res, 400, { error: "Unknown publication delivery backend" });
+        return;
+      }
+
+      const created = await enqueueWitnessPublicationDeliveryJob({
+        packageId,
+        packageStore: publicationPackageStoreFor(witnessConfig),
+        jobStore: publicationDeliveryJobStoreFor(witnessConfig),
+        backend: backendName,
+      });
+      sendJson(res, 201, created);
+    } catch (err) {
+      if (isMalformedJsonBodyError(err)) {
+        sendJson(res, 400, { error: "Malformed request body" });
+        return;
+      }
+      const message = err instanceof Error ? err.message : String(err);
+      const status = /Unknown publication package/.test(message) ? 404 : 500;
+      sendJson(res, status, { error: message });
+    }
+    return;
+  }
+
+  if (
+    url.pathname === "/api/witness/publication-delivery-jobs" &&
+    req.method === "GET"
+  ) {
+    try {
+      const packageParam = parsePublicationPackageListIdParam(
+        url.searchParams.get("packageId"),
+        "publication package id"
+      );
+      const bundleParam = parsePublicationPackageListIdParam(
+        url.searchParams.get("bundleId"),
+        "publication bundle id"
+      );
+      const witnessParam = parsePublicationPackageListIdParam(
+        url.searchParams.get("witnessId"),
+        "witness id"
+      );
+      const testimonyParam = parsePublicationPackageListIdParam(
+        url.searchParams.get("testimonyId"),
+        "testimony id"
+      );
+      const rawStatusParam = url.searchParams.get("status")?.trim();
+
+      if (packageParam.error) {
+        sendJson(res, 400, { error: packageParam.error });
+        return;
+      }
+      if (bundleParam.error) {
+        sendJson(res, 400, { error: bundleParam.error });
+        return;
+      }
+      if (witnessParam.error) {
+        sendJson(res, 400, { error: witnessParam.error });
+        return;
+      }
+      if (testimonyParam.error) {
+        sendJson(res, 400, { error: testimonyParam.error });
+        return;
+      }
+      if (packageParam.value && !isValidUuid(packageParam.value)) {
+        sendJson(res, 400, { error: "Malformed publication package id" });
+        return;
+      }
+      if (bundleParam.value && !isValidUuid(bundleParam.value)) {
+        sendJson(res, 400, { error: "Malformed publication bundle id" });
+        return;
+      }
+      if (rawStatusParam && !isPublicationDeliveryJobStatus(rawStatusParam)) {
+        sendJson(res, 400, { error: "Malformed publication delivery job status" });
+        return;
+      }
+      const statusParam = rawStatusParam as PublicationDeliveryJobStatus | undefined;
+
+      const items = await publicationDeliveryJobStoreFor(witnessConfig).list({
+        packageId: packageParam.value,
+        bundleId: bundleParam.value,
+        witnessId: witnessParam.value,
+        testimonyId: testimonyParam.value,
+        status: statusParam,
+      });
+      sendJson(res, 200, items);
+    } catch (err) {
+      sendJson(res, 500, {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+    return;
+  }
+
+  const witnessPublicationDeliveryJobMatch = url.pathname.match(
+    /^\/api\/witness\/publication-delivery-jobs\/([^/]+)$/
+  );
+  if (witnessPublicationDeliveryJobMatch && req.method === "GET") {
+    try {
+      const jobId = witnessPublicationDeliveryJobMatch[1];
+      if (!isValidUuid(jobId)) {
+        sendJson(res, 400, { error: "Malformed publication delivery job id" });
+        return;
+      }
+
+      const item = await publicationDeliveryJobStoreFor(witnessConfig).load(jobId);
+      if (!item) {
+        sendJson(res, 404, { error: "Publication delivery job not found" });
+        return;
+      }
+
+      sendJson(res, 200, item);
+    } catch (err) {
+      sendJson(res, 500, {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+    return;
+  }
+
+  const witnessPublicationDeliveryJobRetryMatch = url.pathname.match(
+    /^\/api\/witness\/publication-delivery-jobs\/([^/]+)\/retry$/
+  );
+  if (witnessPublicationDeliveryJobRetryMatch && req.method === "POST") {
+    try {
+      const jobId = witnessPublicationDeliveryJobRetryMatch[1];
+      if (!isValidUuid(jobId)) {
+        sendJson(res, 400, { error: "Malformed publication delivery job id" });
+        return;
+      }
+
+      const retried = await retryWitnessPublicationDeliveryJob({
+        jobId,
+        jobStore: publicationDeliveryJobStoreFor(witnessConfig),
+      });
+      sendJson(res, 201, retried);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      const status = /Unknown publication delivery job/.test(message)
+        ? 404
+        : /Only failed publication delivery jobs may be retried/.test(message)
+          ? 409
+          : 500;
+      sendJson(res, status, { error: message });
+    }
+    return;
+  }
+
   // ── Canon editorial API ─────────────────────────────────────────────────
 
   if (url.pathname === "/api/canon/files" && req.method === "GET") {
@@ -3614,7 +3895,15 @@ export async function handleRequest(
 }
 
 export function createDashboardServer(options: DashboardServerOptions = {}) {
-  return http.createServer((req, res) => handleRequest(req, res, options));
+  const server = http.createServer((req, res) => handleRequest(req, res, options));
+  const queueWorker = createWitnessDeliveryQueueWorker(options);
+  server.on("close", () => {
+    queueWorker.stop();
+  });
+  void queueWorker.start().catch(() => {
+    // Keep server creation synchronous; worker failures remain recoverable.
+  });
+  return server;
 }
 
 const isEntrypoint =
