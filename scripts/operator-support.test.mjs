@@ -97,6 +97,21 @@ test("summarizeReleaseIdentity flags conflicting local tag and declared release 
   assert.equal(summary.localTagSha, "aaa111");
 });
 
+test("summarizeReleaseIdentity returns install display data with SHAs and a plain statement", () => {
+  const summary = summarizeReleaseIdentity({
+    headSha: "b044c7b512ae61154c8b840ba4740fd68db137f4",
+    declaredV1Sha: "b044c7b512ae61154c8b840ba4740fd68db137f4",
+    localTagSha: null,
+  });
+
+  assert.equal(summary.headSha, "b044c7b512ae61154c8b840ba4740fd68db137f4");
+  assert.equal(summary.declaredV1Sha, "b044c7b512ae61154c8b840ba4740fd68db137f4");
+  assert.equal(
+    summary.message,
+    "Local v1 tag is not present; this checkout matches the declared v1 release commit."
+  );
+});
+
 test("readDeclaredV1ReleaseSha surfaces malformed gate files instead of falling back", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "g52-operator-support-"));
 

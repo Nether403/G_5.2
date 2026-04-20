@@ -68,47 +68,51 @@ export async function readDeclaredV1ReleaseSha(repoRoot) {
 }
 
 export function summarizeReleaseIdentity({ headSha, declaredV1Sha, localTagSha }) {
+  const base = {
+    headSha,
+    declaredV1Sha,
+    localTagSha,
+  };
+
   if (localTagSha) {
     if (declaredV1Sha && localTagSha === headSha && declaredV1Sha !== headSha) {
       return {
+        ...base,
         state: "local_tag_conflicts_declared_release",
-        headSha,
-        declaredV1Sha,
-        localTagSha,
+        message:
+          "Local v1 tag matches this checkout, but conflicts with the declared v1 release commit.",
       };
     }
 
     if (localTagSha === headSha) {
       return {
+        ...base,
         state: "local_tag_matches",
-        headSha,
-        declaredV1Sha,
-        localTagSha,
+        message: "This checkout matches local v1 tag.",
       };
     }
 
     return {
+      ...base,
       state: "local_tag_mismatch",
-      headSha,
-      declaredV1Sha,
-      localTagSha,
+      message: "Local v1 tag exists but does not match this checkout.",
     };
   }
 
   if (declaredV1Sha && declaredV1Sha === headSha) {
     return {
+      ...base,
       state: "no_local_tag_declared_match",
-      headSha,
-      declaredV1Sha,
-      localTagSha,
+      message:
+        "Local v1 tag is not present; this checkout matches the declared v1 release commit.",
     };
   }
 
   return {
+    ...base,
     state: "no_local_tag_declared_mismatch",
-    headSha,
-    declaredV1Sha,
-    localTagSha,
+    message:
+      "Local v1 tag is not present; comparing against the declared v1 release commit instead.",
   };
 }
 
