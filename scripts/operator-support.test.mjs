@@ -5,6 +5,7 @@ import path from "node:path";
 import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
 
 import {
+  applyEnvDefaults,
   parseDotEnvContent,
   gitSha,
   readDeclaredV1ReleaseSha,
@@ -48,6 +49,26 @@ test("readDotEnvFile loads KEY=VALUE content from disk without evaluation", asyn
   assert.equal(parsed.SAFE_KEY, "value");
   assert.equal(parsed.INLINE_EXPR, "$env:HOME");
   assert.equal(parsed.SUBSHELL, "$(Get-ChildItem)");
+});
+
+test("applyEnvDefaults preserves explicit process env values over .env defaults", () => {
+  const merged = applyEnvDefaults(
+    {
+      DASHBOARD_PORT: "5999",
+      SAFE_KEY: "",
+    },
+    {
+      DASHBOARD_PORT: "5011",
+      SAFE_KEY: "from-dotenv",
+      EXTRA_KEY: "extra",
+    }
+  );
+
+  assert.deepEqual(merged, {
+    DASHBOARD_PORT: "5999",
+    SAFE_KEY: "from-dotenv",
+    EXTRA_KEY: "extra",
+  });
 });
 
 test("readDeclaredV1ReleaseSha falls back from release gate to release note commit", async () => {

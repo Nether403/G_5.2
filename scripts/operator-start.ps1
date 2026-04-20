@@ -102,10 +102,11 @@ process.stdout.write(JSON.stringify(summary));
   $envPath = Join-Path $repoRoot ".env"
   if (Test-Path -LiteralPath $envPath) {
     $loadEnvScript = @"
-import { readDotEnvFile } from './scripts/operator-support.mjs';
+import { applyEnvDefaults, readDotEnvFile } from './scripts/operator-support.mjs';
 
 const parsed = await readDotEnvFile(process.argv[1]);
-process.stdout.write(JSON.stringify(parsed));
+const merged = applyEnvDefaults(process.env, parsed);
+process.stdout.write(JSON.stringify(merged));
 "@
 
     $envJson = Invoke-NativeCapture `

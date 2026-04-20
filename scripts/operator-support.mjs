@@ -40,6 +40,20 @@ export function shortSha(sha) {
   return sha.slice(0, 7);
 }
 
+export function applyEnvDefaults(existingEnv, dotEnvValues) {
+  const merged = {};
+
+  for (const [key, value] of Object.entries(dotEnvValues)) {
+    const existingValue = existingEnv[key];
+    merged[key] =
+      existingValue === undefined || existingValue === null || existingValue === ""
+        ? value
+        : existingValue;
+  }
+
+  return merged;
+}
+
 async function readFirstExisting(paths) {
   for (const candidate of paths) {
     try {
