@@ -9,6 +9,7 @@
     "lint": "turbo lint",
     "typecheck": "turbo typecheck",
     "test": "turbo test",
+    "test:operator-path": "node --test scripts/operator-support.test.mjs",
     "validate:canon": "tsx scripts/validate-canon.ts",
     "validate:witness": "tsx scripts/validate-witness.ts",
     "validate-canon": "tsx scripts/validate-canon.ts",
