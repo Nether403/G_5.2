@@ -49,4 +49,7 @@ git pull
 Both wrappers print the current short SHA, the declared `v1` SHA when available,
 and the release identity state before continuing.
 
+To confirm this checkout is exactly `v1`, compare the current short SHA to the
+declared `v1` SHA printed by the wrappers. They must match.
+
 Use `docs/operator-handbook.md` next for day-to-day operator workflows.
