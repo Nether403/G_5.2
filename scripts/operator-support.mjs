@@ -31,8 +31,12 @@ async function readFirstExisting(paths) {
   for (const candidate of paths) {
     try {
       return await readFile(candidate, "utf8");
-    } catch {
-      // Try the next candidate.
+    } catch (error) {
+      if (error?.code === "ENOENT") {
+        continue;
+      }
+
+      throw error;
     }
   }
 
@@ -43,16 +47,21 @@ export async function readDeclaredV1ReleaseSha(repoRoot) {
   const gatePath = path.join(repoRoot, RELEASE_GATE);
   const gateText = await readFirstExisting([gatePath]);
 
-  let releaseNotePath = path.join(repoRoot, DEFAULT_RC_NOTE);
-  if (gateText) {
-    const noteMatch = gateText.match(RELEASE_NOTE_RE);
-    if (noteMatch) {
-      releaseNotePath = path.join(repoRoot, ...noteMatch[1].split("/"));
-    }
+  if (gateText === null) {
+    const releaseNoteText = await readFirstExisting([path.join(repoRoot, DEFAULT_RC_NOTE)]);
+    if (!releaseNoteText) return null;
+
+    const shaMatch = releaseNoteText.match(COMMIT_SHA_RE);
+    return shaMatch ? shaMatch[1] : null;
   }
 
-  const releaseNoteText = await readFirstExisting([releaseNotePath, path.join(repoRoot, DEFAULT_RC_NOTE)]);
-  if (!releaseNoteText) return null;
+  const noteMatch = gateText.match(RELEASE_NOTE_RE);
+  if (!noteMatch) {
+    throw new Error(`Release gate file is missing a release note reference: ${gatePath}`);
+  }
+
+  const releaseNotePath = path.join(repoRoot, ...noteMatch[1].split("/"));
+  const releaseNoteText = await readFile(releaseNotePath, "utf8");
 
   const shaMatch = releaseNoteText.match(COMMIT_SHA_RE);
   return shaMatch ? shaMatch[1] : null;
@@ -60,6 +69,15 @@ export async function readDeclaredV1ReleaseSha(repoRoot) {
 
 export function summarizeReleaseIdentity({ headSha, declaredV1Sha, localTagSha }) {
   if (localTagSha) {
+    if (declaredV1Sha && localTagSha === headSha && declaredV1Sha !== headSha) {
+      return {
+        state: "local_tag_conflicts_declared_release",
+        headSha,
+        declaredV1Sha,
+        localTagSha,
+      };
+    }
+
     if (localTagSha === headSha) {
       return {
         state: "local_tag_matches",
