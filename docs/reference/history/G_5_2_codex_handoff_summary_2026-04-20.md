@@ -1,5 +1,9 @@
 # G_5.2 Codex Handoff Summary — archived session recovery
 
+**Status:** reference-only historical handoff.
+
+This note was useful for resuming work after an archived Codex session failed mid-implementation. The queued remote delivery work it described has since been completed and merged, so this file should now be read only as project-history context, not as a current resume point or authority document.
+
 ## Purpose
 This handoff is a compact restart brief for the next Codex session after the archived long-running session ended with a usage/rate-limit failure during the queued remote delivery slice.
 
