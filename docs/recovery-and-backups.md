@@ -145,6 +145,14 @@ The migration test fixtures in `persistence.test.ts` exercise the legacy → cur
 
 If you have an export bundle for the session: re-import via `importSessionBundle`. Otherwise: restore the session JSON and any referenced snapshots from the most recent `data/` backup, then `pnpm dashboard` to confirm visibility.
 
+Important boundary:
+
+- a session created **after** the backup/export was captured is not recoverable
+  from that older artifact
+- if you want to rehearse session-deletion recovery, make sure the target
+  session already exists in the backup or export bundle before you delete the
+  live copy
+
 ### 6.3 "Memory items got into a bad state"
 
 Use the dashboard memory surface to inspect the items, then `DELETE /api/memory/:id` to hard-remove. If a transition produced an inconsistent state (e.g. two `accepted` items contradict): use `POST /api/memory/:id/supersede` rather than editing files by hand.
@@ -178,14 +186,33 @@ To minimize blast radius going forward: see § 2.2 cadence.
 
 ## 7. Sanity checks the operator should run after any restore
 
-```bash
+Restore-ref boundary:
+
+- for the declared release line, prefer a published ref (`origin/master`, a
+  release tag, or another pushed branch)
+- if the target ref exists only locally, treat the exercise as a
+  **branch-local rehearsal**, not as proof that another machine can recover the
+  same ref from the remote repository alone
+
+On a fresh clone or freshly restored checkout, install dependencies first:
+
+```powershell
+.\scripts\operator-install.ps1
+```
+
+Then run the post-restore checks:
+
+```powershell
 pnpm validate:canon
+pnpm validate:witness
 pnpm typecheck
 pnpm test
 pnpm smoke
 ```
 
-If all four pass, the runtime is healthy enough for an inquiry turn. Run a small inquiry through `inquiry.html` to confirm end-to-end behavior before resuming normal use.
+If those pass, the runtime is healthy enough for an inquiry turn. Run
+`.\scripts\operator-start.ps1` and confirm a small inquiry through
+`inquiry.html` before resuming normal use.
 
 ## 8. What is *not* recoverable
 

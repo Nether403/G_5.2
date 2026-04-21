@@ -37,6 +37,13 @@ explicit process environment variables take precedence over `.env` defaults.
 .\scripts\operator-start.ps1
 ```
 
+This supported path is a foreground operator start.
+
+If you script transient probes around the wrapper instead of running it
+interactively, verify listener cleanup explicitly. On Windows, terminating the
+wrapper process from the outside may not always tear down the child dashboard
+listener immediately.
+
 ## Update an existing checkout
 
 ```powershell
