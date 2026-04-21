@@ -333,6 +333,19 @@ async function requestServerJson(
   return { response, json };
 }
 
+function withWitnessBridgeHeaders(
+  secret: string,
+  init: RequestInit = {}
+): RequestInit {
+  const headers = new Headers(init.headers);
+  headers.set("X-TWP-Bridge-Caller", "twp-control-plane");
+  headers.set("X-TWP-Bridge-Key", secret);
+  return {
+    ...init,
+    headers,
+  };
+}
+
 async function withDashboardServer(
   options: Parameters<typeof createDashboardServer>[0],
   run: (targetBaseUrl: string) => Promise<void>
@@ -480,6 +493,95 @@ test("POST /api/inquiry/turn blocks witness turns without consent", async () => 
     assert.deepEqual(testimony.json, []);
   } finally {
     await cleanupWitnessArtifacts(witnessId);
+  }
+});
+
+test("bridge-protected Witness endpoints return stable auth errors and accept valid bridge headers", async () => {
+  const previousSecret = process.env.TWP_WITNESS_BRIDGE_SHARED_SECRET;
+  process.env.TWP_WITNESS_BRIDGE_SHARED_SECRET = "bridge-test-secret";
+
+  try {
+    await withDashboardServer({}, async (targetBaseUrl) => {
+      const missing = await requestServerJson(
+        targetBaseUrl,
+        `/api/witness/testimony?witnessId=${encodeURIComponent("wit-bridge")}`
+      );
+      assert.equal(missing.response.status, 401);
+      assert.deepEqual(missing.json, {
+        error: "Missing Witness bridge auth.",
+        code: "witness_bridge_auth_missing",
+      });
+
+      const invalid = await requestServerJson(
+        targetBaseUrl,
+        `/api/witness/testimony?witnessId=${encodeURIComponent("wit-bridge")}`,
+        {
+          headers: {
+            "X-TWP-Bridge-Caller": "twp-control-plane",
+            "X-TWP-Bridge-Key": "wrong-secret",
+          },
+        }
+      );
+      assert.equal(invalid.response.status, 403);
+      assert.deepEqual(invalid.json, {
+        error: "Invalid Witness bridge auth.",
+        code: "witness_bridge_auth_invalid",
+      });
+
+      const testimony = await requestServerJson(
+        targetBaseUrl,
+        `/api/witness/testimony?witnessId=${encodeURIComponent("wit-bridge")}`,
+        withWitnessBridgeHeaders("bridge-test-secret")
+      );
+      assert.equal(testimony.response.status, 200);
+      assert.deepEqual(testimony.json, []);
+
+      const witnessTurnMissing = await requestServerJson(
+        targetBaseUrl,
+        "/api/inquiry/turn",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            product: "witness",
+            witnessId: "wit-bridge",
+            mode: "dialogic",
+            userMessage: "What remains?",
+          }),
+        }
+      );
+      assert.equal(witnessTurnMissing.response.status, 401);
+      assert.deepEqual(witnessTurnMissing.json, {
+        error: "Missing Witness bridge auth.",
+        code: "witness_bridge_auth_missing",
+      });
+
+      const witnessTurnAuthed = await requestServerJson(
+        targetBaseUrl,
+        "/api/inquiry/turn",
+        withWitnessBridgeHeaders("bridge-test-secret", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            product: "witness",
+            witnessId: "wit-bridge",
+            mode: "dialogic",
+            userMessage: "What remains?",
+          }),
+        })
+      );
+      assert.equal(witnessTurnAuthed.response.status, 409);
+      assert.equal(
+        witnessTurnAuthed.json?.error,
+        "Witness consent requirements not met."
+      );
+      assert.deepEqual(witnessTurnAuthed.json?.missingScopes, [
+        "conversational",
+        "retention",
+      ]);
+    });
+  } finally {
+    process.env.TWP_WITNESS_BRIDGE_SHARED_SECRET = previousSecret;
   }
 });
 

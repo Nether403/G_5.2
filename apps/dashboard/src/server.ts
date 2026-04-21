@@ -83,7 +83,7 @@ import { runSessionTurn } from "../../../packages/orchestration/src/sessions/run
 import { buildContext } from "../../../packages/orchestration/src/pipeline/buildContext";
 import { runCompareTurn } from "../../../packages/orchestration/src/sessions/runCompareTurn";
 import { FileSessionStore } from "../../../packages/orchestration/src/sessions/fileSessionStore";
-import { randomUUID } from "node:crypto";
+import { randomUUID, timingSafeEqual } from "node:crypto";
 import {
   createProductRegistry,
   getProductConfig,
@@ -195,6 +195,9 @@ const ARTIFACT_DIR = path.join(REPO_ROOT, "data", "authored-artifacts");
 const STATIC_DIR = path.resolve(__dirname, "../public");
 const PORT = parseInt(process.env.DASHBOARD_PORT ?? "5000", 10);
 const HOST = process.env.DASHBOARD_HOST ?? "0.0.0.0";
+const TWP_BRIDGE_CALLER = "twp-control-plane";
+const WITNESS_BRIDGE_AUTH_HEADER = "x-twp-bridge-key";
+const WITNESS_BRIDGE_CALLER_HEADER = "x-twp-bridge-caller";
 
 export interface DashboardServerOptions {
   witnessConfig?: ProductConfig;
@@ -244,6 +247,67 @@ loadLocalEnv();
 function sendJson(res: http.ServerResponse, status: number, body: unknown) {
   res.writeHead(status, { "Content-Type": "application/json" });
   res.end(JSON.stringify(body));
+}
+
+function firstHeaderValue(
+  value: string | string[] | undefined
+): string | null {
+  if (Array.isArray(value)) {
+    return value[0]?.trim() || null;
+  }
+
+  return typeof value === "string" && value.trim().length > 0
+    ? value.trim()
+    : null;
+}
+
+function constantTimeStringEqual(a: string, b: string): boolean {
+  const aBuffer = Buffer.from(a);
+  const bBuffer = Buffer.from(b);
+  if (aBuffer.length !== bBuffer.length) {
+    return false;
+  }
+
+  return timingSafeEqual(aBuffer, bBuffer);
+}
+
+function requireWitnessBridgeAuth(
+  req: http.IncomingMessage,
+  res: http.ServerResponse
+): boolean {
+  const configuredSecret =
+    process.env.TWP_WITNESS_BRIDGE_SHARED_SECRET?.trim() ?? "";
+  if (!configuredSecret) {
+    sendJson(res, 503, {
+      error: "Witness bridge auth is not configured.",
+      code: "witness_bridge_auth_unconfigured",
+    });
+    return false;
+  }
+
+  const caller = firstHeaderValue(req.headers[WITNESS_BRIDGE_CALLER_HEADER]);
+  const secret = firstHeaderValue(req.headers[WITNESS_BRIDGE_AUTH_HEADER]);
+
+  if (!caller || !secret) {
+    sendJson(res, 401, {
+      error: "Missing Witness bridge auth.",
+      code: "witness_bridge_auth_missing",
+    });
+    return false;
+  }
+
+  if (
+    caller !== TWP_BRIDGE_CALLER ||
+    !constantTimeStringEqual(secret, configuredSecret)
+  ) {
+    sendJson(res, 403, {
+      error: "Invalid Witness bridge auth.",
+      code: "witness_bridge_auth_invalid",
+    });
+    return false;
+  }
+
+  return true;
 }
 
 function sendText(
@@ -1194,6 +1258,9 @@ export async function handleRequest(
       sendJson(res, 400, { error: "Unknown product" });
       return;
     }
+    if (product.id === "witness" && !requireWitnessBridgeAuth(req, res)) {
+      return;
+    }
     try {
       const session = await readSession(product, inquirySessionMatch[1]);
       if (!session) {
@@ -1439,6 +1506,9 @@ export async function handleRequest(
       sendJson(res, 400, { error: "Unknown product" });
       return;
     }
+    if (product.id === "witness" && !requireWitnessBridgeAuth(req, res)) {
+      return;
+    }
     if (product.id === "witness" && !body.witnessId?.trim()) {
       sendJson(res, 400, { error: "witnessId is required for Witness inquiry." });
       return;
@@ -1524,6 +1594,9 @@ export async function handleRequest(
   }
 
   if (url.pathname === "/api/witness/consent") {
+    if (!requireWitnessBridgeAuth(req, res)) {
+      return;
+    }
     const store = consentStoreFor(WITNESS_CONFIG);
     if (req.method === "GET") {
       const witnessId = url.searchParams.get("witnessId")?.trim();
@@ -1589,6 +1662,9 @@ export async function handleRequest(
   }
 
   if (url.pathname === "/api/witness/testimony" && req.method === "GET") {
+    if (!requireWitnessBridgeAuth(req, res)) {
+      return;
+    }
     const witnessId = url.searchParams.get("witnessId")?.trim();
     if (!witnessId) {
       sendJson(res, 400, { error: "witnessId is required" });
