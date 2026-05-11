@@ -41,14 +41,31 @@ const registry = createProductRegistry(repoRoot);
 let server: http.Server;
 let baseUrl = "";
 
+// The shared-server tests in this file exercise bridge-guarded Witness
+// endpoints. Keep the expected bridge secret in one place so we can stamp
+// it onto every request from the shared-server helpers.
+const SHARED_SERVER_BRIDGE_SECRET = "bridge-test-secret";
+let previousSharedServerBridgeSecret: string | undefined;
+
+function mergeBridgeHeaders(init?: RequestInit): RequestInit {
+  const headers = new Headers(init?.headers);
+  if (!headers.has("X-TWP-Bridge-Caller")) {
+    headers.set("X-TWP-Bridge-Caller", "twp-control-plane");
+  }
+  if (!headers.has("X-TWP-Bridge-Key")) {
+    headers.set("X-TWP-Bridge-Key", SHARED_SERVER_BRIDGE_SECRET);
+  }
+  return { ...(init ?? {}), headers };
+}
+
 async function requestJson(pathname: string, init?: RequestInit) {
-  const response = await fetch(`${baseUrl}${pathname}`, init);
+  const response = await fetch(`${baseUrl}${pathname}`, mergeBridgeHeaders(init));
   const json = await response.json().catch(() => null);
   return { response, json };
 }
 
 async function requestText(pathname: string, init?: RequestInit) {
-  const response = await fetch(`${baseUrl}${pathname}`, init);
+  const response = await fetch(`${baseUrl}${pathname}`, mergeBridgeHeaders(init));
   const text = await response.text();
   return { response, text };
 }
@@ -442,6 +459,9 @@ async function seedBrokenPublicationPackageFixture(
 }
 
 test.before(async () => {
+  previousSharedServerBridgeSecret = process.env.TWP_WITNESS_BRIDGE_SHARED_SECRET;
+  process.env.TWP_WITNESS_BRIDGE_SHARED_SECRET = SHARED_SERVER_BRIDGE_SECRET;
+
   server = createDashboardServer();
   await new Promise<void>((resolve) => {
     server.listen(0, "127.0.0.1", () => resolve());
@@ -457,6 +477,12 @@ test.after(async () => {
   await new Promise<void>((resolve, reject) => {
     server.close((error) => (error ? reject(error) : resolve()));
   });
+
+  if (previousSharedServerBridgeSecret === undefined) {
+    delete process.env.TWP_WITNESS_BRIDGE_SHARED_SECRET;
+  } else {
+    process.env.TWP_WITNESS_BRIDGE_SHARED_SECRET = previousSharedServerBridgeSecret;
+  }
 });
 
 test("POST /api/inquiry/turn blocks witness turns without consent", async () => {
