@@ -45,6 +45,7 @@ export type {
 export type {
   PublicationBundleExportEntry,
   PublicationBundleManifest,
+  CorpusEntryPublicationManifest,
 } from "./publicationArtifact";
 export type {
   PublicationPackageRecord,
@@ -63,3 +64,87 @@ export type {
   PublicationDeliveryJobStore,
 } from "./publicationDeliveryJob";
 export { PublicationDeliveryJobAlreadyExistsError } from "./publicationDeliveryJob";
+
+export {
+  CORPUS_ENTRY_SCHEMA_VERSION,
+  AxiomClusterSchema,
+  ClassificationSchema,
+  CompilerArtifactsSchema,
+  ConsentBoundarySchema,
+  ConsentSegmentSchema,
+  CorpusEntrySchema,
+  DatasheetSummarySchema,
+  DisclosureLedgerRowSchema,
+  EntryHashesSchema,
+  EntryKindSchema,
+  EvalCaseSchema as CorpusEvalCaseSchema,
+  G52GovernedRefsSchema,
+  HumanReadableSchema,
+  MetaSchema,
+  PluralitySchema,
+  PrivateSectionSchema,
+  ProvenanceSchema,
+  PublicSliceSchema,
+  ReasoningStructureSchema,
+  ReferencesSchema,
+  ReviewSummarySchema,
+  TwpControlPlaneRefsSchema,
+  parseCorpusEntry,
+} from "./corpusEntry";
+export type {
+  AxiomCluster,
+  Classification,
+  ConsentBoundary,
+  ConsentSegment,
+  CorpusEntry,
+  CorpusEvalCase,
+  DatasheetSummary,
+  DisclosureLedgerRow,
+  EntryHashes,
+  EntryKind,
+  HumanReadable,
+  Meta,
+  Plurality,
+  PrivateSection,
+  Provenance,
+  PublicSlice,
+  ReasoningStructure,
+  References,
+  ReviewSummary,
+} from "./corpusEntry";
+
+export {
+  assertPublicContainment,
+  classificationForPointer,
+  computePublicView,
+  resolveJsonPointer,
+  validatePublicContainment,
+} from "./partition";
+export type { PartitionResult, PartitionViolation, PublicView } from "./partition";
+
+export {
+  HASH_PREFIX,
+  assertSourceHashAbsentFromPublic,
+  assertSourceTestimonyHashMatches,
+  canonicalize,
+  computePublicationBundleHash,
+  computeRedactedPublicSliceHash,
+  sha256,
+} from "./hashing";
+
+export {
+  UNIVERSAL_VERDICT_PATTERNS,
+  assertWitnessAttributedEval,
+  validateWitnessAttributedEval,
+} from "./evalStandard";
+export type {
+  EvalStandardResult,
+  EvalStandardViolation,
+} from "./evalStandard";
+
+export { compileCorpusEntry, corpusEntryTwpProjection } from "./compiler";
+export type {
+  CompileCorpusEntryInput,
+  CorpusEntryTwpProjection,
+  SealedTestimonyRef,
+} from "./compiler";
