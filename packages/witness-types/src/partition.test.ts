@@ -77,6 +77,22 @@ test("computePublicView excludes the private subtree by construction", () => {
   assert.equal(serialized.includes("holdout_eval_cases"), false);
 });
 
+test("computePublicView includes the public witness label it is hashed to cover", () => {
+  const entry = cloneSyntheticCorpusEntry();
+  const view = computePublicView(entry);
+  assert.equal(
+    view.public_witness_label,
+    entry.references.twp_control_plane.public_witness_label,
+  );
+  // The internal vault reference must never be in the hashed public view.
+  assert.equal(
+    JSON.stringify(view).includes(
+      entry.references.twp_control_plane.witness_profile_ref,
+    ),
+    false,
+  );
+});
+
 test("classificationForPointer is default-deny for unclassified pointers", () => {
   const entry = cloneSyntheticCorpusEntry();
   assert.equal(

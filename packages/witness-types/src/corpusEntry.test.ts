@@ -89,6 +89,38 @@ test("rejected when reasoning_structure.claims is empty", () => {
   assert.throws(() => parseCorpusEntry(broken));
 });
 
+// ── Negative: referential integrity ──────────────────────────────────────────
+
+test("rejected when public_slice.eval_case_public does not match eval_case.eval_id", () => {
+  const broken = cloneSyntheticCorpusEntry();
+  broken.public_slice.eval_case_public = "eval_mismatch_9999";
+  assert.throws(() => parseCorpusEntry(broken));
+});
+
+test("rejected when datasheet_summary.eval_case_ref does not match eval_case.eval_id", () => {
+  const broken = cloneSyntheticCorpusEntry();
+  broken.datasheet_summary.eval_case_ref = "eval_mismatch_9999";
+  assert.throws(() => parseCorpusEntry(broken));
+});
+
+test("rejected when a reasoning step references an unknown claim", () => {
+  const broken = cloneSyntheticCorpusEntry();
+  broken.reasoning_structure.reasoning_steps[0].claim_ref = "c_does_not_exist";
+  assert.throws(() => parseCorpusEntry(broken));
+});
+
+test("rejected when an opposing pair references an unknown position", () => {
+  const broken = cloneSyntheticCorpusEntry();
+  broken.plurality.opposing_pairs[0].position_b = "p_does_not_exist";
+  assert.throws(() => parseCorpusEntry(broken));
+});
+
+test("rejected when an opposing pair references an unknown tension", () => {
+  const broken = cloneSyntheticCorpusEntry();
+  broken.plurality.opposing_pairs[0].tension_ref = "t_does_not_exist";
+  assert.throws(() => parseCorpusEntry(broken));
+});
+
 // ── DisclosureLedgerRow ──────────────────────────────────────────────────────
 
 test("DisclosureLedgerRowSchema accepts a well-formed row", () => {

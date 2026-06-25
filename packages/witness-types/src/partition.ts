@@ -136,18 +136,24 @@ export function assertPublicContainment(entry: CorpusEntry): void {
 
 export interface PublicView {
   framing_statement: string;
+  public_witness_label: string | null;
   public_slice: PublicSlice;
   datasheet_summary: DatasheetSummary;
 }
 
 /**
  * Project the safe-to-expose view of an entry. By construction this contains
- * only the public slice, datasheet summary, and framing statement — never the
- * /private subtree (compiler_artifacts, holdout_eval_cases, held_back_notes).
+ * only the framing statement, the optional public witness label, the public
+ * slice, and the datasheet summary — never the /private subtree
+ * (compiler_artifacts, holdout_eval_cases, held_back_notes) and never the
+ * internal witness_profile_ref. This is exactly the content covered by
+ * `redacted_public_slice_hash`, so it must include every field the outreach
+ * bundle exposes.
  */
 export function computePublicView(entry: CorpusEntry): PublicView {
   return {
     framing_statement: entry.meta.framing_statement,
+    public_witness_label: entry.references.twp_control_plane.public_witness_label,
     public_slice: entry.public_slice,
     datasheet_summary: entry.datasheet_summary,
   };

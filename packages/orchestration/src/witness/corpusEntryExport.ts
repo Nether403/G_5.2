@@ -20,6 +20,11 @@ import type { CorpusEntryPublicationManifest } from "../../../witness-types/src/
  *
  * Imports are type-only (erased at runtime) plus node:crypto, so this module
  * never loads the witness-types zod schema into orchestration's (zod v3) runtime.
+ *
+ * Bundle registry: these on-disk artifacts are the local record; the authoritative
+ * registry of what was shared is the TWP disclosure ledger (keyed by entry_id +
+ * publication_bundle_id + publication_bundle_hash). Bundle filenames embed the
+ * bundle id so revocation can locate the on-disk artifacts.
  */
 
 function sha256Hex(content: string): string {

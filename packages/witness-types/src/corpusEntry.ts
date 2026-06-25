@@ -337,6 +337,69 @@ export const CorpusEntrySchema = z
         });
       }
     }
+
+    // Referential integrity: the public slice and datasheet must advertise the
+    // entry's actual eval case, not a mismatched id.
+    if (value.public_slice.eval_case_public !== value.eval_case.eval_id) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["public_slice", "eval_case_public"],
+        message: "public_slice.eval_case_public must equal eval_case.eval_id",
+      });
+    }
+    if (value.datasheet_summary.eval_case_ref !== value.eval_case.eval_id) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["datasheet_summary", "eval_case_ref"],
+        message: "datasheet_summary.eval_case_ref must equal eval_case.eval_id",
+      });
+    }
+
+    // Referential integrity: reasoning steps may only reference existing claims.
+    const claimIds = new Set(
+      value.reasoning_structure.claims.map((claim) => claim.claim_id),
+    );
+    value.reasoning_structure.reasoning_steps.forEach((step, index) => {
+      if (step.claim_ref !== null && !claimIds.has(step.claim_ref)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["reasoning_structure", "reasoning_steps", index, "claim_ref"],
+          message: `reasoning step claim_ref "${step.claim_ref}" does not match any claim_id`,
+        });
+      }
+    });
+
+    // Referential integrity: opposing pairs may only reference existing
+    // positions and tensions, so plurality structure stays a real graph.
+    const positionIds = new Set(
+      value.plurality.positions.map((position) => position.position_id),
+    );
+    const tensionIds = new Set(
+      value.reasoning_structure.tensions.map((tension) => tension.tension_id),
+    );
+    value.plurality.opposing_pairs.forEach((pair, index) => {
+      if (!positionIds.has(pair.position_a)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["plurality", "opposing_pairs", index, "position_a"],
+          message: `opposing pair position_a "${pair.position_a}" does not match any position_id`,
+        });
+      }
+      if (!positionIds.has(pair.position_b)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["plurality", "opposing_pairs", index, "position_b"],
+          message: `opposing pair position_b "${pair.position_b}" does not match any position_id`,
+        });
+      }
+      if (!tensionIds.has(pair.tension_ref)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["plurality", "opposing_pairs", index, "tension_ref"],
+          message: `opposing pair tension_ref "${pair.tension_ref}" does not match any tension_id`,
+        });
+      }
+    });
   });
 
 // ── Inferred types ───────────────────────────────────────────────────────────
