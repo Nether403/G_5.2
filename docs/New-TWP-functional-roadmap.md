@@ -1,3 +1,5 @@
+> **⚠ SUPERSEDED (2026-06) — historical functional roadmap.** Its "Phase 1: build the Gate / HCC / Inquisitor" framing is out of date — those exist (Gate, Inquisitor, admin portal, PII pipeline are live; bridge auth is enforced). Build truth: `.kiro/specs/outreach-ready-corpus-entry/`. Operating frame: `.kiro/steering/witness-protocol.md`. Live code wins where this disagrees.
+
 Here is the functional roadmap to bridge the newly built `G_5.2` runtime with the public platforms, generate the foundational corpus, and initiate the high-value outreach. This sequence is designed to honor the "Signal over Noise" constraint while managing solo-founder capacity.
 
 ### Phase 1: The Technical Bridge (Connecting G_5.2 to the Platforms)
