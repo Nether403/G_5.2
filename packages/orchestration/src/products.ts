@@ -13,6 +13,16 @@ export interface ProductConfig {
   policyRoot: string;
   sessionsRoot: string;
   memoryRoot: string;
+  /** Root of the de-identified, consented research dataset, disjoint from sessionsRoot. */
+  researchRoot?: string;
+  /** researchRoot/records — de-identified research records (PES_Research_Store). */
+  researchRecordsRoot?: string;
+  /** researchRoot/consent — P-E-S consent decisions (PesConsentRecord). */
+  researchConsentRoot?: string;
+  /** researchRoot/rejections — Boundary_Guard cross-dataset rejection log. */
+  researchRejectionsRoot?: string;
+  /** researchRoot/failures — scrub-failure entries (no content) from researchTurn. */
+  researchFailuresRoot?: string;
   testimonyRoot?: string;
   consentRoot?: string;
   synthesisRoot?: string;
@@ -32,6 +42,21 @@ export function createProductRegistry(repoRoot: string): ProductRegistry {
       policyRoot: path.join(repoRoot, "packages", "canon"),
       sessionsRoot: path.join(repoRoot, "data", "inquiry-sessions"),
       memoryRoot: path.join(repoRoot, "data", "memory-items"),
+      researchRoot: path.join(repoRoot, "data", "pes-research"),
+      researchRecordsRoot: path.join(repoRoot, "data", "pes-research", "records"),
+      researchConsentRoot: path.join(repoRoot, "data", "pes-research", "consent"),
+      researchRejectionsRoot: path.join(
+        repoRoot,
+        "data",
+        "pes-research",
+        "rejections"
+      ),
+      researchFailuresRoot: path.join(
+        repoRoot,
+        "data",
+        "pes-research",
+        "failures"
+      ),
       capabilities: {
         editorial: true,
         authoring: true,

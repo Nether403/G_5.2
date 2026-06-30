@@ -18,6 +18,10 @@
  *   POST /api/inquiry/sessions/:id/turns/:turnId/rerun → rerun a turn (compare by provider)
  *   POST /api/inquiry/preview                          → preview retrieval set for a candidate turn (no provider call)
  *   POST /api/inquiry/turn                             → run and persist a new inquiry turn
+ *   GET /api/pes/research/:ref                          → DSAR access: research record(s) for a session ref (or none)
+ *   DELETE /api/pes/research/:ref                       → DSAR erasure: delete research record(s) for a session ref (or none)
+ *   POST /api/pes/consent                               → record a P-E-S consent decision (granted/declined)
+ *   POST /api/pes/consent/withdraw                      → withdraw consent, erase prior research records for the session
  *   GET /api/memory                                    → list durable memory items (?state=, ?type=, ?scope=, ?sessionId=)
  *   POST /api/memory                                   → manually create a memory item
  *   PATCH /api/memory/:id                              → edit a proposed/accepted memory item
@@ -89,6 +93,9 @@ import {
   getProductConfig,
   type ProductConfig,
 } from "../../../packages/orchestration/src/products";
+import { FilePesResearchStore } from "../../../packages/orchestration/src/pes/researchStore";
+import { FilePesConsentStore } from "../../../packages/orchestration/src/pes/consentStore";
+import { researchTurn } from "../../../packages/orchestration/src/pes/researchTurn";
 import { FileWitnessConsentStore, listConsentForWitness } from "../../../packages/orchestration/src/witness/fileConsentStore";
 import {
   FileWitnessAnnotationStore,
@@ -364,6 +371,26 @@ function consentStoreFor(product: ProductConfig): FileWitnessConsentStore {
   }
 
   return new FileWitnessConsentStore(product.consentRoot);
+}
+
+function researchStoreFor(product: ProductConfig): FilePesResearchStore {
+  if (!product.researchRecordsRoot) {
+    throw new Error(
+      `Product ${product.id} does not define a research records root.`
+    );
+  }
+
+  return new FilePesResearchStore(product.researchRecordsRoot);
+}
+
+function pesConsentStoreFor(product: ProductConfig): FilePesConsentStore {
+  if (!product.researchConsentRoot) {
+    throw new Error(
+      `Product ${product.id} does not define a research consent root.`
+    );
+  }
+
+  return new FilePesConsentStore(product.researchConsentRoot);
 }
 
 function testimonyStoreFor(product: ProductConfig): FileWitnessTestimonyStore {
@@ -1358,6 +1385,184 @@ export async function handleRequest(
     return;
   }
 
+  // ── P-E-S DSAR: research record access (4.5/4.6) and erasure (4.7/4.8) ─────
+  const pesResearchMatch = url.pathname.match(/^\/api\/pes\/research\/([^/]+)$/);
+  if (pesResearchMatch && req.method === "GET") {
+    const sessionRef = decodeURIComponent(pesResearchMatch[1]);
+    try {
+      const records = await researchStoreFor(PES_CONFIG).getBySessionRef(
+        sessionRef
+      );
+      if (records.length === 0) {
+        // 4.6: indicate that no record exists.
+        sendJson(res, 404, { sessionRef, exists: false, records: [] });
+        return;
+      }
+      // 4.5: return the stored research record(s) for the reference.
+      sendJson(res, 200, { sessionRef, exists: true, records });
+    } catch (err) {
+      sendJson(res, 500, {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+    return;
+  }
+
+  if (pesResearchMatch && req.method === "DELETE") {
+    const sessionRef = decodeURIComponent(pesResearchMatch[1]);
+    try {
+      // deleteBySessionRef deletes only records for this reference, leaving
+      // all others unchanged (4.8).
+      const deleted = await researchStoreFor(PES_CONFIG).deleteBySessionRef(
+        sessionRef
+      );
+      if (deleted === 0) {
+        // 4.8: report that no record exists.
+        sendJson(res, 404, { sessionRef, exists: false, deleted: 0 });
+        return;
+      }
+      // 4.7: report that deletion succeeded.
+      sendJson(res, 200, { sessionRef, deleted });
+    } catch (err) {
+      sendJson(res, 500, {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+    return;
+  }
+
+  // ── P-E-S consent: record a decision (9.2) ────────────────────────────────
+  // POST /api/pes/consent { product:"pes", choice, sessionId?, consentVersion }
+  //   → { consentRef, status, recordedAt }
+  // Uses the P-E-S consent store ONLY; never invokes the Witness consent gate (8.6).
+  if (url.pathname === "/api/pes/consent" && req.method === "POST") {
+    try {
+      const body = (await readJsonBody(req)) as {
+        product?: unknown;
+        choice?: unknown;
+        sessionId?: unknown;
+        consentVersion?: unknown;
+      };
+      if (body.product !== undefined && body.product !== "pes") {
+        sendJson(res, 400, { error: "Unsupported product for P-E-S consent" });
+        return;
+      }
+      if (body.choice !== "granted" && body.choice !== "declined") {
+        sendJson(res, 400, {
+          error: 'choice must be "granted" or "declined"',
+        });
+        return;
+      }
+      if (
+        typeof body.consentVersion !== "string" ||
+        body.consentVersion.length === 0
+      ) {
+        sendJson(res, 400, { error: "consentVersion is required" });
+        return;
+      }
+      // ponytail: the session linkage rides on the supplied sessionId; absent ⇒
+      // empty ref (the withdrawal cascade can only erase records once a session
+      // is associated). Upfront-consent-before-session wiring is task 13.
+      const sessionRef =
+        typeof body.sessionId === "string" ? body.sessionId : "";
+      const record = await pesConsentStoreFor(PES_CONFIG).record({
+        sessionRef,
+        status: body.choice,
+        consentVersion: body.consentVersion,
+      });
+      sendJson(res, 201, {
+        consentRef: record.id,
+        status: record.status,
+        recordedAt: record.decidedAt,
+      });
+    } catch (err) {
+      sendJson(res, 500, {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+    return;
+  }
+
+  // ── P-E-S consent: withdraw a decision (9.2/9.4/9.6/9.7) ───────────────────
+  // POST /api/pes/consent/withdraw { product:"pes", consentRef }
+  //   → { status:"withdrawn", withdrawnAt, deleted, deletionComplete }
+  // Transitions to `withdrawn` (within 2s), then erases prior research records
+  // for the session (within 30s), retrying deletion ≥3 times and surfacing an
+  // error if incomplete (9.6). Already-withdrawn is a no-op (9.7).
+  if (url.pathname === "/api/pes/consent/withdraw" && req.method === "POST") {
+    try {
+      const body = (await readJsonBody(req)) as {
+        product?: unknown;
+        consentRef?: unknown;
+      };
+      if (body.product !== undefined && body.product !== "pes") {
+        sendJson(res, 400, { error: "Unsupported product for P-E-S consent" });
+        return;
+      }
+      if (typeof body.consentRef !== "string" || body.consentRef.length === 0) {
+        sendJson(res, 400, { error: "consentRef is required" });
+        return;
+      }
+
+      const consentStore = pesConsentStoreFor(PES_CONFIG);
+      const existing = await consentStore.load(body.consentRef);
+      if (existing === null) {
+        sendJson(res, 404, { error: "No consent record for that reference" });
+        return;
+      }
+
+      // 9.7: already withdrawn ⇒ no change to the record, report it back.
+      if (existing.status === "withdrawn") {
+        sendJson(res, 200, {
+          status: "withdrawn",
+          alreadyWithdrawn: true,
+          withdrawnAt: existing.withdrawnAt,
+          deleted: 0,
+          deletionComplete: true,
+        });
+        return;
+      }
+
+      // 9.2: transition to withdrawn.
+      const withdrawn = await consentStore.withdraw(body.consentRef);
+      const sessionRef = withdrawn?.sessionRef ?? existing.sessionRef;
+
+      // 9.4/9.6: erase prior research records for the session, retrying the
+      // deletion at least 3 times before surfacing an incomplete result.
+      const researchStore = researchStoreFor(PES_CONFIG);
+      let deleted = 0;
+      let deletionComplete = false;
+      if (sessionRef.length === 0) {
+        // No session associated ⇒ nothing to erase; withdrawal still stands.
+        deletionComplete = true;
+      } else {
+        for (let attempt = 0; attempt < 3; attempt += 1) {
+          deleted += await researchStore.deleteBySessionRef(sessionRef);
+          const remaining = await researchStore.getBySessionRef(sessionRef);
+          if (remaining.length === 0) {
+            deletionComplete = true;
+            break;
+          }
+        }
+      }
+
+      sendJson(res, deletionComplete ? 200 : 500, {
+        status: "withdrawn",
+        withdrawnAt: withdrawn?.withdrawnAt,
+        deleted,
+        deletionComplete,
+        ...(deletionComplete
+          ? {}
+          : { error: "Research record deletion did not complete" }),
+      });
+    } catch (err) {
+      sendJson(res, 500, {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+    return;
+  }
+
   const inquiryRerunMatch = url.pathname.match(
     /^\/api\/inquiry\/sessions\/([^/]+)\/turns\/([^/]+)\/rerun$/
   );
@@ -1488,6 +1693,7 @@ export async function handleRequest(
       mode?: string;
       userMessage?: string;
       provider?: string;
+      consentRef?: string;
     } = {};
     try {
       body = (await readJsonBody(req)) as typeof body;
@@ -1574,6 +1780,34 @@ export async function handleRequest(
         provider: providerLabel,
         ...(testimonyId ? { testimonyId } : {}),
       });
+
+      // ── P-E-S research path: a consent-gated, POST-RESPONSE side-effect.
+      //    The reply above is ALREADY sent; `researchTurn` resolves consent
+      //    server-side from the optional `consentRef` and writes a de-identified
+      //    record only when consent is `granted`. It never throws and its
+      //    success/failure NEVER feeds back into the response — fired and
+      //    forgotten so it cannot block, delay, or alter the operational reply.
+      //    This is what makes chat parity (Requirement 3) structural. The branch
+      //    never calls getWitnessConsentGate / persistWitnessTurnArtifacts —
+      //    those stay witness-only (Requirement 8.6).
+      if (
+        product.id === "pes" &&
+        product.researchRecordsRoot &&
+        product.researchConsentRoot &&
+        product.researchFailuresRoot
+      ) {
+        void researchTurn({
+          content: body.userMessage.trim(),
+          sessionRef: result.session.id,
+          consentRef: body.consentRef,
+          store: researchStoreFor(product),
+          consentStore: pesConsentStoreFor(product),
+          failuresRoot: product.researchFailuresRoot,
+        }).catch(() => {
+          // Defensive only: researchTurn is contracted never to throw, but a
+          // post-response side-effect must never surface as an unhandled error.
+        });
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       const isLocalFailure = /manifest|glossary|continuity|recovered|policy|canon|ENOENT/i.test(
