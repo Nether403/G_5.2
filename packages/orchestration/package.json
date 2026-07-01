@@ -7,14 +7,18 @@
   "main": "./src/index.ts",
   "scripts": {
     "dev": "tsx src/dev/smokeTest.ts",
+    "sweep:pes-retention": "tsx src/dev/retentionSweep.ts",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test src/**/*.test.ts"
   },
   "dependencies": {
     "@azure/storage-blob": "^12.28.0",
+    "yaml": "^2.5.0",
     "yauzl": "^3.2.0",
     "yazl": "^3.3.1",
-    "yaml": "^2.5.0",
     "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "fast-check": "^4.8.0"
   }
 }

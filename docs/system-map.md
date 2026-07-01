@@ -51,6 +51,42 @@ G_5.2/
 
 No separate `packages/persistence`, `packages/memory`, `packages/editorial`, or `packages/reflection` packages exist. Persistence, memory, editorial, and reflection all live inside `packages/orchestration/`, while Witness consent/testimony authority lives in `packages/witness-types/` and the integrated operator surfaces live in `apps/dashboard/`.
 
+## Corpus-entry pipeline (post-v1, Witness)
+
+The outreach-ready corpus-entry pipeline is implemented but is **post-v1 Witness work**, not part of the v1 runtime subsystems above. It is specified in `.kiro/specs/outreach-ready-corpus-entry/` and operated per `docs/first-real-corpus-entry-runbook.md`.
+
+| Piece | On disk | Purpose |
+|---|---|---|
+| Corpus_Entry schema + validators | `packages/witness-types/src/corpusEntry.ts`, `partition.ts`, `hashing.ts`, `evalStandard.ts` | `0.1.0` entry contract, public/private partition, three-layer hashing, witness-attributed eval standard. |
+| Corpus_Entry compiler | `packages/witness-types/src/compiler.ts` | Assembles + validates an entry from a sealed testimony ref + authored sections; emits the TWP projection. |
+| Bundle export | `packages/orchestration/src/witness/corpusEntryExport.ts` | Emits the public bundle triplet (reuses the Publication_Bundle artifact contract); computes `publication_bundle_hash`. |
+| Wiring proof | `scripts/corpus-entry-smoke.ts` (`pnpm smoke:corpus`) | Compile → export → leak-check self-test. |
+
+The control-plane half (disclosure ledger, HCC outreach-readiness gate, revocation coordinator) lives in `TWP-platform/src/lib/witness-bridge/`. Authoring of entry content (reasoning structure, eval case) is human work; the pipeline validates it, it does not generate it.
+
+## Term disambiguation: "testimony" across the boundary
+
+"Testimony" names **two different artifacts** on the two sides of the bridge. They are not the same record and must not be conflated:
+
+- **Runtime testimony (source of truth, G_5.2).** The governed Inquisitor↔Witness
+  dialogue: `TestimonyRecord` in `packages/witness-types/src/testimony.ts`
+  (`segments[]` + lifecycle `captured → retained → sealed → synthesized → withdrawn`),
+  file-backed under `data/witness/testimony/` via
+  `packages/orchestration/src/witness/fileTestimonyStore.ts`. This is what the
+  Corpus_Entry compiler seals and what the bridge exposes at
+  `GET /api/witness/testimony`. **G_5.2 is the source of truth** (see
+  `G52_TWP_M1_Witness_Bridge_Slice.md`).
+- **Intake testimony (TWP-platform control plane).** A de-identified Gate-intake
+  essay: the `testimony_records` table in `TWP-platform/src/lib/db/schema.ts`
+  (`deIdentifiedText`, `contentHash`, `ipfsCid`, `rfc3161Token`, `annotations`),
+  created after Gate passage. A separate control-plane artifact, not the dialogue body.
+
+TWP-platform holds the **runtime** testimony only by reference: it reads it live
+over the bridge (`cache: "no-store"`) and persists only linkage in the
+`witness_runtime_links` table — never the dialogue body. This is the
+"same engine, reference across the boundary, never duplicate sensitive bodies"
+invariant in practice.
+
 ## Naming rules
 
 - Use the subsystem names above in every doc, commit message, and eval category.

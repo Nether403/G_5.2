@@ -28,7 +28,11 @@ importers:
         specifier: ^5.4.0
         version: 5.9.3
 
-  apps/dashboard: {}
+  apps/dashboard:
+    devDependencies:
+      fast-check:
+        specifier: ^4.8.0
+        version: 4.8.0
 
   packages/canon: {}
 
@@ -67,8 +71,20 @@ importers:
       zod:
         specifier: ^3.23.0
         version: 3.25.76
+    devDependencies:
+      fast-check:
+        specifier: ^4.8.0
+        version: 4.8.0
 
-  packages/witness-types: {}
+  packages/witness-types:
+    dependencies:
+      zod:
+        specifier: ^4.3.6
+        version: 4.3.6
+    devDependencies:
+      tsx:
+        specifier: ^4.7.0
+        version: 4.21.0
 
 packages:
 
@@ -352,6 +368,10 @@ packages:
     resolution: {integrity: sha512-mQw+2fkQbALzQ7V0MY0IqdnXNOeTtP4r0lN9z7AAawCXgqea7bDii20AYrIBrFd/Hx0M2Ocz6S111CaFkUcb0Q==}
     engines: {node: '>=0.8.x'}
 
+  fast-check@4.8.0:
+    resolution: {integrity: sha512-GOJ158CUMnN6cSahsv4+ExARvIDuzzinFjkp0E9WtiBa5zcVeLozVkWaE4IzFcc+Y48Wp1EDlUZsXRyAztQcSg==}
+    engines: {node: '>=12.17.0'}
+
   fast-xml-builder@1.1.5:
     resolution: {integrity: sha512-4TJn/8FKLeslLAH3dnohXqE3QSoxkhvaMzepOIZytwJXZO69Bfz0HBdDHzOTOon6G59Zrk6VQ2bEiv1t61rfkA==}
 
@@ -384,6 +404,9 @@ packages:
 
   pend@1.2.0:
     resolution: {integrity: sha512-F3asv42UuXchdzt+xXqfW1OGlVBe+mxa2mqI0pg5yAHZPvFmY3Y6drSf/GQ1A86WgWEN9Kzh/WrgKa6iGcHXLg==}
+
+  pure-rand@8.4.1:
+    resolution: {integrity: sha512-c58R2+SPFcSIPXoU834QN/KPDDOSd8sXcSrqf6e83Me6Rrp1EYkxukkjXMVrKvKaADs1SOyNkWdfvLf6zY8qLQ==}
 
   resolve-pkg-maps@1.0.0:
     resolution: {integrity: sha512-seS2Tj26TBVOC2NIc2rOe2y2ZO7efxITtLZcGSOnHHNOQ7CkiUBfw0Iw2ck6xkIhPwLhKNLS8BO+hEpngQlqzw==}
@@ -695,6 +718,10 @@ snapshots:
 
   events@3.3.0: {}
 
+  fast-check@4.8.0:
+    dependencies:
+      pure-rand: 8.4.1
+
   fast-xml-builder@1.1.5:
     dependencies:
       path-expression-matcher: 1.5.0
@@ -732,6 +759,8 @@ snapshots:
   path-expression-matcher@1.5.0: {}
 
   pend@1.2.0: {}
+
+  pure-rand@8.4.1: {}
 
   resolve-pkg-maps@1.0.0: {}
 
