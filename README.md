@@ -150,6 +150,7 @@ editor/IDE metadata is also ignored by git and should not be treated as repo con
 
 Historical source material and design notes that are worth keeping but are not authoritative runtime docs live under `docs/reference/`. Retained images and branding assets live under `assets/reference/`.
 
+
 ## Release and Operations
 
 For release gating and day-to-day operation, start with:
